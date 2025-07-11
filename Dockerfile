@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && docker-php-ext-install pdo pdo_mysql zip
 
-# Copy only required files (excluding node_modules, etc.)
+# Copy files and ensure correct permissions
 COPY --chown=www-data:www-data . .
+RUN chmod -R 755 /var/www/html
 
 # File permissions handled by Railway volumes configuration
