@@ -14,4 +14,4 @@ RUN apt-get update && apt-get install -y \
 # Copy only required files (excluding node_modules, etc.)
 COPY --chown=www-data:www-data . .
 
-# Railway automatically handles volumes - no VOLUME directive needed
+# File permissions handled by Railway volumes configuration
