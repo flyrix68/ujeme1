@@ -1,6 +1,10 @@
 FROM php:8.2-apache
 WORKDIR /var/www/html
 
+# Configure Apache
+COPY apache-config.conf /etc/apache2/conf-available/000-default.conf
+RUN a2enconf 000-default
+
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     libzip-dev \
