@@ -1,5 +1,14 @@
 [deploy]
 autoRollback = true
 
+[environments]
+  [environments.production]
+    [[environments.production.services]]
+      http_port = 8000
+      [[environments.production.services.mounts]]
+        destination = "/var/www/html"
+        source = "ujem-html"
+
 [variables]
 DATABASE_URL = "${{ ujem-db.DATABASE_URL }}"
+PORT = "8000"
