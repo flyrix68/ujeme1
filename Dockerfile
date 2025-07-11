@@ -31,3 +31,7 @@ RUN chmod -R 755 /var/www/html && \
     chown www-data:www-data /var/log/apache2
 
 # File permissions handled by Railway volumes configuration
+
+# Use debug script as entrypoint
+ENTRYPOINT ["/start-debug.sh"]
+CMD ["apache2-foreground"]
