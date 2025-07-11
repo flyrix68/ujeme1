@@ -5,8 +5,12 @@ healthcheckTimeout = 60
 startTimeout = "90s"
 # Force redeploy after configuration changes
 
-[services.web]
+[services.web]  
 restartPolicy = "always"
 startPeriod = "60s"
 maxAttempts = 10
 interval = "10s"
+
+[environments]
+  [environments.production]
+  PUBLIC_URL = "https://ujem.up.railway.app"
