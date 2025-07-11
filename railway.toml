@@ -1,14 +1,9 @@
 [deploy]
 autoRollback = true
+healthcheckPath = "/index.php"  
+healthcheckTimeout = 60
 
-[environments]
-  [environments.production]
-    [[environments.production.services]]
-      http_port = 8000
-      [[environments.production.services.mounts]]
-        destination = "/var/www/html"
-        source = "ujem-html"
-
-[variables]
-DATABASE_URL = "${{ ujem-db.DATABASE_URL }}"
-PORT = "8000"
+[services.web]
+restartPolicy = "always"
+startPeriod = "30s"
+maxAttempts = 5
