@@ -1,0 +1,47 @@
+# Railway ignore file - files to exclude from deployment
+
+# Development files
+.git/
+.gitignore
+README.md
+docker-compose.yml
+
+# Local development
+.env.local
+.env.development
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+
+# Large uploads (will be handled by Railway volumes)
+uploads/events/*
+uploads/logos/*
+uploads/medias/*
+uploads/players/*
+uploads/profiles/*
+
+# Keep directory structure but ignore content
+!uploads/events/.gitkeep
+!uploads/logos/.gitkeep
+!uploads/medias/.gitkeep
+!uploads/players/.gitkeep
+!uploads/profiles/.gitkeep

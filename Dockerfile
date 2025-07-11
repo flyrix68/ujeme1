@@ -1,15 +1,15 @@
 FROM php:8.2-apache
-EXPOSE 80
 WORKDIR /var/www/html
 
 # Debug Apache status
 RUN echo "PS1='\[\e[31m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\] \$ '" >> /root/.bashrc
 RUN echo "alias ll='ls -la'" >> /root/.bashrc
 
-# Configure Apache
-COPY apache-config.conf /etc/apache2/conf-available/000-default.conf
-RUN a2enconf 000-default
+# Configure Apache for Railway
+COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
+RUN a2ensite 000-default
 RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+RUN echo "Listen \${PORT}" > /etc/apache2/ports.conf
 
 # Debug startup
 RUN echo "#!/bin/sh" > /start-debug.sh
@@ -26,12 +26,14 @@ RUN apt-get update && apt-get install -y \
 # Enable debug logging and copy files
 RUN echo "error_log = /var/log/php_errors.log" >> /usr/local/etc/php/conf.d/error-logging.ini
 COPY --chown=www-data:www-data . .
-RUN chmod -R 755 /var/www/html && \
-    mkdir -p /var/log/apache2 && \
-    chown www-data:www-data /var/log/apache2
 
-# File permissions handled by Railway volumes configuration
+# Make start script executable
+RUN chmod +x /var/www/html/start.sh
 
-# Use debug script as entrypoint
-ENTRYPOINT ["/start-debug.sh"]
-CMD ["apache2-foreground"]
+# Create necessary directories and set permissions
+RUN mkdir -p /var/log/apache2 /var/www/html/uploads/{events,logos,medias,players,profiles} && \
+    chown -R www-data:www-data /var/www/html /var/log/apache2 && \
+    chmod -R 755 /var/www/html
+
+# Use custom start script
+CMD ["/var/www/html/start.sh"]
