@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: ujem-web
+    runtime: docker
+    build:
+      dockerfile: Dockerfile
+    env: production
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: ujem-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ujem-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ujem-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ujem-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ujem-db
+          property: password
+    port: 8000
+
+databases:
+  - name: ujem-db
+    plan: free
+    databaseName: app_db
+    user: app_user
