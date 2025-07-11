@@ -1,9 +1,25 @@
 <?php
-// Configuration pour serveur XAMPP local
-$host = getenv('DB_HOST') ?: 'db'; // Nom du service dans docker-compose
-$dbname = getenv('DB_NAME') ?: 'app_db'; // Doit correspondre à MYSQL_DATABASE dans docker-compose
-$username = getenv('DB_USER') ?: 'app_user'; // Doit correspondre à MYSQL_USER dans docker-compose
-$password = getenv('DB_PASSWORD') ?: 'userpassword'; // Doit correspondre à MYSQL_PASSWORD dans docker-compose
+// Configuration for both Railway production and local development
+$dbUrl = getenv('DATABASE_URL');
+if ($dbUrl) {
+    // Parse Railway-style DATABASE_URL
+    $url = parse_url($dbUrl);
+    $host = $url['host'];
+    $port = $url['port'] ?? 3306;
+    $dbname = ltrim($url['path'] ?? '', '/');
+    $username = $url['user'];
+    $password = $url['pass'];
+    
+    // Use MySQL for Railway
+    $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
+} else {
+    // Fallback local development config
+    $host = 'db';
+    $dbname = 'app_db';
+    $username = 'app_user'; 
+    $password = 'userpassword';
+    $dsn = "mysql:host=$host;dbname=$dbname;charset=utf8mb4";
+}
 
 $options = [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
