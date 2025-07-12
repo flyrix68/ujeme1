@@ -93,7 +93,7 @@ try {
             </li>
         </ul>
 
-        <!-- Tabs Content -->
+        <!-- Tabs Contents -->
         <div class="tab-content" id="teamsTabsContent">
             <!-- Teams Tab -->
             <div class="tab-pane fade show active" id="teams" role="tabpanel" aria-labelledby="teams-tab">
