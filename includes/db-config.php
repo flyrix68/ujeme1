@@ -14,11 +14,12 @@ if ($dbUrl) {
     $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
 } else {
     // Check for individual environment variables (Railway alternative format)
-    $host = getenv('MYSQLHOST') ?: getenv('DB_HOST') ?: 'db';
-    $port = getenv('MYSQLPORT') ?: getenv('DB_PORT') ?: 3306;
-    $dbname = getenv('MYSQLDATABASE') ?: getenv('DB_NAME') ?: 'app_db';
-    $username = getenv('MYSQLUSER') ?: getenv('DB_USER') ?: 'app_user';
-    $password = getenv('MYSQLPASSWORD') ?: getenv('DB_PASSWORD') ?: 'userpassword';
+    // Railway uses these standard environment variable names
+    $host = getenv('MYSQLHOST') ?: 'localhost';
+    $port = getenv('MYSQLPORT') ?: 3306;
+    $dbname = getenv('MYSQLDATABASE') ?: 'app_db';
+    $username = getenv('MYSQLUSER') ?: 'root';
+    $password = getenv('MYSQLPASSWORD') ?: '';
 
     $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
 }
