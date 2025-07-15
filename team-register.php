@@ -14,8 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 2. Enregistrer les joueurs
         savePlayers($teamId, $_POST['players'], $_FILES['players']);
         
-        // 3. Envoyer l'email de confirmation
-        sendConfirmationEmail($_POST['manager_email'], $_POST['team_name']);
+        // 3. Envoyer l'email de confirmation si l'email est fourni
+        if (!empty($_POST['manager_email'])) {
+            sendConfirmationEmail($_POST['manager_email'], $_POST['team_name']);
+        }
         
         // Valider la transaction
         $pdo->commit();
@@ -35,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AssociationPlus - Inscription d'équipe</title>
+    <title>UJEM - Inscription d'équipe</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome pour les icônes -->
@@ -119,9 +121,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <div class="invalid-feedback">Veuillez indiquer un numéro de téléphone valide.</div>
                                 </div>
                                 <div class="col-12">
-                                    <label for="manager_email" class="form-label">Email*</label>
-                                    <input type="email" class="form-control" id="manager_email" name="manager_email" required>
-                                    <div class="invalid-feedback">Veuillez indiquer une adresse email valide.</div>
+                                    <label for="manager_email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="manager_email" name="manager_email">
+                                    <div class="form-text">Optionnel - utilisé uniquement pour l'envoi de confirmation</div>
                                 </div>
                             </div>
                         </div>
@@ -130,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <!-- Section Joueurs -->
                     <div class="card mb-4">
                         <div class="card-header bg-light">
-                            <h4 class="mb-0"><i class="fas fa-running me-2"></i>Joueurs (minimum 7, maximum 20)</h4>
+                            <h4 class="mb-0"><i class="fas fa-running me-2"></i>Joueurs (minimum 7, maximum 10)</h4>
                         </div>
                         <div class="card-body">
                             <div id="playersList">
