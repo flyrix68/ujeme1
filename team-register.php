@@ -271,16 +271,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         event.stopPropagation();
                         return;
                     }
-                    
-                    if (!form.checkValidity()) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                    }
-                    
-                    form.classList.add('was-validated');
-                }, false)
-            })
-        })()
         
         // Afficher/masquer les messages de période d'inscription
         function updateRegistrationStatus() {
