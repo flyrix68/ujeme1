@@ -1,8 +1,8 @@
 [deploy]
 autoRollback = true
 healthcheckPath = "/api/health.php"
-healthcheckTimeout = 60
-startTimeout = "90s"
+healthcheckTimeout = 120
+startTimeout = "180s"
 # Force redeploy after configuration changes
 
 [services.web]  
