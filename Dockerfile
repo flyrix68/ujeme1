@@ -27,13 +27,13 @@ RUN apt-get update && apt-get install -y \
 RUN echo "error_log = /var/log/php_errors.log" >> /usr/local/etc/php/conf.d/error-logging.ini
 COPY --chown=www-data:www-data . .
 
-# Make start script executable
-RUN chmod +x /var/www/html/start.sh
+# Copy and set execute permission for entrypoint
+COPY docker-entrypoint.sh /
+RUN chmod +x /docker-entrypoint.sh
 
-# Create necessary directories and set permissions
-RUN mkdir -p /var/log/apache2 /var/www/html/uploads/{events,logos,medias,players,profiles} && \
-    chown -R www-data:www-data /var/www/html /var/log/apache2 && \
-    chmod -R 755 /var/www/html
+# Create necessary directories
+RUN mkdir -p /var/log/apache2 /var/www/html/uploads/{events,logos,medias,players,profiles}
 
-# Use custom start script
-CMD ["/var/www/html/start.sh"]
+# Use entrypoint script
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["apache2-foreground"]
