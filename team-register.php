@@ -220,14 +220,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Valeurs par défaut si l'API échoue
                 registrationPeriods = {
                     'Coupe-UJEM': {
-                        start: '2025-09-01',
-                        end: '2025-10-15'
+                        start: '2025-07-01',
+                        end: '2025-12-31'
                     },
                     'Tournoi': {
-                        start: '2025-10-16', 
-                        end: '2025-11-30'
+                        start: '2025-07-01', 
+                        end: '2025-12-31'
                     }
                 };
+                console.log('Using fallback registration periods');
             }
         }
 
@@ -244,34 +245,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return today >= startDate && today <= endDate;
         }
 
-        // Validation du formulaire
-        (() => {
-            'use strict'
-            
-            // Récupérer tous les formulaires auxquels nous voulons appliquer des styles de validation Bootstrap personnalisés
-            const forms = document.querySelectorAll('.needs-validation')
-            
-            // Boucle sur eux et empêche la soumission
-            Array.from(forms).forEach(form => {
-                form.addEventListener('submit', event => {
-                    const category = document.getElementById('team_category').value;
-                    
-                    // Vérifier la période d'inscription
-                    if (!isRegistrationOpen(category)) {
-                        alert('Les inscriptions pour cette catégorie sont fermées.');
-                        event.preventDefault();
-                        event.stopPropagation();
-                        return;
-                    }
-                    
-                    const playerItems = document.querySelectorAll('.player-item');
-                    if (playerItems.length < 7) {
-                        alert('Vous devez inscrire au minimum 7 joueurs.');
-                        event.preventDefault();
-                        event.stopPropagation();
-                        return;
-                    }
-        
+        // Formater une date en français (JJ/MM/AAAA)
+        function formatDate(date) {
+            return date.toLocaleDateString('fr-FR');
+        }
+
         // Afficher/masquer les messages de période d'inscription
         function updateRegistrationStatus() {
             const category = document.getElementById('team_category').value;
@@ -307,13 +285,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Formater une date en français (JJ/MM/AAAA)
-        function formatDate(date) {
-            return date.toLocaleDateString('fr-FR');
-        }
+        // Validation du formulaire
+        (function() {
+            'use strict';
+            
+            // Récupérer tous les formulaires
+            const forms = document.querySelectorAll('.needs-validation');
+            
+            // Boucle sur les formulaires
+            Array.from(forms).forEach(form => {
+                form.addEventListener('submit', function(event) {
+                    const category = document.getElementById('team_category').value;
+                    
+                    // Vérifier la période d'inscription
+                    if (!isRegistrationOpen(category)) {
+                        alert('Les inscriptions pour cette catégorie sont fermées.');
                         event.preventDefault();
                         event.stopPropagation();
-                        return;
+                        return false;
+                    }
+                    
+                    // Vérifier nombre de joueurs
+                    const playerItems = document.querySelectorAll('.player-item');
+                    if (playerItems.length < 7) {
+                        alert('Vous devez inscrire au minimum 7 joueurs.');
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return false;
                     }
                     
                     if (!form.checkValidity()) {
@@ -322,11 +320,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     
                     form.classList.add('was-validated');
-                }, false)
-            })
-        })()
-        
-        // Gestion dynamique des joueurs
+                }, false);
+            });
+        })();
+
         document.addEventListener('DOMContentLoaded', function() {
             const playersList = document.getElementById('playersList');
             const addPlayerBtn = document.getElementById('addPlayer');
@@ -338,9 +335,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 playerCountDisplay.textContent = count + (count === 1 ? ' joueur' : ' joueurs');
                 
                 // Activer ou désactiver le bouton d'ajout en fonction du nombre de joueurs
-                if (count >= 20) {
+                if (count >= 10) {
                     addPlayerBtn.disabled = true;
-                    addPlayerBtn.title = 'Maximum 20 joueurs par équipe';
+                    addPlayerBtn.title = 'Maximum 10 joueurs par équipe';
                 } else {
                     addPlayerBtn.disabled = false;
                     addPlayerBtn.title = '';
@@ -359,8 +356,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             addPlayerBtn.addEventListener('click', function() {
                 const playerCount = document.querySelectorAll('.player-item').length;
                 
-                if (playerCount >= 20) {
-                    alert('Maximum 20 joueurs par équipe');
+                if (playerCount >= 10) {
+                    alert('Maximum 10 joueurs par équipe');
                     return;
                 }
                 
