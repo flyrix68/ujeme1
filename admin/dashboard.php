@@ -243,21 +243,24 @@ function updateStandings($matchId, $pdo) {
     }
 }
 
-// Check if registration_periods table exists, create if not
-try {
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS registration_periods (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            start_date DATETIME NOT NULL,
-            end_date DATETIME NOT NULL,
-            closed_message TEXT,
-            is_active BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
-} catch (PDOException $e) {
-    error_log("Error creating registration_periods table: " . $e->getMessage());
-}
+        // Check if registration_periods table exists, create if not
+        try {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS registration_periods (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    category VARCHAR(50) NOT NULL DEFAULT 'default',
+                    start_date DATETIME NOT NULL,
+                    end_date DATETIME NOT NULL,
+                    closed_message TEXT,
+                    is_active BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX (category),
+                    INDEX (is_active)
+                )
+            ");
+        } catch (PDOException $e) {
+            error_log("Error creating registration_periods table: " . $e->getMessage());
+        }
 
 // Fetch ongoing matches
 try {
@@ -303,7 +306,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ['score_home' => $scoreHome, 'score_away' => $scoreAway]
             );
 
-            $pdo->commit();
+            // Handle registration period form submission
+        if (isset($_POST['add_period']) || isset($_POST['update_period'])) {
+            $periodId = filter_input(INPUT_POST, 'period_id', FILTER_VALIDATE_INT);
+            $startDate = filter_input(INPUT_POST, 'start_date', FILTER_SANITIZE_STRING);
+            $endDate = filter_input(INPUT_POST, 'end_date', FILTER_SANITIZE_STRING);
+            $closedMessage = filter_input(INPUT_POST, 'closed_message', FILTER_SANITIZE_STRING);
+            $isActive = isset($_POST['is_active']) ? 1 : 0;
+            $category = 'default'; // Can be extended to support multiple categories
+
+            // Validate dates
+            if (!$startDate || !$endDate || strtotime($startDate) === false || strtotime($endDate) === false) {
+                throw new RuntimeException("Dates invalides");
+            }
+
+            if (isset($_POST['add_period'])) {
+                // Insert new period
+                $stmt = $pdo->prepare("
+                    INSERT INTO registration_periods 
+                    (category, start_date, end_date, closed_message, is_active)
+                    VALUES (?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([$category, $startDate, $endDate, $closedMessage, $isActive]);
+                $_SESSION['message'] = "Période d'inscription ajoutée avec succès!";
+            } else {
+                // Update existing period
+                if (!$periodId) {
+                    throw new RuntimeException("ID de période invalide");
+                }
+                $stmt = $pdo->prepare("
+                    UPDATE registration_periods SET
+                    start_date = ?,
+                    end_date = ?,
+                    closed_message = ?,
+                    is_active = ?
+                    WHERE id = ?
+                ");
+                $stmt->execute([$startDate, $endDate, $closedMessage, $isActive, $periodId]);
+                $_SESSION['message'] = "Période d'inscription mise à jour avec succès!";
+            }
+        }
+
+        // Handle period deletion
+        if (isset($_POST['delete_period'])) {
+            $periodId = filter_input(INPUT_POST, 'period_id', FILTER_VALIDATE_INT);
+            if (!$periodId) {
+                throw new RuntimeException("ID de période invalide");
+            }
+            $stmt = $pdo->prepare("DELETE FROM registration_periods WHERE id = ?");
+            $stmt->execute([$periodId]);
+            $_SESSION['message'] = "Période d'inscription supprimée avec succès!";
+        }
+
+        $pdo->commit();
             $_SESSION['message'] = "Score mis à jour avec succès !";
             header("Location: dashboard.php");
             exit();

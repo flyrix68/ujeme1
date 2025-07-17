@@ -34,6 +34,6 @@ RUN chmod +x /docker-entrypoint.sh
 # Create necessary directories
 RUN mkdir -p /var/log/apache2 /var/www/html/uploads/{events,logos,medias,players,profiles}
 
-# Use entrypoint script
+# Use the entrypoint script
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["apache2-foreground"]
