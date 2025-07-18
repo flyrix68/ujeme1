@@ -2,6 +2,9 @@
 header('Content-Type: application/json; charset=UTF-8');
 require_once __DIR__ . '/../includes/db-config.php';
 
+// Get database connection
+$pdo = DatabaseConfig::getConnection();
+
 function notifyWebSocket($matchId) {
     $context = new ZMQContext();
     $socket = $context->getSocket(ZMQ::SOCKET_PUSH);
