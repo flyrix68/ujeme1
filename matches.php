@@ -1,6 +1,7 @@
 <?php
 // Connexion à la base de données
 require_once 'includes/db-config.php';
+$pdo = DatabaseConfig::getConnection();
 
 // Récupération des filtres - vérification exacte du type de compétition
 $rawCompetition = $_GET['competition'] ?? 'coupe';

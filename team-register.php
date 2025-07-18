@@ -297,13 +297,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 form.addEventListener('submit', function(event) {
                     const category = document.getElementById('team_category').value;
                     
-                    // Vérifier la période d'inscription
-                    if (!isRegistrationOpen(category)) {
-                        alert('Les inscriptions pour cette catégorie sont fermées.');
-                        event.preventDefault();
-                        event.stopPropagation();
-                        return false;
-                    }
+                    // Désactivation de la vérification de période d'inscription
+                    console.log('Validation de période d\'inscription désactivée');
                     
                     // Vérifier nombre de joueurs
                     const playerItems = document.querySelectorAll('.player-item');

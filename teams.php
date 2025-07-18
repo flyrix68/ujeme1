@@ -2,7 +2,9 @@
 require 'includes/db-config.php';
 
 try {
-    // Query for teams
+    $pdo = DatabaseConfig::getConnection();
+    
+    // Query for teams  
     $stmt = $pdo->query("
         SELECT t.*, COUNT(p.id) as player_count
         FROM teams t
