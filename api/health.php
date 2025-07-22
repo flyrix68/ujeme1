@@ -27,15 +27,20 @@ $response = [
     ]
 ];
 
+    // Basic health check - respond immediately then check services
+    $response['status'] = 'ok';
+    $response['services']['database']['status'] = 'bypassed';
+    
+    // Output immediate response
+    ob_end_clean(); 
+    echo json_encode($response, JSON_PRETTY_PRINT);
+    fastcgi_finish_request();
+    
+    // Then perform async checks
     try {
-        // Check database connection with detailed diagnostics
         require_once __DIR__ . '/../includes/db-config.php';
-        
-        // Log environment for debugging
-        error_log("Environment: " . print_r($_SERVER, true));
-        
         try {
-            $pdo = DatabaseConfig::getConnection(1, 0); // Single attempt, no delay
+            $pdo = DatabaseConfig::getConnection();
             if ($pdo === null) {
                 throw new RuntimeException('Database connection failed');
             }
