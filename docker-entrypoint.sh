@@ -1,10 +1,31 @@
 #!/bin/bash
-# Enable debugging and error trapping
-set -x
-exec > >(tee /var/log/startup.log) 2>&1
-trap 'echo "Error on line $LINENO"; exit 1' ERR
+# Enhanced debugging
+set -exo
+#!/bin/bash
+# Enhanced Debug Mode - runs before anything else
+set -ex
+exec > >(tee /var/log/startup-debug.log) 2>&1
+trap 'echo "[CRITICAL] Failed at line $LINENO"; tail -n 50 /var/log/startup-debug.log; exit 1' ERR
 
-# Initial debug info
+echo "===== STARTING DEBUG SESSION ====="
+date
+echo "Current user: $(whoami)"
+echo "Working directory: $(pwd)"
+echo "Disk space:"
+df -h
+echo "Memory:"
+free -m
+echo "Environment variables:"
+printenv
+echo "PHP version:"
+php -v
+echo "Apache version:"
+apache2ctl -v
+echo "Important binaries:"
+which php apache2ctl mysql
+echo "Directory contents:"
+ls -la /var/www/html
+
 echo "===== STARTING CONTAINER ====="
 date
 echo "Environment:"
