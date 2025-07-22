@@ -1,5 +1,18 @@
 #!/bin/bash
-set -e
+# Enable debugging and error trapping
+set -x
+exec > >(tee /var/log/startup.log) 2>&1
+trap 'echo "Error on line $LINENO"; exit 1' ERR
+
+# Initial debug info
+echo "===== STARTING CONTAINER ====="
+date
+echo "Environment:"
+printenv
+echo "PHP modules:"
+php -m
+echo "Apache version:"
+apache2ctl -v
 
 # Configure Apache
 export PORT=${PORT:-80}
