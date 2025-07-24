@@ -1,20 +1,17 @@
 <?php
-require_once 'includes/db-config.php';
+require_once __DIR__.'/includes/db-config.php';
 
 try {
     $pdo = DatabaseConfig::getConnection();
-    echo "Successfully connected to Railway MySQL with SSL!\n";
+    echo "Successfully connected to Railway database!\n";
 
-    // Test SSL status
-    $sslStatus = $pdo->query("SHOW STATUS LIKE 'Ssl_cipher'")->fetch(PDO::FETCH_ASSOC);
-    echo "SSL Connection Info:\n";
-    echo "- Cipher: " . ($sslStatus['Value'] ?: 'None') . "\n";
-    
-    // List tables
-    $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-    echo "Tables: " . implode(', ', $tables) . "\n";
-    
+    // Test teams table exists and has records
+    $teams = $pdo->query("SELECT COUNT(*) FROM teams")->fetchColumn();
+    echo "Teams table contains $teams records\n";
+
 } catch (PDOException $e) {
-    die("Connection failed: " . $e->getMessage());
+    echo "Railway DB Connection failed: " . $e->getMessage() . "\n";
+    error_log("Railway connection error: " . $e->getMessage());
+    echo "Detailed error info:\n";
+    print_r($e);
 }
-?>
