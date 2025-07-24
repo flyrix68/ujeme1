@@ -26,8 +26,16 @@ try {
 
     $teamId = (int)$_GET['id'];
 
-    // Récupérer les infos de l'équipe
-    $stmt = $pdo->prepare("SELECT * FROM teams WHERE id = ?");
+    // Récupérer les infos de l'équipe avec le chemin complet du logo
+    $stmt = $pdo->prepare("
+        SELECT t.*, 
+               CASE 
+                   WHEN t.logo_path IS NOT NULL THEN CONCAT('/uploads/logos/', t.logo_path)
+                   ELSE '/assets/img/teams/default.png'
+               END AS logo_full_path
+        FROM teams t 
+        WHERE t.id = ?
+    ");
     $stmt->execute([$teamId]);
     $team = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -129,15 +137,14 @@ try {
                     <div class="card-body">
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <?php if ($team['logo_path']): ?>
-                                    <img src="<?= htmlspecialchars($team['logo_path']) ?>" 
-                                         alt="Logo de <?= htmlspecialchars($team['team_name']) ?>" 
-                                         class="team-logo mb-3">
-                                <?php else: ?>
-                                    <img src="assets/img/teams/default.png" 
-                                         alt="Logo par défaut" 
-                                         class="team-logo mb-3">
-                                <?php endif; ?>
+                                <?php 
+                                // Utiliser le chemin complet du logo généré par la requête SQL
+                                $logoPath = $team['logo_path'] ? '/uploads/logos/' . $team['logo_path'] : '/assets/img/teams/default.png';
+                                ?>
+                                <img src="<?= htmlspecialchars($logoPath) ?>" 
+                                     alt="Logo de <?= htmlspecialchars($team['team_name']) ?>" 
+                                     class="team-logo mb-3"
+                                     onerror="this.src='/assets/img/teams/default.png';">
                                 <p><strong>Catégorie :</strong> <?= htmlspecialchars($team['category'] ?? 'Non spécifié') ?></p>
                                 <p><strong>Localisation :</strong> <?= htmlspecialchars($team['location'] ?? 'Non spécifié') ?></p>
                             </div>

@@ -4,9 +4,14 @@ require 'includes/db-config.php';
 try {
     $pdo = DatabaseConfig::getConnection();
     
-    // Query for teams  
+    // Query for teams with proper logo paths
     $stmt = $pdo->query("
-        SELECT t.*, COUNT(p.id) as player_count
+        SELECT t.*, 
+               COUNT(p.id) as player_count,
+               CASE 
+                   WHEN t.logo_path IS NOT NULL THEN CONCAT('/uploads/logos/', t.logo_path)
+                   ELSE '/assets/img/teams/default.png'
+               END AS logo_full_path
         FROM teams t
         LEFT JOIN players p ON t.id = p.team_id
         GROUP BY t.id
@@ -111,15 +116,14 @@ try {
                         <?php foreach ($teams as $team): ?>
                             <div class="col-md-6 col-lg-4 mb-4">
                                 <div class="card h-100">
-                                    <?php if ($team['logo_path']): ?>
-                                        <?php 
-                                        $logoPath = $team['logo_path'];
-                                        if ($logoPath && file_exists($_SERVER['DOCUMENT_ROOT'] . $logoPath)): ?>
-                                            <img src="<?= htmlspecialchars($logoPath) ?>" class="card-img-top img-fluid" alt="<?= htmlspecialchars($team['team_name']) ?>" style="max-height: 200px; width: auto;">
-                                        <?php else: ?>
-                                            <img src="/assets/img/teams/default.png" class="card-img-top img-fluid" alt="Logo par défaut" style="max-height: 200px; width: auto;">
-                                        <?php endif; ?>
-                                    <?php endif; ?>
+                                    <?php 
+                                    // Utiliser le chemin complet du logo généré par la requête SQL
+                                    $logoPath = $team['logo_path'] ? '/uploads/logos/' . $team['logo_path'] : '/assets/img/teams/default.png';
+                                    ?>
+                                    <img src="<?= htmlspecialchars($logoPath) ?>" 
+                                         class="card-img-top img-fluid" 
+                                         alt="Logo de <?= htmlspecialchars($team['team_name']) ?>" 
+                                         style="max-height: 200px; width: auto; object-fit: contain;">
                                     <div class="card-body">
                                         <h3 class="card-title"><?= htmlspecialchars($team['team_name']) ?></h3>
                                         <p class="text-muted"><i class="fas fa-tag me-2"></i><?= htmlspecialchars($team['category']) ?></p>
