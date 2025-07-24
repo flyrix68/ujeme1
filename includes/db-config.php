@@ -1,4 +1,4 @@
-&lt;?php
+<?php
 class DatabaseConfig {
     private static $pdo = null;
     private static $last_connection_time = null;
@@ -6,10 +6,10 @@ class DatabaseConfig {
     public static function getConnection($maxRetries = 3, $retryDelay = 1) {
         $attempt = 0;
         
-        while ($attempt &lt; $maxRetries) {
+        while ($attempt < $maxRetries) {
             try {
                 // Reuse connection if recent
-                if (self::$pdo !== null &amp;&amp; time() - self::$last_connection_time &lt; 300) {
+                if (self::$pdo !== null && time() - self::$last_connection_time < 300) {
                     return self::$pdo;
                 }
                 self::$pdo = null;
@@ -71,14 +71,14 @@ class DatabaseConfig {
 
                 error_log("Connecting to $dbHost as $dbUser");
                 self::$pdo = new PDO($dsn, $dbUser, $dbPass, $options);
-                self::$pdo-&gt;query('SELECT 1')-&gt;fetchColumn(); // Test connection
+                self::$pdo->query('SELECT 1')->fetchColumn(); // Test connection
                 
                 error_log("Connected to database $dbName");
                 self::$last_connection_time = time();
                 return self::$pdo;
 
             } catch (PDOException $e) {
-                error_log("DB Connection Attempt ".($attempt+1)." failed: ".$e-&gt;getMessage());
+                error_log("DB Connection Attempt ".($attempt+1)." failed: ".$e->getMessage());
                 if (++$attempt >= $maxRetries) {
                     throw new RuntimeException("Connection failed after $maxRetries attempts: ".$e->getMessage());
                 }
