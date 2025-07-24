@@ -62,8 +62,8 @@ RUN mkdir -p /var/log/apache2 && \
 RUN echo '#!/bin/bash\nset -e\n\n# Apache gets grumpy about PID files pre-existing\nrm -f /var/run/apache2/apache2*.pid\n\n# Start Apache in the background\n/usr/sbin/apache2ctl -D FOREGROUND &\n\n# Wait for Apache to be ready\nwhile ! pgrep -f "apache2 -D FOREGROUND" > /dev/null; do\n  sleep 1\ndone\n\n# Keep the container running\nwhile pgrep -f "apache2 -D FOREGROUND" > /dev/null; do\n  sleep 1\ndone' > /usr/local/bin/apache2-foreground && \
     chmod +x /usr/local/bin/apache2-foreground
 
-# Expose port 80
-EXPOSE 80
+# Expose Railway ports
+EXPOSE 8080 8443
 
 # Use the entrypoint script
 ENTRYPOINT ["/docker-entrypoint.sh"]
