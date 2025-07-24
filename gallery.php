@@ -190,7 +190,7 @@
     <!-- Lightbox JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js"></script>
     <!-- JavaScript personnalisé -->
-    <script src="assets/js/main.js"></script>
+    <script src="/assets/js/main.js"></script>
 </body>
 </html>
     <main class="container py-5">

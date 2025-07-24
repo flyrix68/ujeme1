@@ -9,13 +9,24 @@ ini_set('session.gc_maxlifetime', 3600);
 session_set_cookie_params(3600, '/');
 session_start();
 
-// Database connection
+// Database connection with enhanced validation
 require_once 'includes/db-config.php';
 
-// Verify database connection
-if (!isset($pdo) || $pdo === null) {
-    error_log("Critical error: Database connection not established in process_login.php");
-    $_SESSION['error'] = "Erreur technique lors de la connexion";
+try {
+    $pdo = DatabaseConfig::getConnection();
+    
+    if (!$pdo) {
+        throw new RuntimeException('Failed to get database connection');
+    }
+    
+    // Test connection
+    $pdo->query('SELECT 1');
+    
+    error_log("DB connection validated for login attempt");    
+    
+} catch (Exception $e) {
+    error_log("Login DB error: " . $e->getMessage());
+    $_SESSION['error'] = "Database connection failed. Please try again later.";
     header('Location: index.php');
     exit();
 }

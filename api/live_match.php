@@ -2,8 +2,16 @@
 header('Content-Type: application/json; charset=UTF-8');
 require_once __DIR__ . '/../includes/db-config.php';
 
-// Get database connection
-$pdo = DatabaseConfig::getConnection();
+// Initialize database connection
+try {
+    $pdo = DatabaseConfig::getConnection();
+    if (!$pdo) {
+        throw new Exception('Failed to connect to database');
+    }
+} catch (Exception $e) {
+    http_response_code(500);
+    die(json_encode(['success' => false, 'error' => $e->getMessage()]));
+}
 
 function notifyWebSocket($matchId) {
     $context = new ZMQContext();
@@ -38,22 +46,23 @@ try {
 
     // Ajoute les buts, cartons et calcul du temps pour chaque match
     foreach ($matches as &$match) {
-        // Calculer le temps actuel
+        // Calculate current time with pause handling
         $elapsed = (int)($match['timer_elapsed'] ?? 0);
-        if ($match['timer_start_unix']) {
-            $elapsed += time() - $match['timer_start_unix'];
+        
+        if ($match['timer_status'] === 'first_half' && $match['timer_start_unix']) {
+            $elapsed = time() - $match['timer_start_unix'];
+        } elseif ($match['timer_status'] === 'second_half' && $match['second_half_start']) {
+            $elapsed = floor($match['timer_duration'] / 2) + (time() - strtotime($match['second_half_start']));
         }
-        if ($elapsed < 0) {
-            $elapsed = 0;
+        
+        // Apply extra time
+        if ($match['timer_status'] === 'first_half') {
+            $elapsed += (int)($match['first_half_extra'] ?? 0);
+        } elseif ($match['timer_status'] === 'second_half') {
+            $elapsed += (int)($match['second_half_extra'] ?? 0);
         }
-
-        // Limiter le temps selon la mi-temps et le temps additionnel
-        $halfDuration = floor(($match['timer_duration'] ?? 5400) / 2);
-        $additionalTime = $match['timer_status'] === 'first_half' ? ($match['first_half_extra'] ?? 0) : ($match['second_half_extra'] ?? 0);
-        $limit = $halfDuration + $additionalTime;
-        if ($elapsed > $limit) {
-            $elapsed = $limit;
-        }
+        
+        $elapsed = max(0, $elapsed); // Ensure non-negative
 
         $minutes = floor($elapsed / 60);
         $seconds = $elapsed % 60;

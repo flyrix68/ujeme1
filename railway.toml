@@ -1,16 +1,45 @@
-[deploy]
-autoRollback = true
-healthcheckPath = "/api/health.php"
-healthcheckTimeout = 120
-startTimeout = "180s"
-# Force redeploy after configuration changes
+[build]
+  builder = "nixpacks"
+  buildCommand = "docker build -t ujem ."
+  runCommand = "/docker-entrypoint.sh"
 
-[services.web]  
-restartPolicy = "always"
-startPeriod = "60s"
-maxAttempts = 10
-interval = "10s"
+[deploy]
+  autoRollback = true
+  healthcheckPath = "/api/health.php"
+  healthcheckTimeout = 30
+  startTimeout = "300s"
+  restartPolicy = "on-failure"
+  restartDelay = "5s"
+  maxRestarts = 5
 
 [environments]
   [environments.production]
-  PUBLIC_URL = "https://ujem.up.railway.app"
+  PUBLIC_URL = "https://ujem-web-production-3421.up.railway.app"
+  PORT = "8080"  # Railway will override this with their own port
+
+[services.web]
+  startCommand = "/docker-entrypoint.sh"
+  httpPort = 8080
+  internalPort = 8080
+  startTimeout = 300
+  restartPolicy = "on-failure"
+  restartDelay = "5s"
+  maxRestarts = 5
+
+# Configure persistent storage for uploads
+[volumes]
+  [volumes.uploads]
+  mountPath = "/var/www/html/uploads"
+  size = "1GB"
+
+# Configure build settings
+[build]
+  builder = "nixpacks"
+  buildCommand = "docker build -t ujem ."
+  runCommand = "/docker-entrypoint.sh"
+assets = { mount_path = "/var/www/html/assets" }
+
+[variables]
+# These will be automatically provided by Railway when provisioned
+# DATABASE_URL = "mysql://user:pass@host:port/dbname"
+# DB_HOST is not needed when using DATABASE_URL

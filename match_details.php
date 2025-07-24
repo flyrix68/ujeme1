@@ -152,9 +152,14 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <div class="text-center">
-                            <img src="assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_home']))) ?>.png" 
-                                 alt="<?= htmlspecialchars($match['team_home']) ?>" width="70" 
-                                 onerror="this.src='assets/img/teams/default.png'">
+                            <?php
+                            $home_logo = 'assets/img/teams/' . htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_home']))) . '.png';
+                            if (!file_exists($home_logo)) {
+                                $home_logo = 'assets/img/teams/default.png';
+                            }
+                            ?>
+                            <img src="<?= DatabaseConfig::getTeamLogo($match['team_home']) ?>" 
+                                 alt="<?= htmlspecialchars($match['team_home']) ?>" width="70">
                             <div class="fw-bold mt-2 fs-5"><?= htmlspecialchars($match['team_home']) ?></div>
                         </div>
                         <div class="text-center">
@@ -178,14 +183,26 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
                                 }
                                 ?>
                             </div>
-                            <small class="text-muted">
-                                Statut: <?= $match['status'] === 'ongoing' ? 'En cours' : 'Terminé' ?>
-                            </small>
+                                <small class="text-muted">
+                                    Statut: 
+                                    <?php if ($match['status'] === 'pending'): ?>
+                                        En attente
+                                    <?php elseif ($match['status'] === 'ongoing'): ?>
+                                        En cours
+                                    <?php else: ?>
+                                        Terminé
+                                    <?php endif; ?>
+                                </small>
                         </div>
                         <div class="text-center">
-                            <img src="assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) ?>.png" 
-                                 alt="<?= htmlspecialchars($match['team_away']) ?>" width="70" 
-                                 onerror="this.src='assets/img/teams/default.png'">
+                            <?php
+                            $away_logo = 'assets/img/teams/' . htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) . '.png';
+                            if (!file_exists($away_logo)) {
+                                $away_logo = 'assets/img/teams/default.png';
+                            }
+                            ?>
+                            <img src="<?= DatabaseConfig::getTeamLogo($match['team_away']) ?>" 
+                                 alt="<?= htmlspecialchars($match['team_away']) ?>" width="70">
                             <div class="fw-bold mt-2 fs-5"><?= htmlspecialchars($match['team_away']) ?></div>
                         </div>
                     </div>

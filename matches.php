@@ -3,21 +3,33 @@
 require_once 'includes/db-config.php';
 $pdo = DatabaseConfig::getConnection();
 
-// Récupération des filtres - vérification exacte du type de compétition
-$rawCompetition = $_GET['competition'] ?? 'coupe';
-$competition = strtolower($rawCompetition) === 'tournoi' ? 'tournoi' : 'coupe';
-error_log("Using competition type: " . $competition);
+// Mise à jour automatique des matchs passés en statut 'waiting'
+try {
+    $updateStmt = $pdo->prepare("
+        UPDATE matches 
+        SET status = 'waiting'
+        WHERE match_date = CURDATE() 
+        AND match_time < TIME(NOW()) 
+        AND status NOT IN ('ongoing', 'completed', 'waiting')
+    ");
+    $updateStmt->execute();
+    error_log("Updated ".$updateStmt->rowCount()." matches to waiting status");
+} catch (PDOException $e) {
+    error_log("Error updating match statuses: ".$e->getMessage());
+}
+
+// On force la compétition à tournoi uniquement
+$competition = 'tournoi';
+error_log("Using competition type: tournament");
 $period = $_GET['period'] ?? 'all';
 $searchTeam = $_GET['searchTeam'] ?? '';
 
-// Requête pour les matchs avec logging des erreurs
+// Requête pour les matchs
 $queryMatches = "SELECT *, UNIX_TIMESTAMP(timer_start) AS timer_start_unix, 
                 COALESCE(score_home, 0) AS score_home, COALESCE(score_away, 0) AS score_away,
                 first_half_duration, timer_status, first_half_extra, second_half_extra
-                FROM matches WHERE LOWER(competition) = LOWER(:competition)";
-error_log("Fetching matches for competition: " . $competition);
-$params = [':competition' => $competition];
-
+                FROM matches WHERE competition = :competition";
+                
 if (!empty($searchTeam)) {
     $queryMatches .= " AND (team_home LIKE :search OR team_away LIKE :search)";
     $params[':search'] = "%$searchTeam%";
@@ -34,9 +46,8 @@ if ($period === 'upcoming') {
 $queryMatches .= " ORDER BY match_date " . ($period === 'upcoming' ? 'ASC' : 'DESC');
 try {
     $stmtMatches = $pdo->prepare($queryMatches);
-    $stmtMatches->execute($params);
+    $stmtMatches->execute([':competition' => $competition]);
     $matches = $stmtMatches->fetchAll(PDO::FETCH_ASSOC);
-    error_log("Found " . count($matches) . " matches for competition " . $competition);
 } catch (PDOException $e) {
     error_log("SQL Error fetching matches: " . $e->getMessage());
     $matches = [];
@@ -60,7 +71,10 @@ function formatMatchDate($date) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UJEM - Matchs & Résultats</title>
+    <title>UJEM - Matchs & Résultats Tournoi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -99,10 +113,8 @@ function formatMatchDate($date) {
         <div class="container">
             <form method="get" class="row g-3">
                 <div class="col-md-3">
-                    <select class="form-select" name="competition" id="competitionFilter">
-                    <option value="coupe" <?= $competition === 'coupe' ? 'selected' : '' ?>>Coupe UJEM</option>
-                    <option value="tournoi" <?= $competition === 'tournoi' ? 'selected' : '' ?>>Tournoi</option>
-                    </select>
+                    <input type="hidden" name="competition" value="tournoi">
+                    <div class="form-control bg-light">Tournoi UJEM</div>
                 </div>
                 <div class="col-md-3">
                     <select class="form-select" name="period" id="periodFilter">
@@ -133,23 +145,7 @@ function formatMatchDate($date) {
                     <i class="fas fa-arrow-left me-2"></i>Retour aux équipes
                 </a>
             </div>
-            <ul class="nav nav-tabs mb-4" id="matchesTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link <?= $competition === 'coupe' ? 'active' : '' ?>" 
-                            id="coupe-tab" data-bs-toggle="tab" data-bs-target="#coupe" 
-                            type="button" role="tab">Coupe</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link <?= $competition === 'tournoi' ? 'active' : '' ?>" 
-                            id="tournoi-tab" data-bs-toggle="tab" data-bs-target="#tournoi" 
-                            type="button" role="tab">Tournoi</button>
-                </li>
-            </ul>
-
-            <?php
-            ob_start();
-            ?>
-            <h3 class="mb-4"><?= ucfirst($competition) ?> UJEM 2024-2025</h3>
+            <h3 class="mb-4">Tournoi UJEM 2024-2025</h3>
 
             <!-- Live Matches Section -->
             <?php if ($period === 'live' || $period === 'all'): ?>
@@ -196,7 +192,7 @@ function formatMatchDate($date) {
                                         <td>
                                             <?= formatMatchDate($match['match_date']) ?>
                                             <br><small class="text-muted"><?= substr($match['match_time'], 0, 5) ?></small>
-                                            <?php if ($match['status'] === 'ongoing'): ?>
+                                            <?php if ($match['status'] === 'ongoing' && $match['timer_status'] !== 'ended'): ?>
                                                 <span class="badge bg-danger live-badge ms-1">Live</span>
                                             <?php endif; ?>
                                         </td>
@@ -312,7 +308,7 @@ function formatMatchDate($date) {
                                     <tr class="<?= $index < 4 ? 'bg-success bg-opacity-10' : ($index >= count($standings) - 3 ? 'bg-danger bg-opacity-10' : '') ?>">
                                         <td class="fw-bold"><?= $index + 1 ?></td>
                                         <td>
-                                            <img src="assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $team['nom_equipe']))) ?>.png" 
+                                            <img src="assets/img/teams/<?= htmlspecialchars(strtolower(preg_replace('/[^a-z0-9]/', '-', $team['nom_equipe']))) ?>.png" 
                                                  alt="<?= htmlspecialchars($team['nom_equipe']) ?>" width="24" class="me-2"
                                                  onerror="this.src='assets/img/teams/default.png'">
                                             <?= htmlspecialchars($team['nom_equipe']) ?>
@@ -423,7 +419,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <div class="text-center">
-                                            <img src="assets/img/teams/${match.team_home.toLowerCase().replace(' ', '-')}.png" 
+                                            <img src="assets/img/teams/${match.team_home.toLowerCase().replace(/[^a-z0-9]/g, '-')}.png" 
                                                  alt="${match.team_home}" width="50" 
                                                  onerror="this.src='assets/img/teams/default.png'">
                                             <div class="fw-bold mt-2">${match.team_home}</div>
@@ -435,7 +431,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <div class="timer-display mt-2" id="live-timer-${match.id}">${currentTime}</div>
                                         </div>
                                         <div class="text-center">
-                                            <img src="assets/img/teams/${match.team_away.toLowerCase().replace(' ', '-')}.png" 
+                                            <img src="assets/img/teams/${match.team_away.toLowerCase().replace(/[^a-z0-9]/g, '-')}.png" 
                                                  alt="${match.team_away}" width="50" 
                                                  onerror="this.src='assets/img/teams/default.png'">
                                             <div class="fw-bold mt-2">${match.team_away}</div>

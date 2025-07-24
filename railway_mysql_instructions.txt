@@ -1,0 +1,18 @@
+Steps to find your Railway MySQL connection string:
+
+1. Log in to Railway.app
+2. Select your project
+3. Click on your MySQL service
+4. Go to "Connect" tab
+5. Copy the complete connection string which looks like:
+   mysql://username:password@yamanote.proxy.rlwy.net:port/database_name
+
+6. To use it:
+   - For production: Add as DATABASE_URL environment variable in Railway
+   - For local testing: Create .env file with:
+     DATABASE_URL="mysql://username:password@yamanote.proxy.rlwy.net:port/database_name"
+
+Important security notes:
+- Never commit .env files to version control
+- Keep your connection string secret
+- Railway automatically rotates credentials periodically

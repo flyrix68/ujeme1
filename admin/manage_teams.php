@@ -1,31 +1,11 @@
 <?php
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Start session with consistent settings
-ini_set('session.gc_maxlifetime', 3600);
-session_set_cookie_params(3600, '/');
-session_start();
-
-// Log session data for debugging
-error_log("Session data in admin/manage_teams.php: " . print_r($_SESSION, true));
-
-// Verify admin authentication
-if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || ($_SESSION['role'] ?? 'membre') !== 'admin') {
-    error_log("Unauthorized access attempt to admin/manage_teams.php");
-    header('Location: ../index.php');
-    exit();
-}
-
-// Database connection
-require_once '../includes/db-config.php';
+ob_start();
+require __DIR__ . '/admin_header.php';
 
 // Verify database connection
-if (!isset($pdo) || $pdo === null) {
-    error_log("Critical error: Database connection not established in admin/manage_teams.php");
-    die("A database connection error occurred. Please contact the administrator.");
+if (!isset($pdo)) {
+    error_log("Critical error: Database connection not available in admin/manage_teams.php");
+    die("Database connection error. Please contact administrator.");
 }
 
 // Create poules table if it doesn't exist
@@ -58,8 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     try {
         // Add new poule
         if ($_POST['action'] === 'add_poule') {
-            $poule_name = filter_input(INPUT_POST, 'poule_name', FILTER_SANITIZE_STRING);
-            $poule_category = filter_input(INPUT_POST, 'poule_category', FILTER_SANITIZE_STRING);
+            $poule_name = filter_input(INPUT_POST, 'poule_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            $poule_category = filter_input(INPUT_POST, 'poule_category', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
             
             if (!empty($poule_name) && !empty($poule_category)) {
                 $stmt = $pdo->prepare("INSERT INTO poules (name, category) VALUES (?, ?)");
@@ -92,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         
         // Assign teams to poules randomly
         if ($_POST['action'] === 'random_assignment') {
-            $category = filter_input(INPUT_POST, 'category_filter', FILTER_SANITIZE_STRING);
+            $category = filter_input(INPUT_POST, 'category_filter', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
             
             if (!empty($category)) {
                 // Get all teams from the specified category
@@ -146,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         
         // Clear poule assignments
         if ($_POST['action'] === 'clear_assignment') {
-            $category = filter_input(INPUT_POST, 'category_filter', FILTER_SANITIZE_STRING);
+            $category = filter_input(INPUT_POST, 'category_filter', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
             
             if (!empty($category)) {
                 $stmt = $pdo->prepare("UPDATE teams SET poule_id = NULL WHERE category = ?");
@@ -186,12 +166,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Add or update team
         if (isset($_POST['add_team']) || isset($_POST['update_team'])) {
             $team_id = isset($_POST['team_id']) ? filter_input(INPUT_POST, 'team_id', FILTER_VALIDATE_INT) : null;
-            $team_name = filter_input(INPUT_POST, 'team_name', FILTER_SANITIZE_STRING);
-            $category = filter_input(INPUT_POST, 'category', FILTER_SANITIZE_STRING);
-            $location = filter_input(INPUT_POST, 'location', FILTER_SANITIZE_STRING);
-            $manager_name = filter_input(INPUT_POST, 'manager_name', FILTER_SANITIZE_STRING);
+            $team_name = filter_input(INPUT_POST, 'team_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            $category = filter_input(INPUT_POST, 'category', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            $location = filter_input(INPUT_POST, 'location', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            $manager_name = filter_input(INPUT_POST, 'manager_name', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
             $manager_email = filter_input(INPUT_POST, 'manager_email', FILTER_SANITIZE_EMAIL);
-            $manager_phone = filter_input(INPUT_POST, 'manager_phone', FILTER_SANITIZE_STRING);
+            $manager_phone = filter_input(INPUT_POST, 'manager_phone', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
             $poule_id = !empty($_POST['poule_id']) ? filter_input(INPUT_POST, 'poule_id', FILTER_VALIDATE_INT) : null;
 
             if (empty($team_name) || !in_array($category, ['senior', 'junior', 'feminine']) || empty($location) || 
@@ -202,10 +182,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Handle logo upload
                 $logo_path = null;
                 if (!empty($_FILES['logo_path']['name'])) {
-                    $upload_dir = '../assets/img/teams/';
-                    $logo_name = strtolower(str_replace(' ', '-', $team_name)) . '.png';
-                    $logo_path = $upload_dir . $logo_name;
-                    if (!move_uploaded_file($_FILES['logo_path']['tmp_name'], $logo_path)) {
+                                                    $upload_dir = '../assets/img/teams/';
+                                                    if (!is_dir($upload_dir)) {
+                                                        mkdir($upload_dir, 0755, true);
+                                                    }
+                                                    $logo_name = strtolower(preg_replace('/[^a-z0-9-]/', '-', $team_name)) . '.png';
+                                                    $logo_path = $upload_dir . $logo_name;
+                                                    if (!move_uploaded_file($_FILES['logo_path']['tmp_name'], $logo_path)) {
                         error_log("Failed to upload logo for team: $team_name");
                         $_SESSION['error'] = "Erreur lors du téléchargement du logo.";
                     }
@@ -606,7 +589,7 @@ foreach ($teams as $team) {
                                                                 <div class="card-body py-2">
                                                                     <div class="d-flex align-items-center">
                                                                         <?php if ($team['logo']): ?>
-                                                                            <img src="../assets/img/teams/<?= htmlspecialchars($team['logo']) ?>" alt="<?= htmlspecialchars($team['name']) ?>" class="team-logo me-2" onerror="this.src='../assets/img/teams/default.png'">
+                                                                            <img src="../assets/img/teams/<?= htmlspecialchars(basename($team['logo'])) ?>" alt="<?= htmlspecialchars($team['name']) ?>" class="team-logo me-2" onerror="this.src='../assets/img/teams/default.png'">
                                                                         <?php else: ?>
                                                                             <img src="../assets/img/teams/default.png" alt="Default" class="team-logo me-2">
                                                                         <?php endif; ?>

@@ -14,18 +14,32 @@ class DatabaseConfig {
                 }
                 self::$pdo = null;
                 
-                // Check for Railway MySQL variables
-                if (getenv('MYSQLHOST')) {
+                // First try DATABASE_URL
+                $dbUrl = getenv('DATABASE_URL');
+                if ($dbUrl && strpos($dbUrl, 'railway') !== false) {
+                    $dbParts = parse_url($dbUrl);
+                    if (!$dbParts) {
+                        throw new RuntimeException('Invalid database URL format');
+                    }
+                    $dbHost = $dbParts['host'] ?? 'localhost';
+                    $dbPort = $dbParts['port'] ?? 3306;
+                    $dbUser = $dbParts['user'] ?? 'root';
+                    $dbPass = $dbParts['pass'] ?? '';
+                    $dbName = isset($dbParts['path']) ? ltrim($dbParts['path'], '/') : 'railway';
+                    $sslEnabled = true;
+                }
+                // Fallback to Railway MYSQL* variables
+                elseif (getenv('MYSQLHOST')) {
                     $dbHost = getenv('MYSQLHOST');
                     $dbPort = getenv('MYSQLPORT') ?: 3306;
                     $dbUser = getenv('MYSQLUSER') ?: 'root';
                     $dbPass = getenv('MYSQLPASSWORD');
                     $dbName = getenv('MYSQLDATABASE') ?: 'railway';
                     $sslEnabled = true;
-                } 
-                // Fallback to DATABASE_URL or local dev
+                }
+                // Local development fallback
                 else {
-                    $dbUrl = getenv('DATABASE_URL') ?: 'mysql://root:rootpassword@localhost:3306/ujem';
+                    $dbUrl = 'mysql://root:rootpassword@localhost:3306/ujem';
                     $dbParts = parse_url($dbUrl);
                     if (!$dbParts) {
                         throw new RuntimeException('Invalid database URL format');
@@ -42,13 +56,17 @@ class DatabaseConfig {
                 $options = [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_TIMEOUT => 2,
-                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
+                    PDO::ATTR_TIMEOUT => 15, // Increased timeout for Railway
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",
+                    PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false
                 ];
 
-                // Add SSL config if needed
-                if ($sslEnabled &amp;&amp; file_exists(__DIR__.'/../includes/cacert.pem')) {
+                // Try SSL if enabled and certificate exists
+                if ($sslEnabled && file_exists(__DIR__.'/../includes/cacert.pem')) {
                     $options[PDO::MYSQL_ATTR_SSL_CA] = __DIR__.'/../includes/cacert.pem';
+                    error_log("Attempting SSL connection with certificate");
+                } else {
+                    error_log("SSL not configured, using standard connection");
                 }
 
                 error_log("Connecting to $dbHost as $dbUser");

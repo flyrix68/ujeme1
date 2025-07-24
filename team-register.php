@@ -5,6 +5,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require 'includes/team_function.php';
     
     try {
+        // Initialiser la connexion PDO
+        $pdo = DatabaseConfig::getConnection();
         // Démarrer une transaction
         $pdo->beginTransaction();
         
@@ -79,8 +81,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="team_category" class="form-label">Catégorie*</label>
                         <select class="form-select" id="team_category" name="team_category" required>
                             <option value="">Choisir...</option>
-                            <option value="Coupe-UJEM">Coupe UJEM</option>
-                            <option value="Tournoi">Tournoi</option>
+                            <option value="senior">Senior</option>
+                            <option value="junior">Junior</option>
+                            <option value="feminine">Feminine</option>
                         </select>
                         <div class="invalid-feedback">Veuillez sélectionner une catégorie.</div>
                         <div id="registrationStatus" class="mt-2"></div>
@@ -219,12 +222,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 console.error('Error loading registration periods:', error);
                 // Valeurs par défaut si l'API échoue
                 registrationPeriods = {
-                    'Coupe-UJEM': {
+                    'senior': {
                         start: '2025-07-01',
                         end: '2025-12-31'
                     },
-                    'Tournoi': {
-                        start: '2025-07-01', 
+                    'junior': {
+                        start: '2025-07-01',
+                        end: '2025-12-31'
+                    },
+                    'feminine': {
+                        start: '2025-07-01',
                         end: '2025-12-31'
                     }
                 };

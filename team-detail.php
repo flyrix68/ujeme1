@@ -1,63 +1,95 @@
 <?php
-require 'includes/db-config.php';
+// Enable full error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    header('Location: teams.php');
-    exit;
+// Log current working directory
+error_log("Current working directory: " . getcwd());
+error_log("__DIR__ value: " . __DIR__);
+
+// Verify include path exists
+$dbConfigPath = __DIR__ . '/includes/db-config.php';
+error_log("DB config path: $dbConfigPath");
+if (!file_exists($dbConfigPath)) {
+    die("DB config file not found at: $dbConfigPath");
 }
 
-$teamId = (int)$_GET['id'];
+require $dbConfigPath;
 
-// Récupérer les infos de l'équipe
-$stmt = $pdo->prepare("SELECT * FROM teams WHERE id = ?");
-$stmt->execute([$teamId]);
-$team = $stmt->fetch(PDO::FETCH_ASSOC);
+try {
+    $pdo = DatabaseConfig::getConnection();
 
-if (!$team) {
-    header('Location: teams.php');
-    exit;
+    if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+        header('Location: teams.php');
+        exit;
+    }
+
+    $teamId = (int)$_GET['id'];
+
+    // Récupérer les infos de l'équipe
+    $stmt = $pdo->prepare("SELECT * FROM teams WHERE id = ?");
+    $stmt->execute([$teamId]);
+    $team = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$team) {
+        header('Location: teams.php');
+        exit;
+    }
+
+    // Log team data for debugging
+    error_log("Team data for ID $teamId: " . print_r($team, true));
+
+    // Récupérer les joueurs
+    $stmt = $pdo->prepare("SELECT name, position, jersey_number, photo FROM players WHERE team_id = ? ORDER BY position, name");
+    $stmt->execute([$teamId]);
+    $players = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Récupérer l'historique des matchs
+    $stmt = $pdo->prepare("
+        SELECT 
+            m.id,
+            m.team_home,
+            m.team_away,
+            m.score_home,
+            m.score_away,
+            m.match_date,
+            m.match_time,
+            m.competition,
+            CASE
+                WHEN m.team_home = ? AND m.score_home > m.score_away THEN 'W'
+                WHEN m.team_away = ? AND m.score_away > m.score_home THEN 'W'
+                WHEN m.team_home = ? AND m.score_home < m.score_away THEN 'L'
+                WHEN m.team_away = ? AND m.score_away < m.score_home THEN 'L'
+                WHEN m.score_home = m.score_away AND m.score_home IS NOT NULL THEN 'D'
+                ELSE '-'
+            END AS result,
+            CASE
+                WHEN m.team_home = ? THEN m.team_away
+                ELSE m.team_home
+            END AS opponent
+        FROM matches m
+        WHERE m.team_home = ? OR m.team_away = ? 
+        ORDER BY m.match_date DESC, m.match_time DESC
+    ");
+    $stmt->execute([
+        $team['team_name'], // 1 
+        $team['team_name'], // 2
+        $team['team_name'], // 3 
+        $team['team_name'], // 4
+        $team['team_name'], // 5
+        $team['team_name'], // 6
+        $team['team_name']  // 7
+    ]);
+    $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Log matches data for debugging
+    error_log("Matches for team ID $teamId: " . print_r($matches, true));
+
+} catch (Exception $e) {
+    error_log("Database error in team-detail.php: " . $e->getMessage());
+    http_response_code(500);
+    die("Une erreur est survenue lors du chargement des données de l'équipe.");
 }
-
-// Log team data for debugging
-error_log("Team data for ID $teamId: " . print_r($team, true));
-
-// Récupérer les joueurs
-$stmt = $pdo->prepare("SELECT name, position, jersey_number, photo FROM players WHERE team_id = ? ORDER BY position, name");
-$stmt->execute([$teamId]);
-$players = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Récupérer l'historique des matchs
-$stmt = $pdo->prepare("
-    SELECT 
-        m.id,
-        m.team_home,
-        m.team_away,
-        m.score_home,
-        m.score_away,
-        m.match_date,
-        m.match_time,
-        m.competition,
-        CASE
-            WHEN m.team_home = :team_name AND m.score_home > m.score_away THEN 'W'
-            WHEN m.team_away = :team_name AND m.score_away > m.score_home THEN 'W'
-            WHEN m.team_home = :team_name AND m.score_home < m.score_away THEN 'L'
-            WHEN m.team_away = :team_name AND m.score_away < m.score_home THEN 'L'
-            WHEN m.score_home = m.score_away AND m.score_home IS NOT NULL THEN 'D'
-            ELSE '-'
-        END AS result,
-        CASE
-            WHEN m.team_home = :team_name THEN m.team_away
-            ELSE m.team_home
-        END AS opponent
-    FROM matches m
-    WHERE m.team_home = :team_name OR m.team_away = :team_name
-    ORDER BY m.match_date DESC, m.match_time DESC
-");
-$stmt->execute([':team_name' => $team['team_name']]);
-$matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Log matches data for debugging
-error_log("Matches for team ID $teamId: " . print_r($matches, true));
 ?>
 
 <!DOCTYPE html>

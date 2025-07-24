@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Database Error</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1 class="error">Database Connection Failed</h1>
+    <p>We're experiencing technical difficulties. Our team has been notified.</p>
+    <div style="margin: 20px auto; max-width: 600px; text-align: left; font-size: 14px;">
+        <h3>Troubleshooting Information:</h3>
+        <p>Status: <?php echo isset($e) ? htmlspecialchars($e->getMessage()) : 'Unknown error'; ?></p>
+        <p>Environment: <?php echo getenv('RAILWAY_ENVIRONMENT') ?: 'Local development'; ?></p>
+        <p><a href="/db_test.php">Test database connection</a></p>
+    </div>
+    <p><a href="/">Return to Homepage</a> or try again later</p>
+</body>
+</html>

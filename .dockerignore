@@ -1,0 +1,16 @@
+.git
+.gitignore
+.vscode
+.idea
+node_modules
+*.md
+*.log
+.DS_Store
+*.sql
+*.bak
+*.swp
+*~
+# Local env files
+.env
+.env.*
+!.env.example

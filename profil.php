@@ -203,7 +203,7 @@ try {
     <title>UJEM - Mon Profil</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="/assets/css/styles.css">
     <style>
         .profile-card { border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
         .profile-header { background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%); color: white; border-radius: 15px 15px 0 0; }

@@ -14,22 +14,27 @@ function safe_html($value, $default = '') {
     return htmlspecialchars($value ?? $default, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
-// Log session data for debugging
+// Log session data
 error_log("Session data in admin/manage_matches.php: " . print_r($_SESSION, true));
 
-// Verify admin authentication
+// Verify admin authentication before anything else
 if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || ($_SESSION['role'] ?? 'membre') !== 'admin') {
     error_log("Unauthorized access attempt to admin/manage_matches.php");
     header('Location: ../index.php');
     exit();
 }
 
-// Database connection
-require_once '../includes/db-config.php';
-
-// Verify database connection
-if (!isset($pdo) || $pdo === null) {
-    error_log("Critical error: Database connection not established in admin/manage_matches.php");
+// Now initialize database connection safely
+try {
+    require_once '../includes/db-config.php';
+    $pdo = DatabaseConfig::getConnection();
+    
+    // Verify database connection
+    if (!isset($pdo)) {
+        throw new Exception('Database connection failed');
+    }
+} catch (Exception $e) {
+    error_log("Database connection error: " . $e->getMessage());
     die("A database connection error occurred. Please contact the administrator.");
 }
 
@@ -140,8 +145,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (count($existing_teams) != 2) {
                     $_SESSION['error'] = "Une ou les deux équipes sélectionnées n'existent pas.";
                 } else {
-                    // Determine status based on scores
-                    $status = ($score_home !== null && $score_away !== null) ? 'finished' : 'ongoing';
+                    // Determine status based on time and scores
+                    $match_datetime = strtotime($match_date . ' ' . $match_time);
+                    $current_datetime = time();
+                    
+                    if ($score_home !== null && $score_away !== null) {
+                        $status = 'finished';
+                    } elseif ($match_datetime > $current_datetime) {
+                        $status = 'pending';
+                    } else {
+                        $status = 'ongoing';
+                    }
 
                     if (isset($_POST['add_match'])) {
                         $stmt = $pdo->prepare("
@@ -163,6 +177,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Handle match finalization 
+        if (isset($_POST['finalize_match'])) {
+            $match_id = filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT);
+            $score_home = filter_input(INPUT_POST, 'score_home', FILTER_VALIDATE_INT);
+            $score_away = filter_input(INPUT_POST, 'score_away', FILTER_VALIDATE_INT);
+
+            if (!$match_id || $score_home === null || $score_away === null) {
+                $_SESSION['error'] = "Veuillez entrer des scores valides pour finaliser le match.";
+            } else {
+                try {
+                    $stmt = $pdo->prepare("
+                        UPDATE matches 
+                        SET status = 'completed', 
+                            timer_status = 'ended',
+                            score_home = ?,
+                            score_away = ?,
+                            timer_elapsed = timer_duration
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$score_home, $score_away, $match_id]);
+                    $_SESSION['message'] = "Match finalisé avec succès !";
+                } catch (PDOException $e) {
+                    error_log("Error finalizing match: " . $e->getMessage());
+                    $_SESSION['error'] = "Erreur lors de la finalisation du match.";
+                }
+            }
+        }
+        
         // Delete match
         if (isset($_POST['delete_match'])) {
             $match_id = filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT);
@@ -371,6 +413,7 @@ try {
                                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
                                         <button type="submit" name="add_match" id="add_match" class="btn btn-primary">Ajouter</button>
                                         <button type="submit" name="update_match" id="update_match" class="btn btn-primary d-none">Mettre à jour</button>
+                                        <button type="submit" name="finalize_match" id="finalize_match" class="btn btn-success d-none">Finaliser</button>
                                         <button type="button" id="reset_form" class="btn btn-secondary d-none">Annuler</button>
                                     </div>
                                 </form>
@@ -434,7 +477,15 @@ try {
                                                     <td><?= safe_html($match['phase']) ?></td>
                                                     <td><?= safe_html($match['poule_name'] ?? 'Non assigné') ?></td>
                                                     <td><?= safe_html($match['venue']) ?></td>
-                                                    <td><?= ($match['status'] ?? '') === 'ongoing' ? 'En cours' : 'Terminé' ?></td>
+                                                    <td>
+                                                        <?php if (($match['status'] ?? '') === 'pending'): ?>
+                                                            En attente
+                                                        <?php elseif (($match['status'] ?? '') === 'ongoing'): ?>
+                                                            En cours
+                                                        <?php else: ?>
+                                                            Terminé
+                                                        <?php endif; ?>
+                                                    </td>
                                                     <td>
                                                         <button class="btn btn-sm btn-outline-primary edit-match" 
                                                                 data-id="<?= safe_html($match['id']) ?>" 
@@ -447,6 +498,7 @@ try {
                                                                 data-venue="<?= safe_html($match['venue']) ?>" 
                                                                 data-score-home="<?= safe_html($match['score_home']) ?>" 
                                                                 data-score-away="<?= safe_html($match['score_away']) ?>"
+                                                                data-status="<?= safe_html($match['status']) ?>"
                                                                 data-poule-id="<?= safe_html($match['poule_id'] ?? '') ?>">
                                                             <i class="fas fa-edit"></i> Modifier
                                                         </button>
@@ -551,8 +603,10 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Handle edit button click
-        document.querySelectorAll('.edit-match').forEach(button => {
-            button.addEventListener('click', function() {
+        const editButtons = document.querySelectorAll('.edit-match');
+        if (editButtons.length > 0) {
+            editButtons.forEach(button => {
+                button.addEventListener('click', function() {
                 document.getElementById('match_id').value = this.dataset.id;
                 document.getElementById('team_home').value = this.dataset.teamHome;
                 document.getElementById('team_away').value = this.dataset.teamAway;
@@ -564,9 +618,11 @@ try {
                 document.getElementById('score_home').value = this.dataset.scoreHome || '';
                 document.getElementById('score_away').value = this.dataset.scoreAway || '';
                 document.getElementById('poule_id').value = this.dataset.pouleId || '';
-                document.getElementById('add_match').classList.add('d-none');
-                document.getElementById('update_match').classList.remove('d-none');
-                document.getElementById('reset_form').classList.remove('d-none');
+        const isOngoing = this.dataset.status === 'ongoing';
+        document.getElementById('add_match').classList.add('d-none');
+        document.getElementById('update_match').classList.remove('d-none');
+        document.getElementById('finalize_match').classList.toggle('d-none', !isOngoing);
+        document.getElementById('reset_form').classList.remove('d-none');
                 
                 // Scroll to form
                 document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
@@ -574,7 +630,9 @@ try {
         });
 
         // Reset form button
-        document.getElementById('reset_form').addEventListener('click', function() {
+        const resetFormBtn = document.getElementById('reset_form');
+        if (resetFormBtn) {
+            resetFormBtn.addEventListener('click', function() {
             document.querySelector('form').reset();
             document.getElementById('add_match').classList.remove('d-none');
             document.getElementById('update_match').classList.add('d-none');
@@ -582,7 +640,9 @@ try {
         });
 
         // Filter matches by poule
-        document.getElementById('filter_poule').addEventListener('change', function() {
+        const filterPoule = document.getElementById('filter_poule');
+        if (filterPoule) {
+            filterPoule.addEventListener('change', function() {
             const pouleId = this.value;
             const rows = document.querySelectorAll('#matches_table tbody tr');
             
@@ -772,6 +832,9 @@ try {
         
         // Call generateStandings when the page loads
         document.addEventListener('DOMContentLoaded', function() {
+            // Only generate standings if there are poules
+            const poules = <?= json_encode($poules) ?>;
+            if (poules && poules.length > 0) {
             // Initialize tooltips
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {

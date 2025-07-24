@@ -1,37 +1,5 @@
 <?php
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Start session with consistent settings
-ini_set('session.gc_maxlifetime', 3600);
-session_set_cookie_params(3600, '/');
-session_start();
-
-// Log session data for debugging
-error_log("Session data in admin/dashboard.php: " . print_r($_SESSION, true));
-
-// Verify admin authentication
-if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || (isset($_SESSION['role']) ? $_SESSION['role'] : 'membre') !== 'admin') {
-    error_log("Unauthorized access attempt to admin/dashboard.php");
-    header('Location: ../index.php');
-    exit();
-}
-
-// Database connection with error handling
-require_once '../includes/db-config.php';
-
-try {
-    $pdo = DatabaseConfig::getConnection();
-    error_log("Dashboard DB connection established");
-    
-    // Test connection
-    $pdo->query('SELECT 1');
-} catch (Exception $e) {
-    error_log("Dashboard connection failed: " . $e->getMessage());
-    die("Database connection error. Please try again later.");
-}
+require __DIR__ . '/admin_header.php';
 
 // Function to log actions in the audit log
 function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previousValue = null, $newValue = null) {
@@ -62,7 +30,6 @@ function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previous
         }
     }
 
-    // Ensure other fields are properly formatted
     $maxTextLength = 65535; // TEXT column limit
     $previousValueJson = $previousValue ? substr(json_encode($previousValue, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE), 0, $maxTextLength) : null;
     $newValueJson = $newValue ? substr(json_encode($newValue, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE), 0, $maxTextLength) : null;
@@ -92,6 +59,8 @@ function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previous
         throw $e;
     }
 }
+
+// Le reste du code reste inchangé...
 
 function updateStandings($matchId, $pdo) {
     try {
@@ -248,26 +217,26 @@ function updateStandings($matchId, $pdo) {
     }
 }
 
-        // Check if registration_periods table exists, create if not
-        try {
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS registration_periods (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    category VARCHAR(50) NOT NULL DEFAULT 'default',
-                    start_date DATETIME NOT NULL,
-                    end_date DATETIME NOT NULL,
-                    closed_message TEXT,
-                    is_active BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX (category),
-                    INDEX (is_active)
-                )
-            ");
-        } catch (PDOException $e) {
-            error_log("Error creating registration_periods table: " . $e->getMessage());
-        }
+// Check if registration_periods table exists, create if not
+try {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS registration_periods (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            category VARCHAR(50) NOT NULL DEFAULT 'default',
+            start_date DATETIME NOT NULL,
+            end_date DATETIME NOT NULL,
+            closed_message TEXT,
+            is_active BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX (category),
+            INDEX (is_active)
+        )
+    ");
+} catch (PDOException $e) {
+    error_log("Error creating registration_periods table: " . $e->getMessage());
+}
 
-// Fetch ongoing matches
+// Fetch ongoing and waiting matches
 try {
     $currentMatches = $pdo->query("SELECT * FROM matches WHERE status = 'ongoing' ORDER BY match_date DESC")->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
@@ -311,974 +280,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ['score_home' => $scoreHome, 'score_away' => $scoreAway]
             );
 
-        // Handle registration period form submission with error logging
-        if (isset($_POST['add_period']) || isset($_POST['update_period'])) {
-            try {
-                $pdo->beginTransaction();
-
-// Function to log actions in the audit log
-function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previousValue = null, $newValue = null) {
-    // Validate inputs
-    if (!is_numeric($matchId) || !is_string($actionType) || !in_array($actionType, [
-        'UPDATE_SCORE', 'ADD_GOAL', 'ADD_CARD', 'START_FIRST_HALF', 'END_FIRST_HALF', 
-        'START_SECOND_HALF', 'END_MATCH', 'SET_EXTRA_TIME', 'FINALIZE_MATCH', 
-        'SET_MATCH_DURATION', 'UPDATE_STANDING', 'CREATE_STANDING'
-    ])) {
-        error_log("Invalid logAction inputs: matchId=$matchId, actionType=$actionType");
-        return;
-    }
-    if (!isset($_SESSION['user_id']) || !is_numeric($_SESSION['user_id'])) {
-        error_log("Invalid user_id in logAction: " . print_r($_SESSION, true));
-        return;
-    }
-
-    // Format action_details as JSON
-    $actionDetailsJson = null;
-    if (!is_null($actionDetails)) {
-        // Ensure UTF-8 encoding
-        $actionDetails = mb_convert_encoding((string)$actionDetails, 'UTF-8', 'auto');
-        // Wrap in a JSON object
-        $actionDetailsJson = json_encode(['message' => $actionDetails], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE);
-        if ($actionDetailsJson === false) {
-            error_log("Failed to encode action_details to JSON: " . json_last_error_msg());
-            $actionDetailsJson = json_encode(['message' => 'Invalid details']);
-        }
-    }
-
-    // Ensure other fields are properly formatted
-    $maxTextLength = 65535; // TEXT column limit
-    $previousValueJson = $previousValue ? substr(json_encode($previousValue, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE), 0, $maxTextLength) : null;
-    $newValueJson = $newValue ? substr(json_encode($newValue, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE), 0, $maxTextLength) : null;
-
-    // Log inputs for debugging
-    error_log("logAction: matchId=$matchId, user_id={$_SESSION['user_id']}, actionType=$actionType, " .
-              "actionDetails=" . ($actionDetailsJson ?? 'null') . 
-              ", previousValue=" . ($previousValueJson ?? 'null') . 
-              ", newValue=" . ($newValueJson ?? 'null'));
-
-    try {
-        $stmt = $pdo->prepare("
-            INSERT INTO match_logs 
-            (match_id, user_id, action_type, action_details, previous_value, new_value, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
-        ");
-        $stmt->execute([
-            $matchId,
-            $_SESSION['user_id'],
-            $actionType,
-            $actionDetailsJson,
-            $previousValueJson,
-            $newValueJson
-        ]);
-    } catch (PDOException $e) {
-        error_log("logAction failed: matchId=$matchId, actionType=$actionType, actionDetails=" . ($actionDetailsJson ?? 'null') . ", error: " . $e->getMessage());
-        throw $e;
-    }
-}
-
-function updateStandings($matchId, $pdo) {
-    try {
-        // Fetch the match
-        $stmt = $pdo->prepare("SELECT * FROM matches WHERE id = ?");
-        $stmt->execute([$matchId]);
-        $match = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$match) {
-            error_log("updateStandings: Match not found for match_id=$matchId");
-            return;
-        }
-
-        // Validate required fields
-        if (empty($match['saison']) || empty($match['competition']) || !isset($match['poule_id']) || 
-            !isset($match['score_home']) || !isset($match['score_away']) || $match['status'] !== 'completed') {
-            error_log("updateStandings: Invalid match data for match_id=$matchId, data=" . json_encode($match));
-            return;
-        }
-
-        $saison = $match['saison'];
-        $competition = $match['competition'];
-        $poule_id = $match['poule_id'];
-        $teams = [
-            ['name' => $match['team_home'], 'is_home' => true],
-            ['name' => $match['team_away'], 'is_home' => false]
-        ];
-
-        foreach ($teams as $team) {
-            $nom_equipe = $team['name'];
-
-            // Fetch all completed matches for the team
-            $sql = "SELECT * FROM matches 
-                    WHERE (team_home = :team OR team_away = :team)
-                    AND saison = :saison AND competition = :competition AND poule_id = :poule_id
-                    AND status = 'completed'";
-            $stmt2 = $pdo->prepare($sql);
-            $stmt2->execute([
-                'team' => $nom_equipe,
-                'saison' => $saison,
-                'competition' => $competition,
-                'poule_id' => $poule_id
-            ]);
-            $matches = $stmt2->fetchAll(PDO::FETCH_ASSOC);
-            error_log("updateStandings: Fetched " . count($matches) . " matches for team=$nom_equipe, match_id=$matchId");
-
-            // Calculate standings
-            $joues = $gagnes = $nuls = $perdus = $bp = $bc = $points = 0;
-            $forme = [];
-
-            foreach ($matches as $m) {
-                $isHome = ($m['team_home'] === $nom_equipe);
-                $for = $isHome ? $m['score_home'] : $m['score_away'];
-                $against = $isHome ? $m['score_away'] : $m['score_home'];
-
-                // Skip if scores are invalid
-                if ($for === null || $against === null) {
-                    error_log("updateStandings: Skipping match_id={$m['id']} for team=$nom_equipe due to null scores");
-                    continue;
-                }
-
-                $joues++;
-                $bp += $for;
-                $bc += $against;
-
-                if ($for > $against) {
-                    $gagnes++;
-                    $points += 3;
-                    $forme[] = 'V';
-                } elseif ($for == $against) {
-                    $nuls++;
-                    $points += 1;
-                    $forme[] = 'N';
-                } else {
-                    $perdus++;
-                    $forme[] = 'D';
-                }
-            }
-            $diff = $bp - $bc;
-            $formeStr = implode(',', array_slice(array_reverse($forme), 0, 5));
-
-            // Fetch existing standing
-            $oldStandingStmt = $pdo->prepare("SELECT * FROM classement WHERE saison = ? AND competition = ? AND poule_id = ? AND nom_equipe = ?");
-            $oldStandingStmt->execute([$saison, $competition, $poule_id, $nom_equipe]);
-            $oldStanding = $oldStandingStmt->fetch(PDO::FETCH_ASSOC);
-
-            // Upsert standings
-            $upsert = "INSERT INTO classement 
-                (saison, competition, poule_id, nom_equipe, matchs_joues, matchs_gagnes, matchs_nuls, matchs_perdus, buts_pour, buts_contre, difference_buts, points, forme)
-                VALUES (:saison, :competition, :poule_id, :nom_equipe, :joues, :gagnes, :nuls, :perdus, :bp, :bc, :diff, :points, :forme)
-                ON DUPLICATE KEY UPDATE
-                    matchs_joues = VALUES(matchs_joues),
-                    matchs_gagnes = VALUES(matchs_gagnes),
-                    matchs_nuls = VALUES(matchs_nuls),
-                    matchs_perdus = VALUES(matchs_perdus),
-                    buts_pour = VALUES(buts_pour),
-                    buts_contre = VALUES(buts_contre),
-                    difference_buts = VALUES(difference_buts),
-                    points = VALUES(points),
-                    forme = VALUES(forme)";
-            $stmt3 = $pdo->prepare($upsert);
-            $params = [
-                'saison' => $saison,
-                'competition' => $competition,
-                'poule_id' => $poule_id,
-                'nom_equipe' => $nom_equipe,
-                'joues' => $joues,
-                'gagnes' => $gagnes,
-                'nuls' => $nuls,
-                'perdus' => $perdus,
-                'bp' => $bp,
-                'bc' => $bc,
-                'diff' => $diff,
-                'points' => $points,
-                'forme' => $formeStr
-            ];
-            $stmt3->execute($params);
-            error_log("updateStandings: Upsert executed for team=$nom_equipe, match_id=$matchId, params=" . json_encode($params));
-
-            // Log the action
-            $newStandingData = [
-                'matchs_joues' => $joues,
-                'matchs_gagnes' => $gagnes,
-                'matchs_nuls' => $nuls,
-                'matchs_perdus' => $perdus,
-                'buts_pour' => $bp,
-                'buts_contre' => $bc,
-                'difference_buts' => $diff,
-                'points' => $points,
-                'forme' => $formeStr
-            ];
-            if ($oldStanding) {
-                logAction(
-                    $pdo,
-                    $matchId,
-                    'UPDATE_STANDING',
-                    "Classement mis à jour: $nom_equipe",
-                    $oldStanding,
-                    $newStandingData
-                );
-            } else {
-                logAction(
-                    $pdo,
-                    $matchId,
-                    'CREATE_STANDING',
-                    "Classement créé: $nom_equipe",
-                    null,
-                    $newStandingData
-                );
-            }
-        }
-    } catch (PDOException $e) {
-        error_log("updateStandings failed for match_id=$matchId: " . $e->getMessage());
-        throw $e;
-    }
-}
-
-        // Check if registration_periods table exists, create if not
-        try {
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS registration_periods (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    category VARCHAR(50) NOT NULL DEFAULT 'default',
-                    start_date DATETIME NOT NULL,
-                    end_date DATETIME NOT NULL,
-                    closed_message TEXT,
-                    is_active BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX (category),
-                    INDEX (is_active)
-                )
-            ");
-        } catch (PDOException $e) {
-            error_log("Error creating registration_periods table: " . $e->getMessage());
-        }
-
-// Fetch ongoing matches
-try {
-    $currentMatches = $pdo->query("SELECT * FROM matches WHERE status = 'ongoing' ORDER BY match_date DESC")->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("Error fetching current matches: " . $e->getMessage());
-    die("Erreur lors du chargement des matchs.");
-}
-
-// Process form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        $pdo->beginTransaction();
-
-        // Update score
-        if (isset($_POST['update_score'])) {
-            $matchId = filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT);
-            $scoreHome = filter_input(INPUT_POST, 'score_home', FILTER_VALIDATE_INT);
-            $scoreAway = filter_input(INPUT_POST, 'score_away', FILTER_VALIDATE_INT);
-
-            if (!$matchId || $scoreHome < 0 || $scoreAway < 0) {
-                error_log("Invalid input for updating score: match_id=$matchId, score_home=$scoreHome, score_away=$scoreAway");
-                $_SESSION['error'] = "Données invalides pour la mise à jour du score.";
-                header("Location: dashboard.php");
-                exit();
-            }
-
-            // Fetch previous score
-            $stmt = $pdo->prepare("SELECT score_home, score_away FROM matches WHERE id = ?");
-            $stmt->execute([$matchId]);
-            $oldScore = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            $stmt = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ? WHERE id = ?");
-            $stmt->execute([$scoreHome, $scoreAway, $matchId]);
-
-            // Log the action
-            logAction(
-                $pdo,
-                $matchId,
-                'UPDATE_SCORE',
-                "Mise à jour du score",
-                ['score_home' => $oldScore['score_home'], 'score_away' => $oldScore['score_away']],
-                ['score_home' => $scoreHome, 'score_away' => $scoreAway]
-            );
-
-            // Handle registration period form submission with transactions
-        if (isset($_POST['add_period']) || isset($_POST
-<?php
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Start session with consistent settings
-ini_set('session.gc_maxlifetime', 3600);
-session_set_cookie_params(3600, '/');
-session_start();
-
-// Log session data for debugging
-error_log("Session data in admin/dashboard.php: " . print_r($_SESSION, true));
-
-// Verify admin authentication
-if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || ($_SESSION['role'] ?? 'membre') !== 'admin') {
-    error_log("Unauthorized access attempt to admin/dashboard.php");
-    header('Location: ../index.php');
-    exit();
-}
-
-// Database connection with error handling
-require_once '../includes/db-config.php';
-
-try {
-    $pdo = DatabaseConfig::getConnection();
-    error_log("Dashboard DB connection established");
-    
-    // Test connection
-    $pdo->query('SELECT 1');
-} catch (Exception $e) {
-    error_log("Dashboard connection failed: " . $e->getMessage());
-    die("Database connection error. Please try again later.");
-}
-
-// Function to log actions in the audit log
-function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previousValue = null, $newValue = null) {
-    // Validate inputs
-    if (!is_numeric($matchId) || !is_string($actionType) || !in_array($actionType, [
-        'UPDATE_SCORE', 'ADD_GOAL', 'ADD_CARD', 'START_FIRST_HALF', 'END_FIRST_HALF', 
-        'START_SECOND_HALF', 'END_MATCH', 'SET_EXTRA_TIME', 'FINALIZE_MATCH', 
-        'SET_MATCH_DURATION', 'UPDATE_STANDING', 'CREATE_STANDING'
-    ])) {
-        error_log("Invalid logAction inputs: matchId=$matchId, actionType=$actionType");
-        return;
-    }
-    if (!isset($_SESSION['user_id']) || !is_numeric($_SESSION['user_id'])) {
-        error_log("Invalid user_id in logAction: " . print_r($_SESSION, true));
-        return;
-    }
-
-    // Format action_details as JSON
-    $actionDetailsJson = null;
-    if (!is_null($actionDetails)) {
-        // Ensure UTF-8 encoding
-        $actionDetails = mb_convert_encoding((string)$actionDetails, 'UTF-8', 'auto');
-        // Wrap in a JSON object
-        $actionDetailsJson = json_encode(['message' => $actionDetails], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE);
-        if ($actionDetailsJson === false) {
-            error_log("Failed to encode action_details to JSON: " . json_last_error_msg());
-            $actionDetailsJson = json_encode(['message' => 'Invalid details']);
-        }
-    }
-
-    // Ensure other fields are properly formatted
-    $maxTextLength = 65535; // TEXT column limit
-    $previousValueJson = $previousValue ? substr(json_encode($previousValue, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE), 0, $maxTextLength) : null;
-    $newValueJson = $newValue ? substr(json_encode($newValue, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE), 0, $maxTextLength) : null;
-
-    // Log inputs for debugging
-    error_log("logAction: matchId=$matchId, user_id={$_SESSION['user_id']}, actionType=$actionType, " .
-              "actionDetails=" . ($actionDetailsJson ?? 'null') . 
-              ", previousValue=" . ($previousValueJson ?? 'null') . 
-              ", newValue=" . ($newValueJson ?? 'null'));
-
-    try {
-        $stmt = $pdo->prepare("
-            INSERT INTO match_logs 
-            (match_id, user_id, action_type, action_details, previous_value, new_value, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
-        ");
-        $stmt->execute([
-            $matchId,
-            $_SESSION['user_id'],
-            $actionType,
-            $actionDetailsJson,
-            $previousValueJson,
-            $newValueJson
-        ]);
-    } catch (PDOException $e) {
-        error_log("logAction failed: matchId=$matchId, actionType=$actionType, actionDetails=" . ($actionDetailsJson ?? 'null') . ", error: " . $e->getMessage());
-        throw $e;
-    }
-}
-
-function updateStandings($matchId, $pdo) {
-    try {
-        // Fetch the match
-        $stmt = $pdo->prepare("SELECT * FROM matches WHERE id = ?");
-        $stmt->execute([$matchId]);
-        $match = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$match) {
-            error_log("updateStandings: Match not found for match_id=$matchId");
-            return;
-        }
-
-        // Validate required fields
-        if (empty($match['saison']) || empty($match['competition']) || !isset($match['poule_id']) || 
-            !isset($match['score_home']) || !isset($match['score_away']) || $match['status'] !== 'completed') {
-            error_log("updateStandings: Invalid match data for match_id=$matchId, data=" . json_encode($match));
-            return;
-        }
-
-        $saison = $match['saison'];
-        $competition = $match['competition'];
-        $poule_id = $match['poule_id'];
-        $teams = [
-            ['name' => $match['team_home'], 'is_home' => true],
-            ['name' => $match['team_away'], 'is_home' => false]
-        ];
-
-        foreach ($teams as $team) {
-            $nom_equipe = $team['name'];
-
-            // Fetch all completed matches for the team
-            $sql = "SELECT * FROM matches 
-                    WHERE (team_home = :team OR team_away = :team)
-                    AND saison = :saison AND competition = :competition AND poule_id = :poule_id
-                    AND status = 'completed'";
-            $stmt2 = $pdo->prepare($sql);
-            $stmt2->execute([
-                'team' => $nom_equipe,
-                'saison' => $saison,
-                'competition' => $competition,
-                'poule_id' => $poule_id
-            ]);
-            $matches = $stmt2->fetchAll(PDO::FETCH_ASSOC);
-            error_log("updateStandings: Fetched " . count($matches) . " matches for team=$nom_equipe, match_id=$matchId");
-
-            // Calculate standings
-            $joues = $gagnes = $nuls = $perdus = $bp = $bc = $points = 0;
-            $forme = [];
-
-            foreach ($matches as $m) {
-                $isHome = ($m['team_home'] === $nom_equipe);
-                $for = $isHome ? $m['score_home'] : $m['score_away'];
-                $against = $isHome ? $m['score_away'] : $m['score_home'];
-
-                // Skip if scores are invalid
-                if ($for === null || $against === null) {
-                    error_log("updateStandings: Skipping match_id={$m['id']} for team=$nom_equipe due to null scores");
-                    continue;
-                }
-
-                $joues++;
-                $bp += $for;
-                $bc += $against;
-
-                if ($for > $against) {
-                    $gagnes++;
-                    $points += 3;
-                    $forme[] = 'V';
-                } elseif ($for == $against) {
-                    $nuls++;
-                    $points += 1;
-                    $forme[] = 'N';
-                } else {
-                    $perdus++;
-                    $forme[] = 'D';
-                }
-            }
-            $diff = $bp - $bc;
-            $formeStr = implode(',', array_slice(array_reverse($forme), 0, 5));
-
-            // Fetch existing standing
-            $oldStandingStmt = $pdo->prepare("SELECT * FROM classement WHERE saison = ? AND competition = ? AND poule_id = ? AND nom_equipe = ?");
-            $oldStandingStmt->execute([$saison, $competition, $poule_id, $nom_equipe]);
-            $oldStanding = $oldStandingStmt->fetch(PDO::FETCH_ASSOC);
-
-            // Upsert standings
-            $upsert = "INSERT INTO classement 
-                (saison, competition, poule_id, nom_equipe, matchs_joues, matchs_gagnes, matchs_nuls, matchs_perdus, buts_pour, buts_contre, difference_buts, points, forme)
-                VALUES (:saison, :competition, :poule_id, :nom_equipe, :joues, :gagnes, :nuls, :perdus, :bp, :bc, :diff, :points, :forme)
-                ON DUPLICATE KEY UPDATE
-                    matchs_joues = VALUES(matchs_joues),
-                    matchs_gagnes = VALUES(matchs_gagnes),
-                    matchs_nuls = VALUES(matchs_nuls),
-                    matchs_perdus = VALUES(matchs_perdus),
-                    buts_pour = VALUES(buts_pour),
-                    buts_contre = VALUES(buts_contre),
-                    difference_buts = VALUES(difference_buts),
-                    points = VALUES(points),
-                    forme = VALUES(forme)";
-            $stmt3 = $pdo->prepare($upsert);
-            $params = [
-                'saison' => $saison,
-                'competition' => $competition,
-                'poule_id' => $poule_id,
-                'nom_equipe' => $nom_equipe,
-                'joues' => $joues,
-                'gagnes' => $gagnes,
-                'nuls' => $nuls,
-                'perdus' => $perdus,
-                'bp' => $bp,
-                'bc' => $bc,
-                'diff' => $diff,
-                'points' => $points,
-                'forme' => $formeStr
-            ];
-            $stmt3->execute($params);
-            error_log("updateStandings: Upsert executed for team=$nom_equipe, match_id=$matchId, params=" . json_encode($params));
-
-            // Log the action
-            $newStandingData = [
-                'matchs_joues' => $joues,
-                'matchs_gagnes' => $gagnes,
-                'matchs_nuls' => $nuls,
-                'matchs_perdus' => $perdus,
-                'buts_pour' => $bp,
-                'buts_contre' => $bc,
-                'difference_buts' => $diff,
-                'points' => $points,
-                'forme' => $formeStr
-            ];
-            if ($oldStanding) {
-                logAction(
-                    $pdo,
-                    $matchId,
-                    'UPDATE_STANDING',
-                    "Classement mis à jour: $nom_equipe",
-                    $oldStanding,
-                    $newStandingData
-                );
-            } else {
-                logAction(
-                    $pdo,
-                    $matchId,
-                    'CREATE_STANDING',
-                    "Classement créé: $nom_equipe",
-                    null,
-                    $newStandingData
-                );
-            }
-        }
-    } catch (PDOException $e) {
-        error_log("updateStandings failed for match_id=$matchId: " . $e->getMessage());
-        throw $e;
-    }
-}
-
-        // Check if registration_periods table exists, create if not
-        try {
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS registration_periods (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    category VARCHAR(50) NOT NULL DEFAULT 'default',
-                    start_date DATETIME NOT NULL,
-                    end_date DATETIME NOT NULL,
-                    closed_message TEXT,
-                    is_active BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX (category),
-                    INDEX (is_active)
-                )
-            ");
-        } catch (PDOException $e) {
-            error_log("Error creating registration_periods table: " . $e->getMessage());
-        }
-
-// Fetch ongoing matches
-try {
-    $currentMatches = $pdo->query("SELECT * FROM matches WHERE status = 'ongoing' ORDER BY match_date DESC")->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("Error fetching current matches: " . $e->getMessage());
-    die("Erreur lors du chargement des matchs.");
-}
-
-// Process form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        $pdo->beginTransaction();
-
-        // Update score
-        if (isset($_POST['update_score'])) {
-            $matchId = filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT);
-            $scoreHome = filter_input(INPUT_POST, 'score_home', FILTER_VALIDATE_INT);
-            $scoreAway = filter_input(INPUT_POST, 'score_away', FILTER_VALIDATE_INT);
-
-            if (!$matchId || $scoreHome < 0 || $scoreAway < 0) {
-                error_log("Invalid input for updating score: match_id=$matchId, score_home=$scoreHome, score_away=$scoreAway");
-                $_SESSION['error'] = "Données invalides pour la mise à jour du score.";
-                header("Location: dashboard.php");
-                exit();
-            }
-
-            // Fetch previous score
-            $stmt = $pdo->prepare("SELECT score_home, score_away FROM matches WHERE id = ?");
-            $stmt->execute([$matchId]);
-            $oldScore = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            $stmt = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ? WHERE id = ?");
-            $stmt->execute([$scoreHome, $scoreAway, $matchId]);
-
-            // Log the action
-            logAction(
-                $pdo,
-                $matchId,
-                'UPDATE_SCORE',
-                "Mise à jour du score",
-                ['score_home' => $oldScore['score_home'], 'score_away' => $oldScore['score_away']],
-                ['score_home' => $scoreHome, 'score_away' => $scoreAway]
-            );
-
-        // Handle registration period form submission with error logging
-        if (isset($_POST['add_period']) || isset($_POST['update_period'])) {
-            try {
-                $pdo->beginTransaction();
-
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Start session with consistent settings
-ini_set('session.gc_maxlifetime', 3600);
-session_set_cookie_params(3600, '/');
-session_start();
-
-// Log session data for debugging
-error_log("Session data in admin/dashboard.php: " . print_r($_SESSION, true));
-
-// Verify admin authentication
-if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || ($_SESSION['role'] ?? 'membre') !== 'admin') {
-    error_log("Unauthorized access attempt to admin/dashboard.php");
-    header('Location: ../index.php');
-    exit();
-}
-
-// Database connection with error handling
-require_once '../includes/db-config.php';
-
-try {
-    $pdo = DatabaseConfig::getConnection();
-    error_log("Dashboard DB connection established");
-    
-    // Test connection
-    $pdo->query('SELECT 1');
-} catch (Exception $e) {
-    error_log("Dashboard connection failed: " . $e->getMessage());
-    die("Database connection error. Please try again later.");
-}
-
-// Function to log actions in the audit log
-function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previousValue = null, $newValue = null) {
-    // Validate inputs
-    if (!is_numeric($matchId) || !is_string($actionType) || !in_array($actionType, [
-        'UPDATE_SCORE', 'ADD_GOAL', 'ADD_CARD', 'START_FIRST_HALF', 'END_FIRST_HALF', 
-        'START_SECOND_HALF', 'END_MATCH', 'SET_EXTRA_TIME', 'FINALIZE_MATCH', 
-        'SET_MATCH_DURATION', 'UPDATE_STANDING', 'CREATE_STANDING'
-    ])) {
-        error_log("Invalid logAction inputs: matchId=$matchId, actionType=$actionType");
-        return;
-    }
-    if (!isset($_SESSION['user_id']) || !is_numeric($_SESSION['user_id'])) {
-        error_log("Invalid user_id in logAction: " . print_r($_SESSION, true));
-        return;
-    }
-
-    // Format action_details as JSON
-    $actionDetailsJson = null;
-    if (!is_null($actionDetails)) {
-        // Ensure UTF-8 encoding
-        $actionDetails = mb_convert_encoding((string)$actionDetails, 'UTF-8', 'auto');
-        // Wrap in a JSON object
-        $actionDetailsJson = json_encode(['message' => $actionDetails], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE);
-        if ($actionDetailsJson === false) {
-            error_log("Failed to encode action_details to JSON: " . json_last_error_msg());
-            $actionDetailsJson = json_encode(['message' => 'Invalid details']);
-        }
-    }
-
-    // Ensure other fields are properly formatted
-    $maxTextLength = 65535; // TEXT column limit
-    $previousValueJson = $previousValue ? substr(json_encode($previousValue, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE), 0, $maxTextLength) : null;
-    $newValueJson = $newValue ? substr(json_encode($newValue, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE), 0, $maxTextLength) : null;
-
-    // Log inputs for debugging
-    error_log("logAction: matchId=$matchId, user_id={$_SESSION['user_id']}, actionType=$actionType, " .
-              "actionDetails=" . ($actionDetailsJson ?? 'null') . 
-              ", previousValue=" . ($previousValueJson ?? 'null') . 
-              ", newValue=" . ($newValueJson ?? 'null'));
-
-    try {
-        $stmt = $pdo->prepare("
-            INSERT INTO match_logs 
-            (match_id, user_id, action_type, action_details, previous_value, new_value, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
-        ");
-        $stmt->execute([
-            $matchId,
-            $_SESSION['user_id'],
-            $actionType,
-            $actionDetailsJson,
-            $previousValueJson,
-            $newValueJson
-        ]);
-    } catch (PDOException $e) {
-        error_log("logAction failed: matchId=$matchId, actionType=$actionType, actionDetails=" . ($actionDetailsJson ?? 'null') . ", error: " . $e->getMessage());
-        throw $e;
-    }
-}
-
-function updateStandings($matchId, $pdo) {
-    try {
-        // Fetch the match
-        $stmt = $pdo->prepare("SELECT * FROM matches WHERE id = ?");
-        $stmt->execute([$matchId]);
-        $match = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$match) {
-            error_log("updateStandings: Match not found for match_id=$matchId");
-            return;
-        }
-
-        // Validate required fields
-        if (empty($match['saison']) || empty($match['competition']) || !isset($match['poule_id']) || 
-            !isset($match['score_home']) || !isset($match['score_away']) || $match['status'] !== 'completed') {
-            error_log("updateStandings: Invalid match data for match_id=$matchId, data=" . json_encode($match));
-            return;
-        }
-
-        $saison = $match['saison'];
-        $competition = $match['competition'];
-        $poule_id = $match['poule_id'];
-        $teams = [
-            ['name' => $match['team_home'], 'is_home' => true],
-            ['name' => $match['team_away'], 'is_home' => false]
-        ];
-
-        foreach ($teams as $team) {
-            $nom_equipe = $team['name'];
-
-            // Fetch all completed matches for the team
-            $sql = "SELECT * FROM matches 
-                    WHERE (team_home = :team OR team_away = :team)
-                    AND saison = :saison AND competition = :competition AND poule_id = :poule_id
-                    AND status = 'completed'";
-            $stmt2 = $pdo->prepare($sql);
-            $stmt2->execute([
-                'team' => $nom_equipe,
-                'saison' => $saison,
-                'competition' => $competition,
-                'poule_id' => $poule_id
-            ]);
-            $matches = $stmt2->fetchAll(PDO::FETCH_ASSOC);
-            error_log("updateStandings: Fetched " . count($matches) . " matches for team=$nom_equipe, match_id=$matchId");
-
-            // Calculate standings
-            $joues = $gagnes = $nuls = $perdus = $bp = $bc = $points = 0;
-            $forme = [];
-
-            foreach ($matches as $m) {
-                $isHome = ($m['team_home'] === $nom_equipe);
-                $for = $isHome ? $m['score_home'] : $m['score_away'];
-                $against = $isHome ? $m['score_away'] : $m['score_home'];
-
-                // Skip if scores are invalid
-                if ($for === null || $against === null) {
-                    error_log("updateStandings: Skipping match_id={$m['id']} for team=$nom_equipe due to null scores");
-                    continue;
-                }
-
-                $joues++;
-                $bp += $for;
-                $bc += $against;
-
-                if ($for > $against) {
-                    $gagnes++;
-                    $points += 3;
-                    $forme[] = 'V';
-                } elseif ($for == $against) {
-                    $nuls++;
-                    $points += 1;
-                    $forme[] = 'N';
-                } else {
-                    $perdus++;
-                    $forme[] = 'D';
-                }
-            }
-            $diff = $bp - $bc;
-            $formeStr = implode(',', array_slice(array_reverse($forme), 0, 5));
-
-            // Fetch existing standing
-            $oldStandingStmt = $pdo->prepare("SELECT * FROM classement WHERE saison = ? AND competition = ? AND poule_id = ? AND nom_equipe = ?");
-            $oldStandingStmt->execute([$saison, $competition, $poule_id, $nom_equipe]);
-            $oldStanding = $oldStandingStmt->fetch(PDO::FETCH_ASSOC);
-
-            // Upsert standings
-            $upsert = "INSERT INTO classement 
-                (saison, competition, poule_id, nom_equipe, matchs_joues, matchs_gagnes, matchs_nuls, matchs_perdus, buts_pour, buts_contre, difference_buts, points, forme)
-                VALUES (:saison, :competition, :poule_id, :nom_equipe, :joues, :gagnes, :nuls, :perdus, :bp, :bc, :diff, :points, :forme)
-                ON DUPLICATE KEY UPDATE
-                    matchs_joues = VALUES(matchs_joues),
-                    matchs_gagnes = VALUES(matchs_gagnes),
-                    matchs_nuls = VALUES(matchs_nuls),
-                    matchs_perdus = VALUES(matchs_perdus),
-                    buts_pour = VALUES(buts_pour),
-                    buts_contre = VALUES(buts_contre),
-                    difference_buts = VALUES(difference_buts),
-                    points = VALUES(points),
-                    forme = VALUES(forme)";
-            $stmt3 = $pdo->prepare($upsert);
-            $params = [
-                'saison' => $saison,
-                'competition' => $competition,
-                'poule_id' => $poule_id,
-                'nom_equipe' => $nom_equipe,
-                'joues' => $joues,
-                'gagnes' => $gagnes,
-                'nuls' => $nuls,
-                'perdus' => $perdus,
-                'bp' => $bp,
-                'bc' => $bc,
-                'diff' => $diff,
-                'points' => $points,
-                'forme' => $formeStr
-            ];
-            $stmt3->execute($params);
-            error_log("updateStandings: Upsert executed for team=$nom_equipe, match_id=$matchId, params=" . json_encode($params));
-
-            // Log the action
-            $newStandingData = [
-                'matchs_joues' => $joues,
-                'matchs_gagnes' => $gagnes,
-                'matchs_nuls' => $nuls,
-                'matchs_perdus' => $perdus,
-                'buts_pour' => $bp,
-                'buts_contre' => $bc,
-                'difference_buts' => $diff,
-                'points' => $points,
-                'forme' => $formeStr
-            ];
-            if ($oldStanding) {
-                logAction(
-                    $pdo,
-                    $matchId,
-                    'UPDATE_STANDING',
-                    "Classement mis à jour: $nom_equipe",
-                    $oldStanding,
-                    $newStandingData
-                );
-            } else {
-                logAction(
-                    $pdo,
-                    $matchId,
-                    'CREATE_STANDING',
-                    "Classement créé: $nom_equipe",
-                    null,
-                    $newStandingData
-                );
-            }
-        }
-    } catch (PDOException $e) {
-        error_log("updateStandings failed for match_id=$matchId: " . $e->getMessage());
-        throw $e;
-    }
-}
-
-        // Check if registration_periods table exists, create if not
-        try {
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS registration_periods (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    category VARCHAR(50) NOT NULL DEFAULT 'default',
-                    start_date DATETIME NOT NULL,
-                    end_date DATETIME NOT NULL,
-                    closed_message TEXT,
-                    is_active BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX (category),
-                    INDEX (is_active)
-                )
-            ");
-        } catch (PDOException $e) {
-            error_log("Error creating registration_periods table: " . $e->getMessage());
-        }
-
-// Fetch ongoing matches
-try {
-    $currentMatches = $pdo->query("SELECT * FROM matches WHERE status = 'ongoing' ORDER BY match_date DESC")->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("Error fetching current matches: " . $e->getMessage());
-    die("Erreur lors du chargement des matchs.");
-}
-
-// Process form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        $pdo->beginTransaction();
-
-        // Update score
-        if (isset($_POST['update_score'])) {
-            $matchId = filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT);
-            $scoreHome = filter_input(INPUT_POST, 'score_home', FILTER_VALIDATE_INT);
-            $scoreAway = filter_input(INPUT_POST, 'score_away', FILTER_VALIDATE_INT);
-
-            if (!$matchId || $scoreHome < 0 || $scoreAway < 0) {
-                error_log("Invalid input for updating score: match_id=$matchId, score_home=$scoreHome, score_away=$scoreAway");
-                $_SESSION['error'] = "Données invalides pour la mise à jour du score.";
-                header("Location: dashboard.php");
-                exit();
-            }
-
-            // Fetch previous score
-            $stmt = $pdo->prepare("SELECT score_home, score_away FROM matches WHERE id = ?");
-            $stmt->execute([$matchId]);
-            $oldScore = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            $stmt = $pdo->prepare("UPDATE matches SET score_home = ?, score_away = ? WHERE id = ?");
-            $stmt->execute([$scoreHome, $scoreAway, $matchId]);
-
-            // Log the action
-            logAction(
-                $pdo,
-                $matchId,
-                'UPDATE_SCORE',
-                "Mise à jour du score",
-                ['score_home' => $oldScore['score_home'], 'score_away' => $oldScore['score_away']],
-                ['score_home' => $scoreHome, 'score_away' => $scoreAway]
-            );
-
-            // Handle registration period form submission
-        if (isset($_POST['add_period']) || isset($_POST['update_period'])) {
-            $periodId = filter_input(INPUT_POST, 'period_id', FILTER_VALIDATE_INT);
-            $startDate = filter_input(INPUT_POST, 'start_date', FILTER_SANITIZE_STRING);
-            $endDate = filter_input(INPUT_POST, 'end_date', FILTER_SANITIZE_STRING);
-            $closedMessage = filter_input(INPUT_POST, 'closed_message', FILTER_SANITIZE_STRING);
-            $isActive = isset($_POST['is_active']) ? 1 : 0;
-            $category = 'default'; // Can be extended to support multiple categories
-
-            // Validate dates
-            if (!$startDate || !$endDate || strtotime($startDate) === false || strtotime($endDate) === false) {
-                throw new RuntimeException("Dates invalides");
-            }
-
-            if (isset($_POST['add_period'])) {
-                // Insert new period
-                $stmt = $pdo->prepare("
-                    INSERT INTO registration_periods 
-                    (category, start_date, end_date, closed_message, is_active)
-                    VALUES (?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([$category, $startDate, $endDate, $closedMessage, $isActive]);
-                $_SESSION['message'] = "Période d'inscription ajoutée avec succès!";
-            } else {
-                // Update existing period
-                if (!$periodId) {
-                    throw new RuntimeException("ID de période invalide");
-                }
-                $stmt = $pdo->prepare("
-                    UPDATE registration_periods SET
-                    start_date = ?,
-                    end_date = ?,
-                    closed_message = ?,
-                    is_active = ?
-                    WHERE id = ?
-                ");
-                $stmt->execute([$startDate, $endDate, $closedMessage, $isActive, $periodId]);
-                $_SESSION['message'] = "Période d'inscription mise à jour avec succès!";
-            }
-        }
-
-        // Handle period deletion
-        if (isset($_POST['delete_period'])) {
-            $periodId = filter_input(INPUT_POST, 'period_id', FILTER_VALIDATE_INT);
-            if (!$periodId) {
-                throw new RuntimeException("ID de période invalide");
-            }
-            $stmt = $pdo->prepare("DELETE FROM registration_periods WHERE id = ?");
-            $stmt->execute([$periodId]);
-            $_SESSION['message'] = "Période d'inscription supprimée avec succès!";
-        }
-
-        $pdo->commit();
             $_SESSION['message'] = "Score mis à jour avec succès !";
             header("Location: dashboard.php");
             exit();
@@ -1699,6 +700,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['message'] = "Durée réglementaire définie à $duration minutes !";
             header("Location: dashboard.php");
             exit();
+        }
+
+        // Handle registration period form submission
+        if (isset($_POST['add_period']) || isset($_POST['update_period'])) {
+            $periodId = filter_input(INPUT_POST, 'period_id', FILTER_VALIDATE_INT);
+            $startDate = filter_input(INPUT_POST, 'start_date', FILTER_SANITIZE_STRING);
+            $endDate = filter_input(INPUT_POST, 'end_date', FILTER_SANITIZE_STRING);
+            $closedMessage = filter_input(INPUT_POST, 'closed_message', FILTER_SANITIZE_STRING);
+            $isActive = isset($_POST['is_active']) ? 1 : 0;
+            $category = 'default'; // Can be extended to support multiple categories
+
+            // Validate dates
+            if (!$startDate || !$endDate || strtotime($startDate) === false || strtotime($endDate) === false) {
+                throw new RuntimeException("Dates invalides");
+            }
+
+            if (isset($_POST['add_period'])) {
+                // Insert new period
+                $stmt = $pdo->prepare("
+                    INSERT INTO registration_periods 
+                    (category, start_date, end_date, closed_message, is_active)
+                    VALUES (?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([$category, $startDate, $endDate, $closedMessage, $isActive]);
+                $_SESSION['message'] = "Période d'inscription ajoutée avec succès!";
+            } else {
+                // Update existing period
+                if (!$periodId) {
+                    throw new RuntimeException("ID de période invalide");
+                }
+                $stmt = $pdo->prepare("
+                    UPDATE registration_periods SET
+                    start_date = ?,
+                    end_date = ?,
+                    closed_message = ?,
+                    is_active = ?
+                    WHERE id = ?
+                ");
+                $stmt->execute([$startDate, $endDate, $closedMessage, $isActive, $periodId]);
+                $_SESSION['message'] = "Période d'inscription mise à jour avec succès!";
+            }
+        }
+
+        // Handle period deletion
+        if (isset($_POST['delete_period'])) {
+            $periodId = filter_input(INPUT_POST, 'period_id', FILTER_VALIDATE_INT);
+            if (!$periodId) {
+                throw new RuntimeException("ID de période invalide");
+            }
+            $stmt = $pdo->prepare("DELETE FROM registration_periods WHERE id = ?");
+            $stmt->execute([$periodId]);
+            $_SESSION['message'] = "Période d'inscription supprimée avec succès!";
         }
 
         $pdo->commit();
