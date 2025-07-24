@@ -1,48 +1,37 @@
 FROM debian:bookworm
-WORKDIR /var/www/html
 
-# Add Debian PHP repository
+# Install required packages
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-    apt-transport-https \
-    lsb-release \
-    gnupg \
     curl \
-    procps  # For ps command used in apache2-foreground
+    gnupg \
+    lsb-release
+
+# Add PHP repository
 RUN curl -sSLo /usr/share/keyrings/php.gpg https://packages.sury.org/php/apt.gpg
 RUN echo "deb [signed-by=/usr/share/keyrings/php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list
 
 # Install Apache and PHP
 RUN apt-get update && apt-get install -y \
     apache2 \
-    php8.2 \
     libapache2-mod-php8.2 \
+    php8.2 \
     php8.2-mysql \
-    php8.2-zip \
     php8.2-common \
     php8.2-opcache \
-    libzip-dev \
-    unzip \
-    netcat-openbsd \
-    default-mysql-client
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Configure Apache
-RUN a2enmod rewrite headers expires
-RUN a2enmod php8.2
-
-# Configure Apache to handle PHP files
-RUN echo "<FilesMatch \.php$>\n    SetHandler application/x-httpd-php\n</FilesMatch>" > /etc/apache2/conf-available/php-handler.conf
-RUN a2enconf php-handler
+RUN a2enmod rewrite
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 # Copy Apache configuration
 COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
 RUN a2ensite 000-default
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
-RUN echo "Listen 80" > /etc/apache2/ports.conf
 
-# Configure DirectoryIndex to prioritize PHP files
-RUN echo "DirectoryIndex index.php index.html" > /etc/apache2/conf-available/directory-index.conf
-RUN a2enconf directory-index
+# Set working directory
+WORKDIR /var/www/html
 
 # PHP configuration
 RUN mkdir -p /etc/php/8.2/apache2/conf.d
