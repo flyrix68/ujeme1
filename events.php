@@ -4,8 +4,62 @@ date_default_timezone_set('Africa/Abidjan'); // Adaptez à votre fuseau
 
 require_once 'includes/db-config.php';
 
-// Configuration du debug
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+try {
+    $pdo = DatabaseConfig::getConnection();
+    // Configuration du debug
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (RuntimeException $e) {
+    $error = "Erreur de connexion à la base de données: " . $e->getMessage();
+    error_log($error);
+    $evenements = [];
+    // Skip the SQL query by including the HTML directly
+    include 'includes/navbar.php'; 
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Événements | UJEM</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .event-card {
+            transition: transform 0.3s;
+            margin-bottom: 20px;
+        }
+        .debug-panel {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <section class="py-5 bg-light">
+        <div class="container">
+            <div class="alert alert-danger">
+                <?= htmlspecialchars($error) ?>
+            </div>
+            <div class="text-center mb-5">
+                <h1 class="display-4">Nos Événements</h1>
+            </div>
+            <div class="col-12 text-center py-5">
+                <div class="alert alert-danger">
+                    <h4>Connexion à la base de données échouée</h4>
+                    <p>Impossible de charger les événements. Veuillez réessayer plus tard.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    <?php include 'includes/footer.php'; ?>
+</body>
+</html>
+<?php
+    exit();
+}
 
 // Activer l'affichage des erreurs (temporairement)
 ini_set('display_errors', 1);

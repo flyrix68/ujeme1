@@ -258,17 +258,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch all teams
 try {
-    $stmt = $pdo->query("SELECT t.id, t.team_name AS name, 
-                                CASE 
-                                    WHEN t.logo_path IS NOT NULL THEN CONCAT('/uploads/logos/', t.logo_path)
-                                    ELSE '/assets/img/teams/default.png'
-                                END AS logo, 
-                                t.category, t.location, 
-                                t.manager_name, t.manager_email, t.manager_phone, 
-                                p.id AS poule_id, p.name AS poule_name
-                         FROM teams t
-                         LEFT JOIN poules p ON t.poule_id = p.id
-                         ORDER BY t.category, t.team_name")->fetchAll(PDO::FETCH_ASSOC);
+    $query = "SELECT t.id, t.team_name AS name, 
+                     CASE 
+                         WHEN t.logo_path IS NOT NULL THEN CONCAT('/uploads/logos/', t.logo_path)
+                         ELSE '/assets/img/teams/default.png' 
+                     END AS logo,
+                     t.category, t.location,
+                     t.manager_name, t.manager_email, t.manager_phone,
+                     p.id AS poule_id, p.name AS poule_name
+              FROM teams t
+              LEFT JOIN poules p ON t.poule_id = p.id
+              ORDER BY t.category, t.team_name";
+    
+    error_log("Executing teams query: " . $query);
+    $stmt = $pdo->query($query);
+    $teams = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    error_log("Teams count: " . count($teams));
+    if (empty($teams)) {
+        error_log("Teams query returned empty result");
+    } else {
+        error_log("First team: " . print_r($teams[0], true));
+    }
 } catch (PDOException $e) {
     error_log("Error fetching teams: " . $e->getMessage());
     die("Erreur lors du chargement des équipes.");
