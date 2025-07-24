@@ -119,8 +119,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_poule'])) {
 // Handle match form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        error_log("Début du traitement du formulaire de match");
+        
         // Add or update match
         if (isset($_POST['add_match']) || isset($_POST['update_match'])) {
+            error_log("Traitement d'ajout/mise à jour de match");
+            
+            // Récupération des données du formulaire
             $match_id = isset($_POST['match_id']) ? filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT) : null;
             $team_home = filter_input(INPUT_POST, 'team_home', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
             $team_away = filter_input(INPUT_POST, 'team_away', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
@@ -133,117 +138,227 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $score_home = filter_input(INPUT_POST, 'score_home', FILTER_VALIDATE_INT, ['options' => ['default' => null]]);
             $score_away = filter_input(INPUT_POST, 'score_away', FILTER_VALIDATE_INT, ['options' => ['default' => null]]);
 
-            // Validate required fields
-            if (!$team_home || !$team_away || $team_home === $team_away || !$competition || !$match_date || !$match_time || !$phase || !$venue) {
-                error_log("Invalid input for match: team_home=$team_home, team_away=$team_away, competition=$competition, date=$match_date, time=$match_time, phase=$phase, venue=$venue");
-                $_SESSION['error'] = "Tous les champs obligatoires doivent être remplis et les équipes doivent être différentes.";
+            error_log("Données du formulaire:");
+            error_log(print_r([
+                'match_id' => $match_id,
+                'team_home' => $team_home,
+                'team_away' => $team_away,
+                'competition' => $competition,
+                'poule_id' => $poule_id,
+                'match_date' => $match_date,
+                'match_time' => $match_time,
+                'phase' => $phase,
+                'venue' => $venue,
+                'score_home' => $score_home,
+                'score_away' => $score_away
+            ], true));
+
+            // Validation des champs obligatoires
+            if (empty($team_home) || empty($team_away) || empty($competition) || empty($match_date) || empty($match_time) || empty($phase) || empty($venue)) {
+                $error_msg = "Tous les champs obligatoires doivent être remplis.";
+                error_log("Erreur de validation: $error_msg");
+                $_SESSION['error'] = $error_msg;
+            } elseif ($team_home === $team_away) {
+                $error_msg = "Les équipes à domicile et à l'extérieur doivent être différentes.";
+                error_log("Erreur de validation: $error_msg");
+                $_SESSION['error'] = $error_msg;
             } else {
-                // Verify team names exist
-                $stmt = $pdo->prepare("SELECT team_name FROM teams WHERE team_name IN (?, ?)");
-                $stmt->execute([$team_home, $team_away]);
-                $existing_teams = $stmt->fetchAll(PDO::FETCH_COLUMN);
-                if (count($existing_teams) != 2) {
-                    $_SESSION['error'] = "Une ou les deux équipes sélectionnées n'existent pas.";
-                } else {
-                    // Determine status based on time and scores
-                    $match_datetime = strtotime($match_date . ' ' . $match_time);
-                    $current_datetime = time();
-                    
-                    if ($score_home !== null && $score_away !== null) {
-                        $status = 'finished';
-                    } elseif ($match_datetime > $current_datetime) {
-                        $status = 'pending';
-                    } else {
-                        $status = 'ongoing';
-                    }
-
-                    if (isset($_POST['add_match'])) {
-                        $stmt = $pdo->prepare("
-                            INSERT INTO matches (competition, phase, match_date, match_time, team_home, team_away, venue, score_home, score_away, status, poule_id)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ");
-                        $stmt->execute([$competition, $phase, $match_date, $match_time, $team_home, $team_away, $venue, $score_home, $score_away, $status, $poule_id]);
-                        $_SESSION['message'] = "Match ajouté avec succès !";
-                    } elseif (isset($_POST['update_match']) && $match_id) {
-                        $stmt = $pdo->prepare("
-                            UPDATE matches
-                            SET competition = ?, phase = ?, match_date = ?, match_time = ?, team_home = ?, team_away = ?, venue = ?, score_home = ?, score_away = ?, status = ?, poule_id = ?
-                            WHERE id = ?
-                        ");
-                        $stmt->execute([$competition, $phase, $match_date, $match_time, $team_home, $team_away, $venue, $score_home, $score_away, $status, $poule_id, $match_id]);
-                        $_SESSION['message'] = "Match mis à jour avec succès !";
-                    }
-                }
-            }
-        }
-
-        // Handle match finalization 
-        if (isset($_POST['finalize_match'])) {
-            $match_id = filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT);
-            $score_home = filter_input(INPUT_POST, 'score_home', FILTER_VALIDATE_INT);
-            $score_away = filter_input(INPUT_POST, 'score_away', FILTER_VALIDATE_INT);
-
-            if (!$match_id || $score_home === null || $score_away === null) {
-                $_SESSION['error'] = "Veuillez entrer des scores valides pour finaliser le match.";
-            } else {
+                // Vérification de l'existence des équipes
                 try {
-                    $stmt = $pdo->prepare("
-                        UPDATE matches 
-                        SET status = 'completed', 
-                            timer_status = 'ended',
-                            score_home = ?,
-                            score_away = ?,
-                            timer_elapsed = timer_duration
-                        WHERE id = ?
-                    ");
-                    $stmt->execute([$score_home, $score_away, $match_id]);
-                    $_SESSION['message'] = "Match finalisé avec succès !";
+                    $stmt = $pdo->prepare("SELECT id, team_name FROM teams WHERE team_name IN (?, ?)");
+                    $stmt->execute([$team_home, $team_away]);
+                    $existing_teams = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+                    
+                    if (count($existing_teams) !== 2) {
+                        $missing_teams = [];
+                        if (!isset($existing_teams[$team_home])) $missing_teams[] = $team_home;
+                        if (!isset($existing_teams[$team_away])) $missing_teams[] = $team_away;
+                        
+                        $error_msg = "Les équipes suivantes n'existent pas : " . implode(', ', $missing_teams);
+                        error_log("Erreur: $error_msg");
+                        $_SESSION['error'] = $error_msg;
+                    } else {
+                        // Déterminer le statut en fonction de la date et des scores
+                        $match_datetime = strtotime($match_date . ' ' . $match_time);
+                        $current_datetime = time();
+                        
+                        if ($score_home !== null && $score_away !== null) {
+                            $status = 'completed';
+                        } elseif ($match_datetime > $current_datetime) {
+                            $status = 'pending';
+                        } else {
+                            $status = 'ongoing';
+                        }
+                        
+                        error_log("Statut du match déterminé: $status");
+
+                        // Ajout ou mise à jour du match
+                        if (isset($_POST['add_match'])) {
+                            try {
+                                $sql = "INSERT INTO matches (competition, phase, match_date, match_time, team_home, team_away, venue, score_home, score_away, status, poule_id, created_at) " . 
+                                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                                $stmt = $pdo->prepare($sql);
+                                $params = [
+                                    $competition, 
+                                    $phase, 
+                                    $match_date, 
+                                    $match_time, 
+                                    $team_home, 
+                                    $team_away, 
+                                    $venue, 
+                                    $score_home, 
+                                    $score_away, 
+                                    $status, 
+                                    $poule_id
+                                ];
+                                
+                                error_log("Exécution de la requête INSERT: $sql");
+                                error_log("Paramètres: " . print_r($params, true));
+                                
+                                $result = $stmt->execute($params);
+                                
+                                if ($result) {
+                                    $match_id = $pdo->lastInsertId();
+                                    $_SESSION['message'] = "Match ajouté avec succès ! ID: $match_id";
+                                    error_log("Match ajouté avec succès, ID: $match_id");
+                                    
+                                    // Redirection pour éviter la soumission multiple du formulaire
+                                    header("Location: " . $_SERVER['PHP_SELF']);
+                                    exit();
+                                } else {
+                                    $errorInfo = $stmt->errorInfo();
+                                    throw new Exception("Échec de l'ajout du match: " . ($errorInfo[2] ?? 'Erreur inconnue'));
+                                }
+                            } catch (PDOException $e) {
+                                error_log("Erreur PDO lors de l'ajout du match: " . $e->getMessage());
+                                error_log("Code d'erreur: " . $e->getCode());
+                                throw new Exception("Erreur lors de l'ajout du match dans la base de données");
+                            }
+                        } 
+                        // Gestion de la mise à jour du match
+                        elseif (isset($_POST['update_match']) && $match_id) {
+                            try {
+                                $sql = "UPDATE matches SET 
+                                    competition = ?, 
+                                    phase = ?, 
+                                    match_date = ?, 
+                                    match_time = ?, 
+                                    team_home = ?, 
+                                    team_away = ?, 
+                                    venue = ?, 
+                                    score_home = ?, 
+                                    score_away = ?, 
+                                    status = ?, 
+                                    poule_id = ?, 
+                                    updated_at = NOW() 
+                                    WHERE id = ?";
+                                
+                                $stmt = $pdo->prepare($sql);
+                                $params = [
+                                    $competition, 
+                                    $phase, 
+                                    $match_date, 
+                                    $match_time, 
+                                    $team_home, 
+                                    $team_away, 
+                                    $venue, 
+                                    $score_home, 
+                                    $score_away, 
+                                    $status, 
+                                    $poule_id,
+                                    $match_id
+                                ];
+                                
+                                error_log("Exécution de la requête UPDATE: $sql");
+                                error_log("Paramètres: " . print_r($params, true));
+                                
+                                $result = $stmt->execute($params);
+                                
+                                if ($result) {
+                                    $_SESSION['message'] = "Match mis à jour avec succès !";
+                                    error_log("Match mis à jour avec succès, ID: $match_id");
+                                    
+                                    // Redirection pour éviter la soumission multiple du formulaire
+                                    header("Location: " . $_SERVER['PHP_SELF']);
+                                    exit();
+                                } else {
+                                    $errorInfo = $stmt->errorInfo();
+                                    throw new Exception("Échec de la mise à jour du match: " . ($errorInfo[2] ?? 'Erreur inconnue'));
+                                }
+                            } catch (PDOException $e) {
+                                error_log("Erreur PDO lors de la mise à jour du match: " . $e->getMessage());
+                                error_log("Code d'erreur: " . $e->getCode());
+                                throw new Exception("Erreur lors de la mise à jour du match dans la base de données");
+                            }
+                        }
+                    }
                 } catch (PDOException $e) {
-                    error_log("Error finalizing match: " . $e->getMessage());
-                    $_SESSION['error'] = "Erreur lors de la finalisation du match.";
+                    error_log("Erreur lors de la vérification des équipes: " . $e->getMessage());
+                    $_SESSION['error'] = "Erreur lors de la vérification des équipes. Veuillez réessayer.";
                 }
             }
         }
         
-        // Delete match
-        if (isset($_POST['delete_match'])) {
-            $match_id = filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT);
-            if ($match_id) {
-                $stmt = $pdo->prepare("DELETE FROM goals WHERE match_id = ?");
-                $stmt->execute([$match_id]);
-                $stmt = $pdo->prepare("DELETE FROM matches WHERE id = ?");
-                $stmt->execute([$match_id]);
-                $_SESSION['message'] = "Match supprimé avec succès !";
-            } else {
-                $_SESSION['error'] = "ID de match invalide.";
+        // Gestion de la finalisation du match
+        if (isset($_POST['finalize_match'])) {
+            try {
+                $match_id = filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT);
+                $score_home = filter_input(INPUT_POST, 'score_home', FILTER_VALIDATE_INT);
+                $score_away = filter_input(INPUT_POST, 'score_away', FILTER_VALIDATE_INT);
+                
+                error_log("Finalisation du match ID: $match_id, Score: $score_home - $score_away");
+                
+                if (!$match_id || $score_home === null || $score_away === null) {
+                    $error_msg = "Veuillez entrer des scores valides pour finaliser le match.";
+                    error_log("Erreur de validation: $error_msg");
+                    $_SESSION['error'] = $error_msg;
+                } else {
+                    $stmt = $pdo->prepare("
+                        UPDATE matches 
+                        SET status = 'completed', 
+                            score_home = ?,
+                            score_away = ?,
+                            updated_at = NOW()
+                        WHERE id = ?
+                    ");
+                    
+                    error_log("Exécution de la requête de finalisation du match");
+                    $result = $stmt->execute([$score_home, $score_away, $match_id]);
+                    
+                    if ($result) {
+                        $_SESSION['message'] = "Match finalisé avec succès !";
+                        error_log("Match finalisé avec succès, ID: $match_id");
+                        
+                        // Redirection pour éviter la soumission multiple du formulaire
+                        header("Location: " . $_SERVER['PHP_SELF']);
+                        exit();
+                    } else {
+                        $errorInfo = $stmt->errorInfo();
+                        throw new Exception("Échec de la finalisation du match: " . ($errorInfo[2] ?? 'Erreur inconnue'));
+                    }
+                }
+            } catch (PDOException $e) {
+                error_log("Erreur PDO lors de la finalisation du match: " . $e->getMessage());
+                error_log("Code d'erreur: " . $e->getCode());
+                $_SESSION['error'] = "Erreur lors de la finalisation du match. Veuillez réessayer.";
+            } catch (Exception $e) {
+                error_log("Erreur lors de la finalisation du match: " . $e->getMessage());
+                $_SESSION['error'] = $e->getMessage();
             }
         }
-
-        // Handle poule deletion
-        if (isset($_POST['delete_poule'])) {
-            $poule_id = filter_input(INPUT_POST, 'poule_id', FILTER_VALIDATE_INT);
-            if ($poule_id) {
-                // Update matches to remove poule_id reference
-                $stmt = $pdo->prepare("UPDATE matches SET poule_id = NULL WHERE poule_id = ?");
-                $stmt->execute([$poule_id]);
-                
-                // Delete the poule
-                $stmt = $pdo->prepare("DELETE FROM poules WHERE id = ?");
-                $stmt->execute([$poule_id]);
-                
-                $_SESSION['message'] = "Poule supprimée avec succès !";
-            } else {
-                $_SESSION['error'] = "ID de poule invalide.";
-            }
+        
+    } catch (Exception $e) {
+        error_log("Erreur lors du traitement du formulaire de match: " . $e->getMessage());
+        $_SESSION['error'] = "Une erreur est survenue lors du traitement de votre demande. Veuillez réessayer.";
+        
+        // Enregistrer plus de détails dans les logs
+        error_log("Trace complète de l'erreur: " . $e->getTraceAsString());
+        
+        // Si c'est une erreur PDO, enregistrer les informations supplémentaires
+        if ($e instanceof PDOException) {
+            error_log("Code d'erreur PDO: " . $e->getCode());
+            error_log("Informations sur l'erreur: " . print_r($e->errorInfo, true));
         }
-
-        if (!isset($_SESSION['error'])) {
-            header("Location: manage_matches.php");
-            exit();
-        }
-    } catch (PDOException $e) {
-        error_log("Error processing match form: " . $e->getMessage());
-        $_SESSION['error'] = "Erreur lors du traitement des données.";
     }
 }
 
