@@ -1,17 +1,16 @@
 
 <?php
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+ob_start();
+require __DIR__ . '/admin_header.php';
 
-// Start session
-session_start();
-error_log("Session data in manage_news_media.php: " . print_r($_SESSION, true));
+// Initialize empty contenus array to prevent undefined variable errors
+$contenus = [];
 
-// Include dependencies
-// manage_news_media.php
-require_once '../includes/db-config.php';
+// Verify database connection
+if (!isset($pdo)) {
+    error_log("Critical error: Database connection not available in admin/manage_news_media.php");
+    die("Database connection error. Please contact administrator.");
+}
 // require_once '../includes/check-auth.php';
 
 function autoGenererMedia($pdo, $type, $reference_id, $user_id) {

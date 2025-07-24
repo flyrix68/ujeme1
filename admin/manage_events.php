@@ -1,17 +1,15 @@
 <?php
-// Enable error reporting
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+ob_start();
+require __DIR__ . '/admin_header.php';
 
-// Start session and check admin auth
-session_start();
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? 'membre') !== 'admin') {
-    header('Location: ../index.php');
-    exit();
+// Initialize empty events array to prevent undefined variable errors  
+$events = [];
+
+// Verify database connection
+if (!isset($pdo)) {
+    error_log("Critical error: Database connection not available in admin/manage_events.php");
+    die("Database connection error. Please contact administrator.");
 }
-
-require_once '../includes/db-config.php';
 
 // Traitement des formulaires
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

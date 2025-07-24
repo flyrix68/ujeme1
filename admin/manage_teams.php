@@ -2,6 +2,9 @@
 ob_start();
 require __DIR__ . '/admin_header.php';
 
+// Initialize empty teams array to prevent undefined variable errors
+$teams = [];
+
 // Verify database connection
 if (!isset($pdo)) {
     error_log("Critical error: Database connection not available in admin/manage_teams.php");
