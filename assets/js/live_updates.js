@@ -74,4 +74,29 @@ class LiveMatchUpdater {
     unsubscribeFromMatch(matchId) {
         this.watchedMatches.delete(matchId);
         
-        if
+        if (this.socket?.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'unsubscribe',
+                match_id: matchId
+            }));
+        }
+    }
+
+    updateMatchUI(matchData) {
+        // Find the match element in the DOM and update it
+        const matchElement = document.querySelector(`[data-match-id="${matchData.id}"]`);
+        if (matchElement) {
+            // Update the match score and other details
+            const homeScoreEl = matchElement.querySelector('.match-score-home');
+            const awayScoreEl = matchElement.querySelector('.match-score-away');
+            const matchStatus = matchElement.querySelector('.match-status');
+            
+            if (homeScoreEl) homeScoreEl.textContent = matchData.home_score || '0';
+            if (awayScoreEl) awayScoreEl.textContent = matchData.away_score || '0';
+            if (matchStatus) matchStatus.textContent = matchData.status || '';
+            
+            // Add a visual indicator that the score was updated
+            matchElement.classList.add('score-updated');
+            setTimeout(() => matchElement.classList.remove('score-updated'), 1000);
+        }
+    }

@@ -180,15 +180,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['error'] = "Tous les champs obligatoires doivent être remplis.";
             } else {
                 // Handle logo upload
-                $logo_path = null;
+                $logo_name = null;
                 if (!empty($_FILES['logo_path']['name'])) {
-                                                    $upload_dir = '../assets/img/teams/';
-                                                    if (!is_dir($upload_dir)) {
-                                                        mkdir($upload_dir, 0755, true);
-                                                    }
-                                                    $logo_name = strtolower(preg_replace('/[^a-z0-9-]/', '-', $team_name)) . '.png';
-                                                    $logo_path = $upload_dir . $logo_name;
-                                                    if (!move_uploaded_file($_FILES['logo_path']['tmp_name'], $logo_path)) {
+                    $upload_dir = '../uploads/logos/';
+                    if (!is_dir($upload_dir)) {
+                        mkdir($upload_dir, 0755, true);
+                    }
+                    $file_extension = pathinfo($_FILES['logo_path']['name'], PATHINFO_EXTENSION);
+                    $logo_name = uniqid('team_') . '.' . $file_extension;
+                    $logo_path = $upload_dir . $logo_name;
+                    if (!move_uploaded_file($_FILES['logo_path']['tmp_name'], $logo_path)) {
                         error_log("Failed to upload logo for team: $team_name");
                         $_SESSION['error'] = "Erreur lors du téléchargement du logo.";
                     }
@@ -196,10 +197,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if (isset($_POST['add_team'])) {
                     $stmt = $pdo->prepare("INSERT INTO teams (team_name, category, location, manager_name, manager_email, manager_phone, logo_path, poule_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$team_name, $category, $location, $manager_name, $manager_email, $manager_phone, $logo_name ?? null, $poule_id]);
+                    $stmt->execute([$team_name, $category, $location, $manager_name, $manager_email, $manager_phone, $logo_name, $poule_id]);
                     $_SESSION['message'] = "Équipe ajoutée avec succès !";
                 } elseif (isset($_POST['update_team']) && $team_id) {
-                    if ($logo_path) {
+                    if ($logo_name) {
+                        // First get old logo to delete it
+                        $stmt = $pdo->prepare("SELECT logo_path FROM teams WHERE id = ?");
+                        $stmt->execute([$team_id]);
+                        $old_logo = $stmt->fetchColumn();
+                        if ($old_logo && file_exists("../uploads/logos/" . $old_logo)) {
+                            unlink("../uploads/logos/" . $old_logo);
+                        }
+                        
                         $stmt = $pdo->prepare("UPDATE teams SET team_name = ?, category = ?, location = ?, manager_name = ?, manager_email = ?, manager_phone = ?, logo_path = ?, poule_id = ? WHERE id = ?");
                         $stmt->execute([$team_name, $category, $location, $manager_name, $manager_email, $manager_phone, $logo_name, $poule_id, $team_id]);
                     } else {
@@ -246,11 +255,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch all teams
 try {
-    $teams = $pdo->query("SELECT t.id, t.team_name AS name, t.logo_path AS logo, t.category, t.location, 
-                          t.manager_name, t.manager_email, t.manager_phone, t.poule_id, p.name AS poule_name 
-                          FROM teams t 
-                          LEFT JOIN poules p ON t.poule_id = p.id 
-                          ORDER BY t.category, t.poule_id, t.team_name")->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $pdo->query("SELECT t.id, t.team_name AS name, 
+                                CASE 
+                                    WHEN t.logo_path IS NOT NULL THEN CONCAT('/uploads/logos/', t.logo_path)
+                                    ELSE '/assets/img/teams/default.png'
+                                END AS logo, 
+                                t.category, t.location, 
+                                t.manager_name, t.manager_email, t.manager_phone, 
+                                p.id AS poule_id, p.name AS poule_name
+                         FROM teams t
+                         LEFT JOIN poules p ON t.poule_id = p.id
+                         ORDER BY t.category, t.team_name")->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Error fetching teams: " . $e->getMessage());
     die("Erreur lors du chargement des équipes.");

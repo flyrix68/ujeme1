@@ -760,7 +760,7 @@ try {
                     <thead>
                         <tr>
                             <th>Pos</th>
-                            <th>Équipe</th
+                            <th>Équipe</th>
                             <th>J</th>
                             <th>G</th>
                             <th>N</th>
@@ -832,18 +832,19 @@ try {
         
         // Call generateStandings when the page loads
         document.addEventListener('DOMContentLoaded', function() {
-            // Only generate standings if there are poules
-            const poules = <?= json_encode($poules) ?>;
-            if (poules && poules.length > 0) {
             // Initialize tooltips
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
             
-            // Generate standings tables
-            if (document.querySelectorAll('#poules .card').length > 0) {
-                generateStandings();
+            // Only generate standings if there are poules
+            const poules = <?= json_encode($poules) ?>;
+            if (poules && poules.length > 0) {
+                // Generate standings tables
+                if (document.querySelectorAll('#poules .card').length > 0) {
+                    generateStandings();
+                }
             }
         });
     </script>
