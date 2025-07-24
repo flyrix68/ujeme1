@@ -10,7 +10,12 @@ printenv | grep -E 'PORT|DATABASE|RAILWAY|APACHE|PHP|MYSQL'
 echo "PHP version:"
 php -v
 echo "Apache version:"
-apache2ctl -v
+apache2 -v
+
+# Ensure PHP-FPM is running
+if [ -f "/etc/init.d/php8.2-fpm" ]; then
+    service php8.2-fpm start
+fi
 
 echo "===== STARTING CONTAINER ====="
 date

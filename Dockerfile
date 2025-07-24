@@ -27,12 +27,22 @@ RUN apt-get update && apt-get install -y \
     default-mysql-client
 
 # Configure Apache
+RUN a2enmod rewrite headers expires
+RUN a2enmod php8.2
+
+# Configure Apache to handle PHP files
+RUN echo "<FilesMatch \.php$>\n    SetHandler application/x-httpd-php\n</FilesMatch>" > /etc/apache2/conf-available/php-handler.conf
+RUN a2enconf php-handler
+
+# Copy Apache configuration
 COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
 RUN a2ensite 000-default
-RUN a2enmod rewrite
 RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 RUN echo "Listen 80" > /etc/apache2/ports.conf
-RUN a2enmod php8.2
+
+# Configure DirectoryIndex to prioritize PHP files
+RUN echo "DirectoryIndex index.php index.html" > /etc/apache2/conf-available/directory-index.conf
+RUN a2enconf directory-index
 
 # PHP configuration
 RUN mkdir -p /etc/php/8.2/apache2/conf.d
