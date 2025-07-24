@@ -50,7 +50,7 @@ try {
                 // Handle file upload
                 $photoPath = null;
                 if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-                    $uploadDir = '../uploads/players/';
+                    $uploadDir = '/uploads/players/';
                     if (!file_exists($uploadDir)) {
                         mkdir($uploadDir, 0755, true);
                     }
@@ -64,6 +64,8 @@ try {
                         $extension = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
                         $filename = uniqid('player_') . '.' . $extension;
                         $photoPath = $uploadDir . $filename;
+                        // Store web-accessible path without leading slash for database
+                        $dbPhotoPath = 'uploads/players/' . $filename;
                         
                         if (!move_uploaded_file($_FILES['photo']['tmp_name'], $photoPath)) {
                             $_SESSION['error'] = "Erreur lors de l'upload de la photo.";
@@ -76,7 +78,7 @@ try {
                 if (!isset($_SESSION['error'])) {
                     $stmt = $pdo->prepare("INSERT INTO players (name, position, jersey_number, team_id, photo) 
                                           VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute([$name, $position, $jersey_number, $team_id, $photoPath]);
+                    $stmt->execute([$name, $position, $jersey_number, $team_id, $dbPhotoPath]);
                     $_SESSION['message'] = "Joueur ajouté avec succès!";
                 }
             }
@@ -96,10 +98,11 @@ try {
                 // Handle file upload
                 $photoPath = null;
                 if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-                    $uploadDir = '../uploads/players/';
+                    $uploadDir = '/uploads/players/';
                     $extension = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
                     $filename = uniqid('player_') . '.' . $extension;
                     $photoPath = $uploadDir . $filename;
+                    $dbPhotoPath = 'uploads/players/' . $filename;
                     
                     if (!move_uploaded_file($_FILES['photo']['tmp_name'], $photoPath)) {
                         $_SESSION['error'] = "Erreur lors de l'upload de la photo.";
@@ -119,7 +122,7 @@ try {
                                            SET name = ?, position = ?, jersey_number = ?, team_id = ?, 
                                                photo = IFNULL(?, photo) 
                                            WHERE id = ?");
-                    $stmt->execute([$name, $position, $jersey_number, $team_id, $photoPath, $player_id]);
+                    $stmt->execute([$name, $position, $jersey_number, $team_id, $dbPhotoPath, $player_id]);
                     $_SESSION['message'] = "Joueur mis à jour avec succès!";
                 }
             }
@@ -316,7 +319,7 @@ function safe_html($data) {
                                         <tr>
                                             <td>
                                                 <?php if (!empty($player['photo'])): ?>
-                                                    <img src="<?= safe_html($player['photo']) ?>" 
+                                                    <img src="/<?= safe_html($player['photo']) ?>" 
                                                          alt="<?= safe_html($player['name']) ?>" 
                                                          class="player-photo">
                                                 <?php else: ?>

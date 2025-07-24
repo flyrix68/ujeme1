@@ -185,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Handle logo upload
                 $logo_name = null;
                 if (!empty($_FILES['logo_path']['name'])) {
-                    $upload_dir = '../uploads/logos/';
+                    $upload_dir = '/uploads/logos/';
                     if (!is_dir($upload_dir)) {
                         mkdir($upload_dir, 0755, true);
                     }
@@ -259,10 +259,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Fetch all teams
 try {
     $query = "SELECT t.id, t.team_name AS name, 
-                     CASE 
-                         WHEN t.logo_path IS NOT NULL THEN CONCAT('/uploads/logos/', t.logo_path)
-                         ELSE '/assets/img/teams/default.png' 
-                     END AS logo,
+                                                     CASE 
+                                                         WHEN t.logo_path IS NOT NULL THEN 
+                                                             IF(t.logo_path LIKE '/uploads/%' OR t.logo_path LIKE 'http%', 
+                                                                t.logo_path, 
+                                                                CONCAT('/uploads/logos/', SUBSTRING_INDEX(t.logo_path, '/', -1)))
+                                                         ELSE '/assets/img/teams/default.png' 
+                                                     END AS logo,
                      t.category, t.location,
                      t.manager_name, t.manager_email, t.manager_phone,
                      p.id AS poule_id, p.name AS poule_name
