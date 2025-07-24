@@ -26,18 +26,15 @@
   restartDelay = "5s"
   maxRestarts = 5
 
-# Configure persistent storage for uploads
+# Configure persistent storage
 [volumes]
   [volumes.uploads]
   mountPath = "/var/www/html/uploads"
   size = "1GB"
-
-# Configure build settings
-[build]
-  builder = "nixpacks"
-  buildCommand = "docker build -t ujem ."
-  runCommand = "/docker-entrypoint.sh"
-assets = { mount_path = "/var/www/html/assets" }
+  
+  [volumes.assets]
+  mountPath = "/var/www/html/assets"
+  size = "1GB"
 
 [variables]
 # These will be automatically provided by Railway when provisioned
