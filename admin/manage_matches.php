@@ -847,6 +847,7 @@ try {
                 }
             }
         });
+    });
     </script>
 </body>
 </html>
