@@ -185,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Handle logo upload
                 $logo_name = null;
                 if (!empty($_FILES['logo_path']['name'])) {
-                    $upload_dir = '/uploads/logos/';
+                    $upload_dir = '../uploads/logos/';
                     if (!is_dir($upload_dir)) {
                         mkdir($upload_dir, 0755, true);
                     }
@@ -266,7 +266,7 @@ try {
                                 CONCAT('/uploads/logos/', t.logo_path)
                              )
                          ELSE 
-                             '/uploads/logos/default.png' 
+                             '/assets/img/teams/default.png' 
                      END AS logo,
                      t.category, t.location,
                      t.manager_name, t.manager_email, t.manager_phone,
@@ -425,7 +425,7 @@ foreach ($teams as $team) {
                                                         <?= htmlspecialchars($poule['name']) ?> (<?= ucfirst($poule['category']) ?>)
                                                     </option>
                                                 <?php endforeach; ?>
-                                            </select>
+                                            <?php endif; ?>
                                         </div>
                                         <div class="col-md-6">
                                             <label for="manager_name" class="form-label">Nom du Manager</label>
@@ -459,9 +459,9 @@ foreach ($teams as $team) {
                                 <h5 class="mb-0"><i class="fas fa-list me-2"></i>Liste des Équipes</h5>
                             </div>
                             <div class="card-body">
-                                <?php if (empty($teams)) { ?>
+                                <?php if (empty($teams)): ?>
                                     <div class="alert alert-info">Aucune équipe enregistrée.</div>
-                                <?php } else { ?>
+                                <?php else: ?>
                                     <!-- Category filter -->
                                     <div class="mb-4">
                                         <label class="form-label">Filtrer par catégorie:</label>
@@ -495,32 +495,33 @@ foreach ($teams as $team) {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <?php foreach ($teams as $team) { ?>
+                                                <?php foreach ($teams as $team): ?>
                                                 <tr class="team-row" data-category="<?= htmlspecialchars($team['category']) ?>">
                                                     <td>
-                        <?php
-                        $logoPath = '';
-                        if ($team['logo']) {
-                            // First try the relative path
-                            $logoPath = file_exists('../' . ltrim($team['logo'], '/')) 
-                                ? $team['logo']
-                                : '/assets/img/teams/default.png';
-                        } else {
-                            $logoPath = '/assets/img/teams/default.png';
-                        }
-                        ?>
-                        <img src="<?= htmlspecialchars($logoPath) ?>" alt="<?= htmlspecialchars($team['name']) ?>" class="team-logo" onerror="this.src='/assets/img/teams/default.png'">
-                                                        <?php endif; ?>
+                                                        <?php
+                                                        $logoPath = '/assets/img/teams/default.png';
+                                                        if (!empty($team['logo'])) {
+                                                            if (filter_var($team['logo'], FILTER_VALIDATE_URL)) {
+                                                                $logoPath = $team['logo'];
+                                                            } else {
+                                                                $localPath = '../uploads/logos/' . basename($team['logo']);
+                                                                if (file_exists($localPath)) {
+                                                                    $logoPath = '/uploads/logos/' . basename($team['logo']);
+                                                                }
+                                                            }
+                                                        }
+                                                        ?>
+                                                        <img src="<?= htmlspecialchars($logoPath) ?>" alt="<?= htmlspecialchars($team['name']) ?>" class="team-logo">
                                                     </td>
                                                     <td><?= htmlspecialchars($team['name']) ?></td>
                                                     <td><?= htmlspecialchars(ucfirst($team['category'])) ?></td>
                                                     <td><?= htmlspecialchars($team['location']) ?></td>
                                                     <td>
-                                                        <?php if (!empty($team['poule_name'])) { ?>
+                                                        <?php if (!empty($team['poule_name'])): ?>
                                                             <span class="poule-badge"><?= htmlspecialchars($team['poule_name']) ?></span>
-                                                        <?php } else { ?>
+                                                        <?php else: ?>
                                                             <span class="text-muted">Non assignée</span>
-                                                        <?php } ?>
+
                                                     </td>
                                                     <td><?= htmlspecialchars($team['manager_name']) ?> (<?= htmlspecialchars($team['manager_email']) ?>)</td>
                                                     <td>
@@ -630,11 +631,7 @@ foreach ($teams as $team) {
                                                             <div class="card mb-2 team-card">
                                                                 <div class="card-body py-2">
                                                                     <div class="d-flex align-items-center">
-                                                                        <?php if ($team['logo']): ?>
-                                                                            <img src="<?= htmlspecialchars($team['logo']) ?>" alt="<?= htmlspecialchars($team['name']) ?>" class="team-logo me-2" onerror="this.src='../assets/img/teams/default.png'">
-                                                                        <?php else: ?>
-                                                                            <img src="../assets/img/teams/default.png" alt="Default" class="team-logo me-2">
-                                                                        <?php endif; ?>
+                                                                        <img src="<?= htmlspecialchars($team['logo']) ?>" alt="<?= htmlspecialchars($team['name']) ?>" class="team-logo me-2" onerror="this.src='/assets/img/teams/default.png'">
                                                                         <div>
                                                                             <strong><?= htmlspecialchars($team['name']) ?></strong><br>
                                                                             <small class="text-muted"><?= htmlspecialchars($team['location']) ?></small>
@@ -677,11 +674,7 @@ foreach ($teams as $team) {
                                                             <div class="card mb-2 team-card">
                                                                 <div class="card-body py-2">
                                                                     <div class="d-flex align-items-center">
-                                                                        <?php if ($team['logo']): ?>
-                                                                            <img src="<?= htmlspecialchars($team['logo']) ?>" alt="<?= htmlspecialchars($team['name']) ?>" class="team-logo me-2" onerror="this.src='../assets/img/teams/default.png'">
-                                                                        <?php else: ?>
-                                                                            <img src="../assets/img/teams/default.png" alt="Default" class="team-logo me-2">
-                                                                        <?php endif; ?>
+                                                                        <img src="<?= htmlspecialchars($team['logo']) ?>" alt="<?= htmlspecialchars($team['name']) ?>" class="team-logo me-2" onerror="this.src='/assets/img/teams/default.png'">
                                                                         <div>
                                                                             <strong><?= htmlspecialchars($team['name']) ?></strong><br>
                                                                             <small class="text-muted"><?= htmlspecialchars($team['location']) ?></small>

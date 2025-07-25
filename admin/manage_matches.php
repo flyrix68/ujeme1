@@ -283,8 +283,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     score_home = ?, 
                                     score_away = ?, 
                                     status = ?, 
-                                    poule_id = ?, 
-                                    updated_at = NOW() 
+                                    poule_id = ? 
                                     WHERE id = ?";
                                 
                                 $stmt = $pdo->prepare($sql);
