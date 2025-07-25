@@ -215,8 +215,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     }
                                 }
 
-                                $sql = "INSERT INTO matches (competition, phase, match_date, match_time, team_home, team_away, venue, score_home, score_away, status, poule_id, created_at) " . 
-                                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            $sql = "INSERT INTO matches (competition, phase, match_date, match_time, team_home, team_away, venue, score_home, score_away, status, poule_id) " . 
+                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                                 $stmt = $pdo->prepare($sql);
                                 $params = [
                                     $competition, 
