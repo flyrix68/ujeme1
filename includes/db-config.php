@@ -52,4 +52,18 @@ class DatabaseConfig {
             }
         }
     }
+
+    public static function getTeamLogo($teamName) {
+        $basePath = '/assets/img/teams/';
+        $teamFilename = strtolower(preg_replace('/[^a-zA-Z0-9]/', '-', trim($teamName)));
+        $logoPath = $basePath . $teamFilename . '.png';
+        $defaultPath = $basePath . 'default.png';
+        
+        // Check if file exists (using root-relative path)
+        $fullPath = __DIR__ . '/..' . $logoPath;
+        if (!file_exists($fullPath)) {
+            return $defaultPath;
+        }
+        return $logoPath;
+    }
 }
