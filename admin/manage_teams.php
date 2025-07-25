@@ -425,7 +425,7 @@ foreach ($teams as $team) {
                                                         <?= htmlspecialchars($poule['name']) ?> (<?= ucfirst($poule['category']) ?>)
                                                     </option>
                                                 <?php endforeach; ?>
-                                            <?php endif; ?>
+                                            </select>
                                         </div>
                                         <div class="col-md-6">
                                             <label for="manager_name" class="form-label">Nom du Manager</label>
@@ -521,7 +521,7 @@ foreach ($teams as $team) {
                                                             <span class="poule-badge"><?= htmlspecialchars($team['poule_name']) ?></span>
                                                         <?php else: ?>
                                                             <span class="text-muted">Non assignée</span>
-
+                                                        <?php endif; ?>
                                                     </td>
                                                     <td><?= htmlspecialchars($team['manager_name']) ?> (<?= htmlspecialchars($team['manager_email']) ?>)</td>
                                                     <td>
