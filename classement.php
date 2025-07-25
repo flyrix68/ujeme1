@@ -2,6 +2,13 @@
 // Connexion à la base de données
 require_once 'includes/db-config.php';
 
+try {
+    $pdo = DatabaseConfig::getConnection();
+} catch (Exception $e) {
+    error_log("Database connection failed in classement.php: " . $e->getMessage());
+    die("Erreur de connexion à la base de données. Veuillez réessayer plus tard.");
+}
+
 // Récupération des filtres avec des valeurs par défaut
 $season = $_GET['season'] ?? '2024-2025';
 $competition = $_GET['competition'] ?? 'coupe';

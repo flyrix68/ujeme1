@@ -38,15 +38,36 @@ if (!file_exists($dbConfigPath)) {
 
 require $dbConfigPath;
 
-try {
-    $pdo = DatabaseConfig::getConnection();
-    // Test connection
-    $stmt = $pdo->query('SELECT 1');
-    if ($isCli) {
-        echo "Database connection successful!\n";
+// Database connection with extended timeout and retries
+$maxAttempts = 3;
+$attempt = 0;
+
+while ($attempt < $maxAttempts) {
+    try {
+        $pdo = DatabaseConfig::getConnection();
+        
+        // Set longer timeout for admin operations
+        $pdo->setAttribute(PDO::ATTR_TIMEOUT, 30);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        // Test connection with a simple query
+        $stmt = $pdo->query('SELECT 1');
+        if ($isCli) {
+            echo "Database connection successful!\n";
+        }
+        break; // Exit loop on success
+        
+    } catch (Exception $e) {
+        $attempt++;
+        error_log("Admin database connection attempt $attempt failed: " . $e->getMessage());
+        
+        if ($attempt >= $maxAttempts) {
+            error_log("Admin database connection failed after $maxAttempts attempts");
+            die(($isCli ? "CLI Error: " : "") . "Database connection error. Please contact administrator.");
+        }
+        
+        // Wait before retrying
+        sleep(1);
     }
-} catch (Exception $e) {
-    error_log("Admin database connection failed: " . $e->getMessage());
-    die(($isCli ? "CLI Error: " : "") . "Database connection error. Please try again later.");
 }
 ?>
