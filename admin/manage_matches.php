@@ -195,6 +195,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Ajout ou mise à jour du match
                         if (isset($_POST['add_match'])) {
                             try {
+                                // Validate teams are different
+                                if ($team_home === $team_away) {
+                                    throw new Exception("Les équipes à domicile et à l'extérieur doivent être différentes.");
+                                }
+
+                                // Validate mandatory fields
+                                $requiredFields = [
+                                    'competition' => $competition,
+                                    'phase' => $phase,
+                                    'match_date' => $match_date,
+                                    'match_time' => $match_time,
+                                    'venue' => $venue
+                                ];
+                                
+                                foreach ($requiredFields as $field => $value) {
+                                    if (empty($value)) {
+                                        throw new Exception("Le champ '$field' est requis pour programmer un match.");
+                                    }
+                                }
+
                                 $sql = "INSERT INTO matches (competition, phase, match_date, match_time, team_home, team_away, venue, score_home, score_away, status, poule_id, created_at) " . 
                                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
                                 $stmt = $pdo->prepare($sql);
@@ -217,27 +237,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 
                                 $result = $stmt->execute($params);
                                 
-                                if ($result) {
-                                    $match_id = $pdo->lastInsertId();
-                                    $_SESSION['message'] = "Match ajouté avec succès ! ID: $match_id";
-                                    error_log("Match ajouté avec succès, ID: $match_id");
-                                    
-                                    // Redirection pour éviter la soumission multiple du formulaire
-                                    header("Location: " . $_SERVER['PHP_SELF']);
-                                    exit();
-                                } else {
+                                if (!$result) {
                                     $errorInfo = $stmt->errorInfo();
                                     throw new Exception("Échec de l'ajout du match: " . ($errorInfo[2] ?? 'Erreur inconnue'));
                                 }
+
+                                $match_id = $pdo->lastInsertId();
+                                $_SESSION['message'] = "Match programmé avec succès ! ID: $match_id";
+                                error_log("Match programmé avec succès, ID: $match_id");
+                                
+                                header("Location: " . $_SERVER['PHP_SELF']);
+                                exit();
                             } catch (PDOException $e) {
                                 error_log("Erreur PDO lors de l'ajout du match: " . $e->getMessage());
                                 error_log("Code d'erreur: " . $e->getCode());
-                                throw new Exception("Erreur lors de l'ajout du match dans la base de données");
+                                $_SESSION['error'] = "Erreur lors de la programmation du match : " . $e->getMessage();
+                                header("Location: " . $_SERVER['PHP_SELF']);
+                                exit();
+                            } catch (Exception $e) {
+                                error_log("Erreur lors de la programmation du match: " . $e->getMessage());
+                                $_SESSION['error'] = $e->getMessage();
+                                header("Location: " . $_SERVER['PHP_SELF']);
+                                exit();
                             }
-                        } 
+                        }
                         // Gestion de la mise à jour du match
                         elseif (isset($_POST['update_match']) && $match_id) {
                             try {
+                                // First check if match exists
+                                $checkStmt = $pdo->prepare("SELECT id FROM matches WHERE id = ?");
+                                $checkStmt->execute([$match_id]);
+                                
+                                if ($checkStmt->rowCount() === 0) {
+                                    throw new Exception("Le match spécifié n'existe pas.");
+                                }
+
                                 $sql = "UPDATE matches SET 
                                     competition = ?, 
                                     phase = ?, 
@@ -274,7 +308,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 
                                 $result = $stmt->execute($params);
                                 
-                                if ($result) {
+                                if ($result && $stmt->rowCount() > 0) {
                                     $_SESSION['message'] = "Match mis à jour avec succès !";
                                     error_log("Match mis à jour avec succès, ID: $match_id");
                                     

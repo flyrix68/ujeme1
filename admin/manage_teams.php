@@ -459,9 +459,9 @@ foreach ($teams as $team) {
                                 <h5 class="mb-0"><i class="fas fa-list me-2"></i>Liste des Équipes</h5>
                             </div>
                             <div class="card-body">
-                                <?php if (empty($teams)): ?>
+                                <?php if (empty($teams)) { ?>
                                     <div class="alert alert-info">Aucune équipe enregistrée.</div>
-                                <?php else: ?>
+                                <?php } else { ?>
                                     <!-- Category filter -->
                                     <div class="mb-4">
                                         <label class="form-label">Filtrer par catégorie:</label>
@@ -495,7 +495,7 @@ foreach ($teams as $team) {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <?php foreach ($teams as $team): ?>
+                                                <?php foreach ($teams as $team) { ?>
                                                 <tr class="team-row" data-category="<?= htmlspecialchars($team['category']) ?>">
                                                     <td>
                         <?php
@@ -516,11 +516,11 @@ foreach ($teams as $team) {
                                                     <td><?= htmlspecialchars(ucfirst($team['category'])) ?></td>
                                                     <td><?= htmlspecialchars($team['location']) ?></td>
                                                     <td>
-                                                        <?php if (!empty($team['poule_name'])): ?>
+                                                        <?php if (!empty($team['poule_name'])) { ?>
                                                             <span class="poule-badge"><?= htmlspecialchars($team['poule_name']) ?></span>
-                                                        <?php else: ?>
+                                                        <?php } else { ?>
                                                             <span class="text-muted">Non assignée</span>
-                                                        <?php endif; ?>
+                                                        <?php } ?>
                                                     </td>
                                                     <td><?= htmlspecialchars($team['manager_name']) ?> (<?= htmlspecialchars($team['manager_email']) ?>)</td>
                                                     <td>
@@ -955,3 +955,7 @@ foreach ($teams as $team) {
     </script>
 </body>
 </html>
+<?php
+// Clean up after processing
+ob_end_flush();
+?>
