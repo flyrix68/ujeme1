@@ -20,16 +20,8 @@ function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previous
     // Format action_details as JSON
     $actionDetailsJson = null;
     if (!is_null($actionDetails)) {
-        // Ensure UTF-8 encoding while handling mbstring not available
-        if (function_exists('mb_convert_encoding')) {
-            $actionDetails = mb_convert_encoding((string)$actionDetails, 'UTF-8', 'auto');
-        } else {
-            // Fallback if mbstring not available
-            $actionDetails = (string)$actionDetails;
-            if (!preg_match('//u', $actionDetails)) {
-                $actionDetails = utf8_encode($actionDetails);
-            }
-        }
+        // Ensure UTF-8 encoding
+        $actionDetails = mb_convert_encoding((string)$actionDetails, 'UTF-8', 'auto');
         // Wrap in a JSON object
         $actionDetailsJson = json_encode(['message' => $actionDetails], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE);
         if ($actionDetailsJson === false) {
@@ -246,7 +238,7 @@ try {
 
 // Fetch ongoing and waiting matches
 try {
-    $currentMatches = $pdo->query("SELECT * FROM matches WHERE status IN ('ongoing', 'waiting') ORDER BY match_date DESC")->fetchAll(PDO::FETCH_ASSOC);
+    $currentMatches = $pdo->query("SELECT * FROM matches WHERE status = 'ongoing' ORDER BY match_date DESC")->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Error fetching current matches: " . $e->getMessage());
     die("Erreur lors du chargement des matchs.");

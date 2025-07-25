@@ -346,28 +346,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     error_log("Erreur de validation: $error_msg");
                     $_SESSION['error'] = $error_msg;
                 } else {
-                    $stmt = $pdo->prepare("
-                        UPDATE matches 
-                        SET status = 'completed', 
-                            score_home = ?,
-                            score_away = ?,
-                            updated_at = NOW()
-                        WHERE id = ?
-                    ");
-                    
-                    error_log("Exécution de la requête de finalisation du match");
-                    $result = $stmt->execute([$score_home, $score_away, $match_id]);
-                    
-                    if ($result) {
-                        $_SESSION['message'] = "Match finalisé avec succès !";
-                        error_log("Match finalisé avec succès, ID: $match_id");
+                            // Start transaction for match finalization and ranking updates
+                            $pdo->beginTransaction();
+                            
+                            try {
+                                // Finalize the match
+                                $stmt = $pdo->prepare("
+                                    UPDATE matches 
+                                    SET status = 'completed', 
+                                        score_home = ?,
+                                        score_away = ?,
+                                        updated_at = NOW()
+                                    WHERE id = ?
+                                ");
+                                
+                                $result = $stmt->execute([$score_home, $score_away, $match_id]);
+                                
+                                if ($result) {
+                                    // Get match details for ranking updates
+                                    $matchStmt = $pdo->prepare("
+                                        SELECT m.*, p.name as poule_name, p.competition 
+                                        FROM matches m
+                                        LEFT JOIN poules p ON m.poule_id = p.id
+                                        WHERE m.id = ?
+                                    ");
+                                    $matchStmt->execute([$match_id]);
+                                    $match = $matchStmt->fetch(PDO::FETCH_ASSOC);
+                                    
+                                    if ($match) {
+                                        // Update rankings for both teams
+                                        $season = date('Y') . '-' . (date('Y') + 1); // Current season format
+                                        
+                                        // Update home team stats
+                                        $points = ($score_home > $score_away) ? 3 : ($score_home == $score_away ? 1 : 0);
+                                        $form = ($score_home > $score_away) ? 'V' : ($score_home == $score_away ? 'N' : 'D');
+                                        $stmt = $pdo->prepare("
+                                            INSERT INTO classement (
+                                                saison, competition, poule_id, nom_equipe, 
+                                                matchs_joues, matchs_gagnes, matchs_nuls, matchs_perdus, 
+                                                buts_pour, buts_contre, difference_buts, points, forme
+                                            ) 
+                                            VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+                                            ON DUPLICATE KEY UPDATE
+                                                matchs_joues = matchs_joues + 1,
+                                                matchs_gagnes = matchs_gagnes + ?,
+                                                matchs_nuls = matchs_nuls + ?,
+                                                matchs_perdus = matchs_perdus + ?,
+                                                buts_pour = buts_pour + ?,
+                                                buts_contre = buts_contre + ?,
+                                                difference_buts = difference_buts + ?,
+                                                points = points + ?,
+                                                forme = CONCAT(SUBSTRING(forme, 2, 4), ?)
+                                        ");
+                                        $stmt->execute([
+                                            $season, $match['competition'], $match['poule_id'], $match['team_home'],
+                                            ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
+                                            $score_home, $score_away, ($score_home - $score_away), $points, $form,
+                                            ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
+                                            $score_home, $score_away, ($score_home - $score_away), $points, $form
+                                        ]);
+                                        
+                                        // Update away team stats
+                                        $points = ($score_away > $score_home) ? 3 : ($score_away == $score_home ? 1 : 0);
+                                        $form = ($score_away > $score_home) ? 'V' : ($score_away == $score_home ? 'N' : 'D');
+                                        $stmt->execute([
+                                            $season, $match['competition'], $match['poule_id'], $match['team_away'],
+                                            ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
+                                            $score_away, $score_home, ($score_away - $score_home), $points, $form,
+                                            ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
+                                            $score_away, $score_home, ($score_away - $score_home), $points, $form
+                                        ]);
+                                        
+                                        $_SESSION['message'] = "Match finalisé et classement mis à jour avec succès !";
+                                        error_log("Match finalisé et classement mis à jour, ID: $match_id");
+                                        $pdo->commit();
                         
-                        // Redirection pour éviter la soumission multiple du formulaire
-                        header("Location: " . $_SERVER['PHP_SELF']);
-                        exit();
-                    } else {
-                        $errorInfo = $stmt->errorInfo();
-                        throw new Exception("Échec de la finalisation du match: " . ($errorInfo[2] ?? 'Erreur inconnue'));
+                                        // Redirection pour éviter la soumission multiple du formulaire
+                                        header("Location: " . $_SERVER['PHP_SELF']);
+                                        exit();
+                                    } else {
+                                        throw new Exception("Impossible de récupérer les détails du match");
+                                    }
+                                } else {
+                                    $errorInfo = $stmt->errorInfo();
+                                    throw new Exception("Échec de la finalisation du match: " . ($errorInfo[2] ?? 'Erreur inconnue'));
+                                }
+                            } catch (Exception $e) {
+                                $pdo->rollBack();
+                                error_log("Error during match finalization: " . $e->getMessage());
+                                $_SESSION['error'] = $e->getMessage();
                     }
                 }
             } catch (PDOException $e) {
@@ -393,6 +460,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log("Informations sur l'erreur: " . print_r($e->errorInfo, true));
         }
     }
+}
+
+// Function to update classement for a completed match
+function updateClassementForMatch($pdo, $match) {
+    $season = date('Y') . '-' . (date('Y') + 1);
+    
+    // Update home team stats
+    $points = ($match['score_home'] > $match['score_away']) ? 3 : 
+             ($match['score_home'] == $match['score_away'] ? 1 : 0);
+    $form = ($points == 3) ? 'V' : ($points == 1 ? 'N' : 'D');
+    
+    $stmt = $pdo->prepare("
+        INSERT INTO classement (
+            saison, competition, poule_id, nom_equipe, 
+            matchs_joues, matchs_gagnes, matchs_nuls, matchs_perdus, 
+            buts_pour, buts_contre, difference_buts, points, forme
+        ) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            matchs_joues = matchs_joues + 1,
+            matchs_gagnes = matchs_gagnes + ?,
+            matchs_nuls = matchs_nuls + ?,
+            matchs_perdus = matchs_perdus + ?,
+            buts_pour = buts_pour + ?,
+            buts_contre = buts_contre + ?,
+            difference_buts = difference_buts + ?,
+            points = points + ?,
+            forme = CONCAT(SUBSTRING(forme, 2, 4), ?)
+    ");
+    $stmt->execute([
+        $season, $match['competition'], $match['poule_id'], $match['team_home'],
+        ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
+        $match['score_home'], $match['score_away'], 
+        ($match['score_home'] - $match['score_away']), $points, $form,
+        ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
+        $match['score_home'], $match['score_away'], 
+        ($match['score_home'] - $match['score_away']), $points, $form
+    ]);
+    
+    // Update away team stats
+    $points = ($match['score_away'] > $match['score_home']) ? 3 : 
+             ($match['score_away'] == $match['score_home'] ? 1 : 0);
+    $form = ($points == 3) ? 'V' : ($points == 1 ? 'N' : 'D');
+    
+    $stmt->execute([
+        $season, $match['competition'], $match['poule_id'], $match['team_away'],
+        ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
+        $match['score_away'], $match['score_home'], 
+        ($match['score_away'] - $match['score_home']), $points, $form,
+        ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
+        $match['score_away'], $match['score_home'], 
+        ($match['score_away'] - $match['score_home']), $points, $form
+    ]);
+}
+
+// Process existing completed matches on initial load
+try {
+    $completedMatches = $pdo->query("
+        SELECT m.*, p.name as poule_name, p.competition 
+        FROM matches m
+        LEFT JOIN poules p ON m.poule_id = p.id
+        WHERE m.status = 'completed'
+        AND NOT EXISTS (
+            SELECT 1 FROM classement c 
+            WHERE c.nom_equipe IN (m.team_home, m.team_away)
+            AND c.saison = m.saison
+            AND c.competition = m.competition
+            AND c.poule_id = m.poule_id
+        )
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($completedMatches as $match) {
+        updateClassementForMatch($pdo, $match);
+    }
+} catch (PDOException $e) {
+    error_log("Error backfilling completed matches: " . $e->getMessage());
 }
 
 // Fetch all matches with poule information

@@ -29,13 +29,15 @@ if (!isset($pdo) || $pdo === null) {
 }
 
 // Get match ID from URL
-$matchId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
-if (!$matchId) {
-    error_log("Invalid or missing match_id in admin/match_details.php");
-    $_SESSION['error'] = "ID de match invalide.";
-    header('Location: dashboard.php');
-    exit();
-}
+    $matchId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+    if (!$matchId) {
+        error_log("Invalid or missing match_id in admin/match_details.php");
+        $_SESSION['error'] = "ID de match invalide.";
+        header('Location: dashboard.php');
+        exit();
+    }
+    
+    error_log("Processing match details for ID: " . $matchId);
 
 // Fetch match details
 try {
@@ -63,27 +65,25 @@ try {
     exit();
 }
 
-// Fetch goals
-try {
-    $goalsStmt = $pdo->prepare("SELECT * FROM goals WHERE match_id = ? ORDER BY minute");
-    $goalsStmt->execute([$matchId]);
-    $goals = $goalsStmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("Error fetching goals: " . $e->getMessage());
+    // Fetch goals - suppress error messages if none found
     $goals = [];
-    $_SESSION['error'] = "Erreur lors du chargement des buts.";
-}
+    try {
+        $goalsStmt = $pdo->prepare("SELECT * FROM goals WHERE match_id = ? ORDER BY minute");
+        $goalsStmt->execute([$matchId]);
+        $goals = $goalsStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Error fetching goals: " . $e->getMessage());
+    }
 
-// Fetch cards
-try {
-    $cardsStmt = $pdo->prepare("SELECT * FROM cards WHERE match_id = ? ORDER BY minute");
-    $cardsStmt->execute([$matchId]);
-    $cards = $cardsStmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("Error fetching cards: " . $e->getMessage());
+    // Fetch cards - suppress error messages if none found  
     $cards = [];
-    $_SESSION['error'] = "Erreur lors du chargement des cartons.";
-}
+    try {
+        $cardsStmt = $pdo->prepare("SELECT * FROM cards WHERE match_id = ? ORDER BY minute");
+        $cardsStmt->execute([$matchId]);
+        $cards = $cardsStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Error fetching cards: " . $e->getMessage());
+    }
 
 // Calculate half duration
 $timerDuration = $match['timer_duration'] ?? 5400; // Default 90 minutes
