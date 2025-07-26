@@ -663,11 +663,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ['status' => 'completed']
             );
 
-            // Update standings
-            updateStandings($matchId, $pdo);
+            // Inclure la fonction de mise à jour du classement
+            require_once __DIR__ . '/../temp_update_classement.php';
+            
+            // Récupérer toutes les données du match pour la mise à jour du classement
+            $stmt = $pdo->prepare("SELECT * FROM matches WHERE id = ?");
+            $stmt->execute([$matchId]);
+            $matchData = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($matchData) {
+                // Mettre à jour le classement avec les nouvelles données
+                $updateResult = updateClassementForMatch($pdo, [
+                    'saison' => $matchData['saison'],
+                    'competition' => $matchData['competition'],
+                    'poule_id' => $matchData['poule_id'],
+                    'team_home' => $matchData['team_home'],
+                    'team_away' => $matchData['team_away'],
+                    'score_home' => (int)$matchData['score_home'],
+                    'score_away' => (int)$matchData['score_away']
+                ]);
+                
+                if (!$updateResult) {
+                    throw new Exception("Erreur lors de la mise à jour du classement");
+                }
+                
+                // Mettre à jour l'ancien système de classement pour compatibilité
+                if (function_exists('updateStandings')) {
+                    updateStandings($matchId, $pdo);
+                }
+            }
 
             $pdo->commit();
-            $_SESSION['message'] = "Match finalisé avec succès !";
+            $_SESSION['message'] = "Match finalisé et classement mis à jour avec succès !";
             header("Location: dashboard.php");
             exit();
         }

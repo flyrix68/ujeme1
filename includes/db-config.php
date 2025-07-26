@@ -5,12 +5,20 @@ class DatabaseConfig {
 
     public static function getConnection($maxRetries = 3, $retryDelay = 1) {
         $attempt = 0;
+        $lastError = null;
         
         while ($attempt < $maxRetries) {
             try {
                 // Reuse connection if recent
                 if (self::$pdo !== null && time() - self::$last_connection_time < 300) {
-                    return self::$pdo;
+                    // Test connection is still alive
+                    try {
+                        self::$pdo->query('SELECT 1')->fetchColumn();
+                        return self::$pdo;
+                    } catch (PDOException $e) {
+                        error_log("Existing connection failed - creating new one");
+                        self::$pdo = null;
+                    }
                 }
                 self::$pdo = null;
                 
@@ -44,11 +52,14 @@ class DatabaseConfig {
                 return self::$pdo;
 
             } catch (PDOException $e) {
-                error_log("Connection attempt $attempt failed: " . $e->getMessage());
+                $lastError = $e->getMessage();
+                error_log("Connection attempt $attempt failed: " . $lastError);
                 if (++$attempt >= $maxRetries) {
-                    throw new RuntimeException("Failed to connect after $maxRetries attempts: " . $e->getMessage());
+                    throw new RuntimeException("Failed to connect after $maxRetries attempts. Last error: " . $lastError);
                 }
-                sleep($retryDelay);
+                $retrySeconds = $retryDelay * (1 + $attempt); // Exponential backoff
+                error_log("Waiting $retrySeconds seconds before retry...");
+                sleep($retrySeconds);
             }
         }
     }

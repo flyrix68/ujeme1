@@ -1,4 +1,9 @@
 <?php
+// Démarrer la session si pas déjà démarrée
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Connexion à la base de données
 require_once 'includes/db-config.php';
 $pdo = DatabaseConfig::getConnection();
@@ -45,9 +50,11 @@ try {
 
 // On force la compétition à tournoi uniquement
 $competition = 'tournoi';
-error_log("Using competition type: tournament");
-$period = $_GET['period'] ?? 'all';
-$searchTeam = $_GET['searchTeam'] ?? '';
+$period = isset($_GET['period']) ? trim($_GET['period']) : 'all';
+$searchTeam = isset($_GET['searchTeam']) ? trim($_GET['searchTeam']) : '';
+
+// Initialisation des paramètres de requête
+$params = [':competition' => $competition];
 
 // Requête pour les matchs
 $queryMatches = "SELECT *, UNIX_TIMESTAMP(timer_start) AS timer_start_unix, 
@@ -60,35 +67,49 @@ if (!empty($searchTeam)) {
     $params[':search'] = "%$searchTeam%";
 }
 
+// Filtrage par période
 if ($period === 'upcoming') {
-    $queryMatches .= " AND match_date >= CURDATE() AND score_home IS NULL AND status = 'scheduled'";
+    $queryMatches .= " AND match_date >= CURDATE() AND (score_home IS NULL OR score_home = '') AND status = 'scheduled'";
 } elseif ($period === 'past') {
-    $queryMatches .= " AND score_home IS NOT NULL AND status = 'completed'";
+    $queryMatches .= " AND (score_home IS NOT NULL AND score_home != '') AND status = 'completed'";
 } elseif ($period === 'live') {
     $queryMatches .= " AND status = 'ongoing'";
 }
 
 $queryMatches .= " ORDER BY match_date " . ($period === 'upcoming' ? 'ASC' : 'DESC');
+
 try {
     $stmtMatches = $pdo->prepare($queryMatches);
-    $stmtMatches->execute([':competition' => $competition]);
+    $stmtMatches->execute($params);
     $matches = $stmtMatches->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("SQL Error fetching matches: " . $e->getMessage());
     $matches = [];
+    $_SESSION['error'] = "Une erreur est survenue lors de la récupération des matchs.";
 }
 
 // Requête pour le classement
-$queryStandings = "SELECT * FROM classement WHERE competition = :competition ORDER BY points DESC, difference_buts DESC";
-$stmtStandings = $pdo->prepare($queryStandings);
-$stmtStandings->execute([':competition' => $competition]);
-$standings = $stmtStandings->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $queryStandings = "SELECT * FROM classement WHERE competition = :competition ORDER BY points DESC, difference_buts DESC, buts_pour DESC";
+    $stmtStandings = $pdo->prepare($queryStandings);
+    $stmtStandings->execute([':competition' => $competition]);
+    $standings = $stmtStandings->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("SQL Error fetching standings: " . $e->getMessage());
+    $standings = [];
+}
 
 // Fonction pour formater la date
 function formatMatchDate($date) {
-    $dateObj = new DateTime($date);
-    $months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-    return $dateObj->format('d') . ' ' . $months[$dateObj->format('n') - 1] . ' ' . $dateObj->format('Y');
+    if (empty($date)) return '';
+    try {
+        $dateObj = new DateTime($date);
+        $months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+        return $dateObj->format('d') . ' ' . $months[$dateObj->format('n') - 1] . ' ' . $dateObj->format('Y');
+    } catch (Exception $e) {
+        error_log("Error formatting date $date: " . $e->getMessage());
+        return $date; // Retourne la date originale en cas d'erreur
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -121,6 +142,14 @@ function formatMatchDate($date) {
             width: 30px;
             height: 30px;
             object-fit: contain;
+        }
+        .live-match-card {
+            border-left: 4px solid #dc3545;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
         }
     </style>
 </head>
@@ -175,10 +204,13 @@ function formatMatchDate($date) {
 
             <h3 class="mb-4">Tournoi UJEM 2024-2025</h3>
 
-            <!-- Live Matches Section - Version compacte -->
+            <!-- Live Matches Section - Version améliorée -->
             <div class="card mb-4">
-                <div class="card-header bg-danger text-white">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
                     <h4 class="mb-0"><i class="fas fa-broadcast-tower me-2"></i>Matchs en Direct</h4>
+                    <span class="badge bg-white text-danger">
+                        <i class="fas fa-circle me-1"></i> En direct
+                    </span>
                 </div>
                 <div class="card-body p-2" id="live-matches">
                     <?php 
@@ -187,7 +219,10 @@ function formatMatchDate($date) {
                     });
                     
                     if (empty($liveMatches)): ?>
-                        <div class="text-center text-muted py-2">Aucun match en direct actuellement</div>
+                        <div class="text-center text-muted py-3">
+                            <i class="far fa-futbol fa-2x mb-2"></i>
+                            <p>Aucun match en direct actuellement</p>
+                        </div>
                     <?php else: ?>
                         <div class="row row-cols-1 row-cols-md-2 g-3">
                             <?php foreach ($liveMatches as $match): ?>
@@ -199,47 +234,68 @@ function formatMatchDate($date) {
                             }
                             $minutes = floor($elapsed / 60);
                             $seconds = $elapsed % 60;
+                            
+                            // Déterminer la période de jeu
+                            $halfDuration = floor(($match['first_half_duration'] ?? 45) * 60);
+                            $gamePeriod = ($match['timer_status'] === 'first_half') ? '1ère mi-temps' : 
+                                          (($match['timer_status'] === 'second_half') ? '2ème mi-temps' : 
+                                          (($match['timer_status'] === 'half_time') ? 'Mi-temps' : 'Terminé'));
                             ?>
                             <div class="col">
-                                <div class="card h-100">
+                                <div class="card h-100 live-match-card">
                                     <div class="card-body p-3">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <div class="d-flex align-items-center">
+                                            <small class="text-muted"><?= htmlspecialchars($match['phase']) ?></small>
+                                            <span class="badge bg-danger">
+                                                <?= $gamePeriod ?>
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="row g-2 mb-2 align-items-center">
+                                            <div class="col-5 d-flex align-items-center">
                                                 <img src="assets/img/teams/<?= strtolower(preg_replace('/[^a-z0-9]/', '-', $match['team_home'])) ?>.png" 
-                                                     class="team-logo-sm"
+                                                     class="team-logo-sm me-2"
                                                      alt="<?= htmlspecialchars($match['team_home']) ?>" 
                                                      onerror="this.src='assets/img/teams/default.png'">
-                                                <span class="ms-2 fw-bold"><?= htmlspecialchars($match['team_home']) ?></span>
+                                                <span class="fw-bold text-truncate"><?= htmlspecialchars($match['team_home']) ?></span>
                                             </div>
-                                            <div class="text-center mx-2">
-                                                <div class="fs-4 fw-bold">
+                                            <div class="col-2 text-center px-0">
+                                                <div class="fs-4 fw-bold text-danger">
                                                     <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
                                                 </div>
                                             </div>
-                                            <div class="d-flex align-items-center">
-                                                <span class="me-2 fw-bold"><?= htmlspecialchars($match['team_away']) ?></span>
+                                            <div class="col-5 d-flex align-items-center justify-content-end">
+                                                <span class="fw-bold text-truncate me-2"><?= htmlspecialchars($match['team_away']) ?></span>
                                                 <img src="assets/img/teams/<?= strtolower(preg_replace('/[^a-z0-9]/', '-', $match['team_away'])) ?>.png" 
                                                      class="team-logo-sm"
                                                      alt="<?= htmlspecialchars($match['team_away']) ?>" 
                                                      onerror="this.src='assets/img/teams/default.png'">
                                             </div>
                                         </div>
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <small class="text-muted"><?= htmlspecialchars($match['phase']) ?></small>
-                                            <div class="badge bg-danger rounded-pill compact-timer" id="live-timer-<?= $match['id'] ?>">
-                                                <?php
-                                                if ($match['timer_status'] === 'half_time') {
-                                                    echo 'Mi-temps';
-                                                } elseif ($match['timer_status'] === 'ended') {
-                                                    echo 'Terminé';
-                                                } else {
-                                                    echo sprintf('%02d:%02d', $minutes, $seconds);
-                                                }
-                                                ?>
+                                        
+                                        <div class="d-flex justify-content-between align-items-center mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-map-marker-alt me-1"></i>
+                                                <?= htmlspecialchars($match['venue']) ?>
+                                            </small>
+                                            <div class="d-flex align-items-center">
+                                                <div class="badge bg-dark rounded-pill compact-timer me-2" id="live-timer-<?= $match['id'] ?>">
+                                                    <?php
+                                                    if ($match['timer_status'] === 'half_time') {
+                                                        echo 'Mi-temps';
+                                                    } elseif ($match['timer_status'] === 'ended') {
+                                                        echo 'Terminé';
+                                                    } else {
+                                                        echo sprintf('%02d:%02d', $minutes, $seconds);
+                                                    }
+                                                    ?>
+                                                </div>
+                                                <a href="match_details.php?id=<?= $match['id'] ?>" 
+                                                   class="btn btn-sm btn-outline-danger py-0 px-2"
+                                                   data-bs-toggle="tooltip" title="Voir les détails">
+                                                    <i class="fas fa-chevron-right"></i>
+                                                </a>
                                             </div>
-                                            <a href="match_details.php?id=<?= $match['id'] ?>" class="btn btn-sm btn-outline-primary py-0">
-                                                <i class="fas fa-info-circle"></i>
-                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -306,7 +362,7 @@ function formatMatchDate($date) {
                                             <?= htmlspecialchars($match['team_home']) ?>
                                         </td>
                                         <td class="match-score">
-                                            <?= ($match['score_home'] !== null ? $match['score_home'] : '0') . ' - ' . ($match['score_away'] !== null ? $match['score_away'] : '0') ?>
+                                            <?= (isset($match['score_home']) && $match['score_home'] !== '' ? intval($match['score_home']) : '0') . ' - ' . (isset($match['score_away']) && $match['score_away'] !== '' ? intval($match['score_away']) : '0') ?>
                                             <?php if ($match['status'] === 'ongoing'): ?>
                                                 <br><small class="timer-display" id="timer-<?= $match['id'] ?>">
                                                     <?php
@@ -321,16 +377,16 @@ function formatMatchDate($date) {
                                                 </small>
                                             <?php endif; ?>
                                         </td>
-                                        <td <?= $match['score_away'] > $match['score_home'] ? 'class="fw-bold"' : '' ?>>
+                                        <td <?= (isset($match['score_away']) && isset($match['score_home']) && intval($match['score_away']) > intval($match['score_home'])) ? 'class="fw-bold"' : '' ?>>
                                             <?= htmlspecialchars($match['team_away']) ?>
                                         </td>
                                         <td><?= htmlspecialchars($match['venue']) ?></td>
                                         <td>
-                                            <?php if ($match['score_home'] === null && $match['status'] !== 'ongoing'): ?>
+                                            <?php if ((!isset($match['score_home']) || $match['score_home'] === '') && $match['status'] !== 'ongoing'): ?>
                                                 <a href="#" class="btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Rappel">
                                                     <i class="far fa-bell"></i>
                                                 </a>
-                                            <?php elseif ($match['score_home'] !== null): ?>
+                                            <?php elseif (isset($match['score_home']) && $match['score_home'] !== ''): ?>
                                                 <a href="#" class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" title="Photos">
                                                     <i class="fas fa-camera"></i>
                                                 </a>
@@ -441,9 +497,13 @@ function formatMatchDate($date) {
         });
 
         // Rafraîchir la page toutes les minutes pour détecter les changements de statut
-        setTimeout(function() {
-            window.location.reload();
-        }, 60000); // 60 secondes
+        // Seulement si des matchs en direct sont affichés
+        var hasLiveMatches = document.querySelectorAll('.live-badge').length > 0;
+        if (hasLiveMatches) {
+            setTimeout(function() {
+                window.location.reload();
+            }, 60000); // 60 secondes
+        }
 
         // Update timers for ongoing matches in the table
         <?php foreach ($matches as $match): ?>
@@ -475,14 +535,20 @@ function formatMatchDate($date) {
                         }
 
                         var now = Math.floor(Date.now() / 1000);
-                        var totalSeconds = elapsed;
-                        if (startTime) {
-                            totalSeconds += (now - startTime);
-                        } else {
-                            // Si le timer n'est pas encore démarré, on calcule depuis l'heure du match
+                    var totalSeconds = parseInt(elapsed) || 0;
+                    if (startTime) {
+                        totalSeconds += (now - parseInt(startTime));
+                    } else if ('<?= $match['match_date'] ?>' && '<?= $match['match_time'] ?>') {
+                        // Si le timer n'est pas encore démarré, on calcule depuis l'heure du match
+                        try {
                             var matchTime = new Date('<?= $match['match_date'] ?> <?= $match['match_time'] ?>').getTime() / 1000;
-                            totalSeconds = Math.max(0, now - matchTime);
+                            if (!isNaN(matchTime)) {
+                                totalSeconds = Math.max(0, now - matchTime);
+                            }
+                        } catch (e) {
+                            console.error('Error calculating match time:', e);
                         }
+                    }
                         
                         if (totalSeconds < 0) totalSeconds = 0;
 
