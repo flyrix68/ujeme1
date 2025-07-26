@@ -1222,59 +1222,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 </span>
                                             </div>
                                         </div>
-                                        <div class="card-body">
-                                            <div class="d-flex flex-column align-items-center mb-3">
-                                                <!-- Score -->
-                                                <div class="d-flex justify-content-between align-items-center w-100 mb-3">
-                                                    <div class="text-center" style="width: 45%;">
-                                                        <div class="fw-bold"><?= htmlspecialchars($match['team_home']) ?></div>
-                                                        <div class="display-4 fw-bold"><?= $match['score_home'] ?? '0' ?></div>
-                                                    </div>
-                                                    <div class="text-muted">-</div>
-                                                    <div class="text-center" style="width: 45%;">
-                                                        <div class="fw-bold"><?= htmlspecialchars($match['team_away']) ?></div>
-                                                        <div class="display-4 fw-bold"><?= $match['score_away'] ?? '0' ?></div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Minute du match -->
-                                                <div class="w-100 mb-3">
-                                                    <div class="progress" style="height: 8px;">
-                                                        <?php 
-                                                        $progress = 0;
-                                                        if (isset($match['match_time'])) {
-                                                            $progress = min(100, ($match['match_time'] / 90) * 100);
-                                                        }
-                                                        ?>
-                                                        <div class="progress-bar bg-success" role="progressbar" style="width: <?= $progress ?>%;" 
-                                                             aria-valuenow="<?= $progress ?>" aria-valuemin="0" aria-valuemax="100"></div>
-                                                    </div>
-                                                    <div class="d-flex justify-content-between mt-1 small text-muted">
-                                                        <span>1'</span>
-                                                        <span><?= isset($match['match_time']) ? $match['match_time'] . "'" : '0\'' ?></span>
-                                                        <span>90'</span>
-                                                    </div>
-                                                </div>
-                                                <span class="badge bg-primary float-end"><?= htmlspecialchars($match['phase']) ?></span>
-                                            </h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <div class="text-center">
+                                        <div class="card-body p-3">
+                                            <!-- Ligne 1: Équipes et score -->
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <!-- Équipe à domicile -->
+                                                <div class="d-flex flex-column align-items-center" style="width: 40%;">
                                                     <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_home']))) ?>.png" 
-                                                         alt="<?= htmlspecialchars($match['team_home']) ?>" width="50" onerror="this.src='../assets/img/teams/default.png'">
-                                                    <div class="fw-bold mt-2"><?= htmlspecialchars($match['team_home']) ?></div>
+                                                         alt="<?= htmlspecialchars($match['team_home']) ?>" 
+                                                         width="40" 
+                                                         class="mb-1"
+                                                         onerror="this.src='../assets/img/teams/default.png'">
+                                                    <div class="fw-bold text-center small"><?= htmlspecialchars($match['team_home']) ?></div>
                                                 </div>
                                                 
-                                                <div class="text-center mx-3">
-                                                    <div class="display-4 fw-bold">
+                                                <!-- Score -->
+                                                <div class="d-flex flex-column align-items-center" style="width: 20%;">
+                                                    <div class="display-4 fw-bold text-center">
                                                         <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
                                                     </div>
-                                                    <small class="text-muted"><?= date('H:i', strtotime($match['match_time'])) ?></small>
-                                                    <div class="timer-display mt-2" id="timer-<?= $match['id'] ?>">
+                                                    <div class="badge bg-primary"><?= htmlspecialchars($match['phase']) ?></div>
+                                                </div>
+                                                
+                                                <!-- Équipe à l'extérieur -->
+                                                <div class="d-flex flex-column align-items-center" style="width: 40%;">
+                                                    <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) ?>.png" 
+                                                         alt="<?= htmlspecialchars($match['team_away']) ?>" 
+                                                         width="40"
+                                                         class="mb-1"
+                                                         onerror="this.src='../assets/img/teams/default.png'">
+                                                    <div class="fw-bold text-center small"><?= htmlspecialchars($match['team_away']) ?></div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Ligne 2: Minute du match et minuteur -->
+                                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                                <div style="width: 40%;">
+                                                    <div class="small text-muted text-center">
+                                                        <i class="far fa-clock me-1"></i> 
+                                                        <?php 
+                                                        if (isset($match['match_time'])) {
+                                                            echo date('H:i', strtotime($match['match_time']));
+                                                        } else {
+                                                            echo '--:--';
+                                                        }
+                                                        ?>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div style="width: 20%;">
+                                                    <div class="timer-display text-center fw-bold" id="timer-<?= $match['id'] ?>">
                                                         <?php
                                                         if ($match['timer_status'] === 'ended') {
-                                                            echo 'Terminé';
+                                                            echo '<span class="badge bg-danger">Terminé</span>';
                                                         } else {
                                                             $elapsed = $match['timer_elapsed'];
                                                             if ($match['timer_start'] && !$match['timer_paused']) {
@@ -1292,11 +1291,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                     </div>
                                                 </div>
                                                 
-                                                <div class="text-center">
-                                                    <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) ?>.png" 
-                                                         alt="<?= htmlspecialchars($match['team_away']) ?>" width="50" onerror="this.src='../assets/img/teams/default.png'">
-                                                    <div class="fw-bold mt-2"><?= htmlspecialchars($match['team_away']) ?></div>
+                                                <div style="width: 40%;">
+                                                    <div class="small text-muted text-center">
+                                                        <i class="fas fa-running me-1"></i> 
+                                                        <?= $match['status'] === 'en_cours' ? 'En cours' : 'En attente' ?>
+                                                    </div>
                                                 </div>
+                                            </div>
+                                            
+                                            <!-- Barre de progression -->
+                                            <div class="mt-3">
+                                                <div class="progress" style="height: 6px;">
+                                                    <?php 
+                                                    $progress = 0;
+                                                    if (isset($match['match_time'])) {
+                                                        $progress = min(100, ($match['match_time'] / 90) * 100);
+                                                    }
+                                                    ?>
+                                                    <div class="progress-bar bg-success" role="progressbar" 
+                                                         style="width: <?= $progress ?>%;" 
+                                                         aria-valuenow="<?= $progress ?>" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex justify-content-between mt-1 small text-muted">
+                                                    <span>1'</span>
+                                                    <span><?= isset($match['match_time']) ? $match['match_time'] . "'" : '0\'' ?></span>
+                                                    <span>90'</span>
+                                                </div>
+                                            </div>
                                             </div>
                                             
                                             <div class="mb-3">
@@ -1473,6 +1497,108 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </ul>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Matchs récemment terminés -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-success bg-gradient text-white">
+                        <h5 class="mb-0"><i class="fas fa-flag-checkered me-2"></i>Matchs récemment terminés</h5>
+                    </div>
+                    <div class="card-body">
+                        <?php
+                        // Récupérer les 5 derniers matchs terminés
+                        try {
+                            $finishedMatches = $pdo->query("
+                                SELECT m.*, 
+                                       t1.name as team_home, 
+                                       t2.name as team_away,
+                                       c.name as competition
+                                FROM matches m
+                                JOIN teams t1 ON m.team_home_id = t1.id
+                                JOIN teams t2 ON m.team_away_id = t2.id
+                                JOIN competitions c ON m.competition_id = c.id
+                                WHERE m.status = 'termine'
+                                ORDER BY m.match_date DESC
+                                LIMIT 5
+                            ")->fetchAll(PDO::FETCH_ASSOC);
+                        } catch (PDOException $e) {
+                            error_log("Error fetching finished matches: " . $e->getMessage());
+                            $finishedMatches = [];
+                        }
+                        ?>
+
+                        <?php if (empty($finishedMatches)): ?>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i> Aucun match terminé récemment
+                            </div>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Compétition</th>
+                                            <th>Équipe à domicile</th>
+                                            <th>Score</th>
+                                            <th>Équipe à l'extérieur</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($finishedMatches as $match): ?>
+                                        <tr>
+                                            <td><?= date('d/m/Y H:i', strtotime($match['match_date'])) ?></td>
+                                            <td><?= htmlspecialchars($match['competition']) ?></td>
+                                            <td class="text-end">
+                                                <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_home']))) ?>.png" 
+                                                     alt="<?= htmlspecialchars($match['team_home']) ?>" 
+                                                     width="24" 
+                                                     class="me-2"
+                                                     onerror="this.src='../assets/img/teams/default.png'">
+                                                <?= htmlspecialchars($match['team_home']) ?>
+                                            </td>
+                                            <td class="text-center fw-bold">
+                                                <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
+                                                <?php if ($match['penalty_home'] !== null && $match['penalty_away'] !== null): ?>
+                                                    <br>
+                                                    <small class="text-muted">
+                                                        (<?= $match['penalty_home'] ?? '0' ?> - <?= $match['penalty_away'] ?? '0' ?> tab)
+                                                    </small>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) ?>.png" 
+                                                     alt="<?= htmlspecialchars($match['team_away']) ?>" 
+                                                     width="24" 
+                                                     class="me-2"
+                                                     onerror="this.src='../assets/img/teams/default.png'">
+                                                <?= htmlspecialchars($match['team_away']) ?>
+                                            </td>
+                                            <td>
+                                                <a href="match_details.php?id=<?= $match['id'] ?>" 
+                                                   class="btn btn-sm btn-outline-primary"
+                                                   title="Voir les détails">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <button class="btn btn-sm btn-outline-secondary"
+                                                        onclick="showMatchStats(<?= $match['id'] ?>)"
+                                                        title="Statistiques">
+                                                    <i class="fas fa-chart-bar"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="text-end mt-3">
+                                <a href="matches.php?status=termine" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-list me-1"></i> Voir tous les matchs terminés
+                                </a>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
