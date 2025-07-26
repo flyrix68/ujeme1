@@ -1518,13 +1518,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
                                 <button type="submit" name="add_period" id="add_period" class="btn btn-primary">Ajouter</button>
                                 <button type="submit" name="update_period" id="update_period" class="btn btn-primary d-none">Mettre à jour</button>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
                             </div>
-                        <?php endif; ?>
+                        </form>
                     </div>
                 </div>
             </main>
