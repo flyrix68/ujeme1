@@ -45,8 +45,8 @@ function displayWarning($message) {
     echo "</div>";
 }
 
-// Vérifier si un ID de match a été fourni
-$matchId = isset($_GET['match_id']) ? (int)$_GET['match_id'] : null;
+// Hardcoded match ID for debugging
+$matchId = 26;
 
 // Si un ID de match est fourni, tenter de finaliser le match
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_match']) && $matchId) {
