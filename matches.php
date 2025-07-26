@@ -125,13 +125,13 @@ function formatMatchDate($date) {
     <style>
         .bg-opacity-10 { --bs-bg-opacity: 0.1; }
         .badge-form { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
-        .match-score { font-weight: bold; }
+        .match-score { font-weight: bold; white-space: nowrap; }
         .table-responsive { overflow-x: auto; }
         .live-badge { animation: pulse 2s infinite; }
         .event-list { max-height: 150px; overflow-y: auto; }
         @keyframes pulse {
             0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.7; }
+            50% { transform: scale(1.05); opacity: 0.8; }
             100% { transform: scale(1); opacity: 1; }
         }
         .compact-timer {
@@ -139,17 +139,55 @@ function formatMatchDate($date) {
             padding: 0.25rem 0.5rem;
         }
         .team-logo-sm {
-            width: 30px;
-            height: 30px;
+            width: 24px;
+            height: 24px;
             object-fit: contain;
+            margin: 0 5px;
+            flex-shrink: 0;
         }
         .live-match-card {
             border-left: 4px solid #dc3545;
+            transition: all 0.2s ease;
+            margin-bottom: 8px;
+        }
+        .live-match-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
         }
         .error-message {
             color: #dc3545;
             font-size: 0.9rem;
             margin-top: 0.5rem;
+        }
+        /* Styles pour les écrans très petits */
+        @media (max-width: 400px) {
+            .live-match-card .badge {
+                font-size: 0.65rem !important;
+                padding: 0.15em 0.3em !important;
+            }
+            .live-match-card .fw-bold {
+                font-size: 0.9rem;
+            }
+        }
+        /* Styles pour les tablettes et mobiles */
+        @media (max-width: 768px) {
+            .team-logo-sm {
+                width: 20px;
+                height: 20px;
+            }
+            .live-match-card .badge {
+                font-size: 0.7rem;
+                padding: 0.2em 0.4em;
+            }
+            .live-match-card .text-muted {
+                font-size: 0.75rem;
+            }
+        }
+        /* Amélioration de la lisibilité sur les petits écrans */
+        @media (max-width: 576px) {
+            .live-match-card .fw-bold {
+                font-size: 0.95rem;
+            }
         }
     </style>
 </head>
@@ -237,23 +275,60 @@ function formatMatchDate($date) {
                             
                             // Déterminer la période de jeu
                             $halfDuration = floor(($match['first_half_duration'] ?? 45) * 60);
-                            $gamePeriod = ($match['timer_status'] === 'first_half') ? '1ère mi-temps' : 
-                                          (($match['timer_status'] === 'second_half') ? '2ème mi-temps' : 
-                                          (($match['timer_status'] === 'half_time') ? 'Mi-temps' : 'Terminé'));
+                            $gamePeriod = ($match['timer_status'] === 'first_half') ? '1ère MT' : 
+                                        (($match['timer_status'] === 'second_half') ? '2ème MT' : 
+                                        (($match['timer_status'] === 'half_time') ? 'MT' : 'FIN'));
+                            
+                            // Déterminer la classe de la période pour le style
+                            $periodClass = 'bg-danger';
+                            if ($match['timer_status'] === 'half_time') {
+                                $periodClass = 'bg-warning text-dark';
+                            } elseif ($match['status'] === 'completed') {
+                                $periodClass = 'bg-secondary';
+                            }
                             ?>
-                            <div class="col">
-                                <div class="card h-100 live-match-card">
-                                    <div class="card-body p-3">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <small class="text-muted"><?= htmlspecialchars($match['phase']) ?></small>
-                                            <span class="badge bg-danger">
-                                                <?= $gamePeriod ?>
-                                            </span>
+                            <div class="col-12 mb-2">
+                                <div class="card live-match-card">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <!-- Équipe à domicile -->
+                                            <div class="d-flex align-items-center" style="width: 38%;">
+                                                <span class="text-truncate text-end fw-bold">
+                                                    <?= htmlspecialchars($match['team_home']) ?>
+                                                </span>
+                                            </div>
+                                            
+                                            <!-- Score -->
+                                            <div class="text-center px-2" style="min-width: 60px;">
+                                                <div class="d-flex align-items-center justify-content-center">
+                                                    <span class="badge <?= $periodClass ?> me-1"><?= $gamePeriod ?></span>
+                                                    <span class="fw-bold">
+                                                        <?= (isset($match['score_home']) && $match['score_home'] !== '' ? intval($match['score_home']) : '0') ?>
+                                                        - 
+                                                        <?= (isset($match['score_away']) && $match['score_away'] !== '' ? intval($match['score_away']) : '0') ?>
+                                                    </span>
+                                                    <?php if ($match['status'] === 'ongoing' && $match['timer_status'] !== 'ended'): ?>
+                                                    <small class="ms-1" id="live-timer-<?= $match['id'] ?>">
+                                                        <?= sprintf('%02d', $minutes) ?>:<?= sprintf('%02d', $seconds) ?>
+                                                    </small>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php if (!empty($match['phase'])): ?>
+                                                <small class="text-muted d-block"><?= htmlspecialchars($match['phase']) ?></small>
+                                                <?php endif; ?>
+                                            </div>
+                                            
+                                            <!-- Équipe à l'extérieur -->
+                                            <div class="d-flex align-items-center justify-content-end" style="width: 38%;">
+                                                <span class="text-truncate fw-bold">
+                                                    <?= htmlspecialchars($match['team_away']) ?>
+                                                </span>
+                                            </div>
                                         </div>
                                         
                                         <div class="row g-2 mb-2 align-items-center">
                                             <div class="col-5 d-flex align-items-center">
-                                                <img src="assets/img/teams/<?= strtolower(preg_replace('/[^a-z0-9]/', '-', $match['team_home'])) ?>.png" 
+                                                <img src="<?= DatabaseConfig::getTeamLogo($match['team_home']) ?>" 
                                                      class="team-logo-sm me-2"
                                                      alt="<?= htmlspecialchars($match['team_home']) ?>" 
                                                      onerror="this.src='assets/img/teams/default.png'">
@@ -266,30 +341,27 @@ function formatMatchDate($date) {
                                             </div>
                                             <div class="col-5 d-flex align-items-center justify-content-end">
                                                 <span class="fw-bold text-truncate me-2"><?= htmlspecialchars($match['team_away']) ?></span>
-                                                <img src="assets/img/teams/<?= strtolower(preg_replace('/[^a-z0-9]/', '-', $match['team_away'])) ?>.png" 
+                                                <img src="<?= DatabaseConfig::getTeamLogo($match['team_away']) ?>" 
                                                      class="team-logo-sm"
-                                                     alt="<?= htmlspecialchars($match['team_away']) ?>" 
+                                                     alt="<?= htmlspecialchars($match['team_away']) ?>"
                                                      onerror="this.src='assets/img/teams/default.png'">
                                             </div>
                                         </div>
                                         
-                                        <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <?php if (!empty($match['venue'])): ?>
+                                        <div class="text-center mt-1">
                                             <small class="text-muted">
-                                                <i class="fas fa-map-marker-alt me-1"></i>
-                                                <?= htmlspecialchars($match['venue']) ?>
+                                                <i class="fas fa-map-marker-alt me-1"></i> <?= htmlspecialchars($match['venue']) ?>
                                             </small>
-                                            <div class="d-flex align-items-center">
-                                                <div class="badge bg-dark rounded-pill compact-timer me-2" id="live-timer-<?= $match['id'] ?>">
-                                                    <?php
-                                                    if ($match['timer_status'] === 'half_time') {
-                                                        echo 'Mi-temps';
-                                                    } elseif ($match['timer_status'] === 'ended') {
-                                                        echo 'Terminé';
-                                                    } else {
-                                                        echo sprintf('%02d:%02d', $minutes, $seconds);
-                                                    }
-                                                    ?>
-                                                </div>
+                                        </div>
+                                        <?php endif; ?>
+                                        
+                                        <div class="d-flex justify-content-between align-items-center mt-2">
+                                            <?php if ($match['status'] === 'ongoing' && $match['timer_status'] !== 'ended' && $match['timer_status'] !== 'half_time'): ?>
+                                            <div class="badge bg-dark rounded-pill compact-timer me-2" id="live-timer-<?= $match['id'] ?>">
+                                                <?= sprintf('%02d:%02d', $minutes, $seconds) ?>
+                                            </div>
+                                            <?php endif; ?>
                                                 <a href="match_details.php?id=<?= $match['id'] ?>" 
                                                    class="btn btn-sm btn-outline-danger py-0 px-2"
                                                    data-bs-toggle="tooltip" title="Voir les détails">
@@ -359,7 +431,13 @@ function formatMatchDate($date) {
                                         </td>
                                         <td><?= htmlspecialchars($match['phase']) ?></td>
                                         <td <?= $match['score_home'] > $match['score_away'] ? 'class="fw-bold"' : '' ?>>
-                                            <?= htmlspecialchars($match['team_home']) ?>
+                                            <div class="d-flex align-items-center">
+                                                <img src="<?= DatabaseConfig::getTeamLogo($match['team_home']) ?>" 
+                                                     class="team-logo-sm me-2"
+                                                     alt="<?= htmlspecialchars($match['team_home']) ?>"
+                                                     onerror="this.src='assets/img/teams/default.png'">
+                                                <?= htmlspecialchars($match['team_home']) ?>
+                                            </div>
                                         </td>
                                         <td class="match-score">
                                             <?= (isset($match['score_home']) && $match['score_home'] !== '' ? intval($match['score_home']) : '0') . ' - ' . (isset($match['score_away']) && $match['score_away'] !== '' ? intval($match['score_away']) : '0') ?>
@@ -378,7 +456,13 @@ function formatMatchDate($date) {
                                             <?php endif; ?>
                                         </td>
                                         <td <?= (isset($match['score_away']) && isset($match['score_home']) && intval($match['score_away']) > intval($match['score_home'])) ? 'class="fw-bold"' : '' ?>>
-                                            <?= htmlspecialchars($match['team_away']) ?>
+                                            <div class="d-flex align-items-center">
+                                                <img src="<?= DatabaseConfig::getTeamLogo($match['team_away']) ?>" 
+                                                     class="team-logo-sm me-2"
+                                                     alt="<?= htmlspecialchars($match['team_away']) ?>"
+                                                     onerror="this.src='assets/img/teams/default.png'">
+                                                <?= htmlspecialchars($match['team_away']) ?>
+                                            </div>
                                         </td>
                                         <td><?= htmlspecialchars($match['venue']) ?></td>
                                         <td>

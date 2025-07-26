@@ -65,16 +65,32 @@ class DatabaseConfig {
     }
 
     public static function getTeamLogo($teamName) {
-        $basePath = '/assets/img/teams/';
+        // Nettoyer le nom de l'équipe pour le nom de fichier
         $teamFilename = strtolower(preg_replace('/[^a-zA-Z0-9]/', '-', trim($teamName)));
-        $logoPath = $basePath . $teamFilename . '.png';
-        $defaultPath = $basePath . 'default.png';
         
-        // Check if file exists (using root-relative path)
-        $fullPath = __DIR__ . '/..' . $logoPath;
-        if (!file_exists($fullPath)) {
-            return $defaultPath;
+        // Chemins à vérifier, dans l'ordre de priorité
+        $possiblePaths = [
+            '/uploads/logos/' . $teamFilename . '.png',
+            '/uploads/logos/' . $teamFilename . '.jpg',
+            '/uploads/logos/' . $teamFilename . '.jpeg',
+            '/uploads/logos/' . $teamFilename . '.webp',
+            '/assets/img/teams/' . $teamFilename . '.png',
+            '/assets/img/teams/' . $teamFilename . '.jpg',
+            '/assets/img/teams/' . $teamFilename . '.jpeg',
+            '/assets/img/teams/' . $teamFilename . '.webp'
+        ];
+        
+        $defaultPath = '/assets/img/teams/default.png';
+        
+        // Vérifier chaque chemin potentiel
+        foreach ($possiblePaths as $logoPath) {
+            $fullPath = __DIR__ . '/..' . $logoPath;
+            if (file_exists($fullPath)) {
+                return $logoPath;
+            }
         }
-        return $logoPath;
+        
+        // Si aucun logo n'est trouvé, retourner le logo par défaut
+        return $defaultPath;
     }
 }

@@ -215,8 +215,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     }
                                 }
 
+            // Définir les scores à 0 s'ils ne sont pas définis
+            $score_home = isset($score_home) ? $score_home : 0;
+            $score_away = isset($score_away) ? $score_away : 0;
+            
             $sql = "INSERT INTO matches (competition, phase, match_date, match_time, team_home, team_away, venue, score_home, score_away, status, poule_id) " . 
-                   "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                   "VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, 0), COALESCE(?, 0), ?, ?)";
                                 $stmt = $pdo->prepare($sql);
                                 $params = [
                                     $competition, 
@@ -272,6 +276,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     throw new Exception("Le match spécifié n'existe pas.");
                                 }
 
+                                // S'assurer que les scores ne sont pas NULL
+                                $score_home = isset($score_home) ? $score_home : 0;
+                                $score_away = isset($score_away) ? $score_away : 0;
+                                
                                 $sql = "UPDATE matches SET 
                                     competition = ?, 
                                     phase = ?, 
@@ -280,8 +288,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     team_home = ?, 
                                     team_away = ?, 
                                     venue = ?, 
-                                    score_home = ?, 
-                                    score_away = ?, 
+                                    score_home = COALESCE(?, 0), 
+                                    score_away = COALESCE(?, 0), 
                                     status = ?, 
                                     poule_id = ? 
                                     WHERE id = ?";

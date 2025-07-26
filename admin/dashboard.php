@@ -622,13 +622,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Finalize match and update standings
         if (isset($_POST['finalize_match'])) {
+            error_log("=== DÉBUT FINALISATION MATCH ===");
             $matchId = filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT);
             if (!$matchId) {
-                error_log("Invalid match_id for finalize_match: $matchId");
-                $_SESSION['error'] = "ID de match invalide.";
+                $errorMsg = "Invalid match_id for finalize_match: " . ($_POST['match_id'] ?? 'non défini');
+                error_log($errorMsg);
+                $_SESSION['error'] = "ID de match invalide: " . ($_POST['match_id'] ?? 'non défini');
                 header("Location: dashboard.php");
                 exit();
             }
+            error_log("Tentative de finalisation du match ID: $matchId");
 
             // Fetch previous status
             $stmt = $pdo->prepare("SELECT status, score_home, score_away, saison, competition, poule_id FROM matches WHERE id = ?");
@@ -643,15 +646,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Validate match data
             if (!isset($match['score_home']) || !isset($match['score_away']) || empty($match['saison']) || empty($match['competition']) || !isset($match['poule_id'])) {
-                error_log("Invalid match data for finalization: match_id=$matchId, data=" . json_encode($match));
-                $_SESSION['error'] = "Données du match incomplètes pour la finalisation.";
+                $errorMsg = "Données du match incomplètes pour la finalisation. match_id=$matchId, data=" . json_encode($match);
+                error_log($errorMsg);
+                $_SESSION['error'] = $errorMsg;
                 header("Location: dashboard.php");
                 exit();
             }
+            error_log("Données du match validées: " . json_encode([
+                'score_home' => $match['score_home'],
+                'score_away' => $match['score_away'],
+                'saison' => $match['saison'],
+                'competition' => $match['competition'],
+                'poule_id' => $match['poule_id']
+            ]));
 
             $oldStatus = $match['status'];
+            error_log("Mise à jour du statut du match $matchId de '$oldStatus' à 'completed'");
             $stmt = $pdo->prepare("UPDATE matches SET status = 'completed', timer_start = NULL, timer_status = 'ended' WHERE id = ?");
-            $stmt->execute([$matchId]);
+            $updateResult = $stmt->execute([$matchId]);
+            error_log("Résultat de la mise à jour du statut: " . ($updateResult ? 'succès' : 'échec'));
 
             // Log the action
             logAction(
@@ -664,6 +677,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
 
             // Inclure la fonction de mise à jour du classement
+            error_log("Inclusion du fichier temp_update_classement.php");
             require_once __DIR__ . '/../temp_update_classement.php';
             
             // Récupérer toutes les données du match pour la mise à jour du classement
@@ -672,8 +686,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $matchData = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($matchData) {
-                // Mettre à jour le classement avec les nouvelles données
-                $updateResult = updateClassementForMatch($pdo, [
+                error_log("Données du match récupérées pour la mise à jour du classement: " . json_encode($matchData));
+                // Préparer les données pour la mise à jour du classement
+                $classementData = [
                     'saison' => $matchData['saison'],
                     'competition' => $matchData['competition'],
                     'poule_id' => $matchData['poule_id'],
@@ -681,11 +696,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'team_away' => $matchData['team_away'],
                     'score_home' => (int)$matchData['score_home'],
                     'score_away' => (int)$matchData['score_away']
-                ]);
+                ];
+                error_log("Données transmises à updateClassementForMatch: " . json_encode($classementData));
+                
+                // Mettre à jour le classement avec les nouvelles données
+                $updateResult = updateClassementForMatch($pdo, $classementData);
                 
                 if (!$updateResult) {
-                    throw new Exception("Erreur lors de la mise à jour du classement");
+                    $errorMsg = "Erreur lors de la mise à jour du classement pour le match ID: $matchId";
+                    error_log($errorMsg);
+                    throw new Exception($errorMsg);
                 }
+                error_log("Mise à jour du classement effectuée avec succès pour le match ID: $matchId");
                 
                 // Mettre à jour l'ancien système de classement pour compatibilité
                 if (function_exists('updateStandings')) {
@@ -693,8 +715,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
+            error_log("Validation de la transaction pour le match ID: $matchId");
             $pdo->commit();
-            $_SESSION['message'] = "Match finalisé et classement mis à jour avec succès !";
+            $successMsg = "Match finalisé et classement mis à jour avec succès !";
+            error_log($successMsg);
+            $_SESSION['message'] = $successMsg;
             header("Location: dashboard.php");
             exit();
         }
