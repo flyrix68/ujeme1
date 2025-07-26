@@ -1,0 +1,39 @@
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Team Logo Status Report&lt;/title&gt;
+    &lt;style&gt;
+        table { border-collapse: collapse; width: 100%; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .ok { color: green; } 
+        .missing { color: red; }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;Team Logo Status Report&lt;/h1&gt;
+    &lt;table&gt;
+        &lt;tr&gt;
+            &lt;th&gt;Team Name&lt;/th&gt;
+            &lt;th&gt;Logo File&lt;/th&gt;
+            &lt;th&gt;Status&lt;/th&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt;Ehounou FC&lt;/td&gt;
+            &lt;td&gt;ehounou-fc.png&lt;/td&gt;
+            &lt;td class="ok"&gt;OK&lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt;Ngalwa FC&lt;/td&gt;
+            &lt;td&gt;ngalwa-fc.png&lt;/td&gt;
+            &lt;td class="ok"&gt;OK&lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;!-- More teams would be listed here --&gt;
+    &lt;/table&gt;
+    &lt;p&gt;Note: For any team showing 'missing', ensure their logo file exists in either:&lt;/p&gt;
+    &lt;ul&gt;
+        &lt;li&gt;uploads/logos/&lt;/li&gt;
+        &lt;li&gt;assets/img/teams/&lt;/li&gt;
+    &lt;/ul&gt;
+&lt;/body&gt;
+&lt;/html&gt;
