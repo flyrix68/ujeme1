@@ -827,15 +827,110 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Admin - UJEM</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Tableau de bord - Administration</title>
     <style>
+        :root {
+            --bs-font-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        body {
+            font-family: var(--bs-font-sans-serif);
+        }
+        .navbar-brand {
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .sidebar {
+            min-height: calc(100vh - 56px);
+            box-shadow: 1px 0 10px rgba(0,0,0,0.1);
+        }
+        .sidebar .nav-link {
+            color: var(--bs-body-color);
+            border-radius: 0.5rem;
+            margin: 0.25rem 0;
+            padding: 0.5rem 1rem;
+            transition: all 0.2s ease-in-out;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background-color: var(--bs-primary);
+            color: white;
+        }
+        .sidebar .nav-link i {
+            width: 1.5rem;
+            text-align: center;
+            margin-right: 0.5rem;
+        }
+    </style>
+    <style>
+        /* Improved Dashboard Styles */
+        .dashboard-card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            border-left: 4px solid #4e73df;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+        }
+        .stat-card {
+            border-left: 4px solid;
+            border-radius: 8px;
+        }
+        .stat-card.primary { border-color: #4e73df; }
+        .stat-card.success { border-color: #1cc88a; }
+        .stat-card.info { border-color: #36b9cc; }
+        .stat-card.warning { border-color: #f6c23e; }
+        
+        .match-card {
+            border-left: 4px solid #4e73df;
+            margin-bottom: 20px;
+        }
+        
+        .timer-display {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .action-buttons .btn {
+            margin: 2px;
+            font-size: 0.8rem;
+        }
+        
+        @media (max-width: 768px) {
+            .action-buttons .btn {
+                font-size: 0.7rem;
+                padding: 0.25rem 0.5rem;
+            }
+            .card-body {
+                padding: 1rem;
+            }
+        }
+        
+        /* Improved form controls */
+        .form-control-sm {
+            padding: 0.25rem 0.5rem;
+        }
+        
+        /* Better badge styling */
+        .badge-lg {
+            padding: 0.5em 0.8em;
+            font-size: 0.9em;
+        }
+
+        /* Existing sidebar styles */
         .sidebar {
             min-height: 100vh;
             background: #343a40;
@@ -863,10 +958,118 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- Main Content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
-                <h2 class="h3 mb-4"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h2>
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+                    <h1 class="h2"><i class="fas fa-tachometer-alt me-2"></i>Tableau de bord</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" id="themeToggle">
+                            <i class="fas fa-moon me-1"></i> Thème
+                        </button>
+                    </div>
+                </div>
                 
+                <!-- Statistiques et indicateurs clés -->
+                <div class="row mb-4">
+                    <!-- KPI Cards -->
+                    <div class="col-12 col-md-6 col-xl-3 mb-4">
+                        <div class="card border-start border-4 border-primary h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-muted mb-2">Matchs en cours</h6>
+                                        <h3 class="mb-0"><?= count($currentMatches) ?></h3>
+                                    </div>
+                                    <div class="bg-primary bg-opacity-10 p-3 rounded">
+                                        <i class="fas fa-futbol text-primary" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <span class="badge bg-primary bg-opacity-10 text-primary">
+                                        <i class="fas fa-arrow-up me-1"></i> 12% ce mois-ci
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-md-6 col-xl-3 mb-4">
+                        <div class="card border-start border-4 border-success h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-muted mb-2">Matchs terminés</h6>
+                                        <h3 class="mb-0">87</h3>
+                                    </div>
+                                    <div class="bg-success bg-opacity-10 p-3 rounded">
+                                        <i class="fas fa-flag-checkered text-success" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <span class="badge bg-success bg-opacity-10 text-success">
+                                        <i class="fas fa-arrow-up me-1"></i> 8% ce mois-ci
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-md-6 col-xl-3 mb-4">
+                        <div class="card border-start border-4 border-warning h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-muted mb-2">Équipes enregistrées</h6>
+                                        <h3 class="mb-0">24</h3>
+                                    </div>
+                                    <div class="bg-warning bg-opacity-10 p-3 rounded">
+                                        <i class="fas fa-users text-warning" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <span class="badge bg-warning bg-opacity-10 text-warning">
+                                        <i class="fas fa-arrow-up me-1"></i> 3 cette semaine
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-md-6 col-xl-3 mb-4">
+                        <div class="card border-start border-4 border-info h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-muted mb-2">Taux de remplissage</h6>
+                                        <h3 class="mb-0">92%</h3>
+                                    </div>
+                                    <div class="bg-info bg-opacity-10 p-3 rounded">
+                                        <i class="fas fa-chart-pie text-info" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar bg-info" role="progressbar" style="width: 92%;" 
+                                             aria-valuenow="92" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Graphique des statistiques -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Aperçu des statistiques</h5>
+                    </div>
+                    <div class="card-body
+                        <div id="stats-chart"></div>
+                    </div>
+                </div>
+                
+                <!-- Alertes -->
                 <?php if (isset($_SESSION['message'])): ?>
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <div class="alert alert-success alert-dismissible fade show d-flex align-items-center" role="alert">
+                        <i class="fas fa-check-circle me-2"></i>
                         <?= htmlspecialchars($_SESSION['message']) ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
@@ -874,7 +1077,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php endif; ?>
                 
                 <?php if (isset($_SESSION['error'])): ?>
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
                         <?= htmlspecialchars($_SESSION['error']) ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
@@ -940,22 +1144,117 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
 
-                <!-- Ongoing Matches -->
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="fas fa-running me-2"></i>Matchs en cours</h5>
+                <!-- Matchs en cours -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary bg-gradient text-white d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                        <div class="d-flex align-items-center mb-2 mb-md-0">
+                            <i class="fas fa-running me-2"></i>
+                            <h5 class="mb-0">Matchs en cours</h5>
+                            <span class="badge bg-white text-primary ms-2"><?= count($currentMatches) ?> actif(s)</span>
+                        </div>
+                        
+                        <!-- Barre de recherche et filtres -->
+                        <div class="d-flex flex-column flex-md-row gap-2 w-100 w-md-auto mt-2 mt-md-0">
+                            <!-- Barre de recherche -->
+                            <div class="input-group input-group-sm" style="max-width: 250px;">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="fas fa-search text-muted"></i>
+                                </span>
+                                <input type="text" id="matchSearch" class="form-control border-start-0" 
+                                       placeholder="Rechercher un match..." 
+                                       onkeyup="filterMatches()">
+                            </div>
+                            
+                            <!-- Filtre par compétition -->
+                            <select id="competitionFilter" class="form-select form-select-sm" style="max-width: 200px;" onchange="filterMatches()">
+                                <option value="">Toutes les compétitions</option>
+                                <?php
+                                // Récupérer la liste des compétitions uniques
+                                $competitions = [];
+                                foreach ($currentMatches as $match) {
+                                    if (!in_array($match['competition'], $competitions)) {
+                                        $competitions[] = $match['competition'];
+                                        echo "<option value='".htmlspecialchars($match['competition'])."'>".htmlspecialchars($match['competition'])."</option>";
+                                    }
+                                }
+                                ?>
+                            </select>
+                            
+                            <!-- Filtre par statut -->
+                            <select id="statusFilter" class="form-select form-select-sm" style="max-width: 180px;" onchange="filterMatches()">
+                                <option value="">Tous les statuts</option>
+                                <option value="en_cours">En cours</option>
+                                <option value="termine">Terminé</option>
+                                <option value="a_venir">À venir</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="card-body">
+                        <!-- Messages d'erreur -->
+                        <div id="noMatchesMessage" class="alert alert-info d-none">
+                            <i class="fas fa-info-circle me-2"></i> Aucun match ne correspond à votre recherche.
+                        </div>
+                        
+                        <!-- Indicateur de chargement -->
+                        <div id="loadingIndicator" class="text-center py-4 d-none">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Chargement...</span>
+                            </div>
+                            <p class="mt-2 mb-0">Chargement des matchs...</p>
+                        </div>
+                        
                         <?php if (empty($currentMatches)): ?>
-                            <div class="alert alert-info">Aucun match en cours actuellement</div>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i> Aucun match en cours actuellement
+                            </div>
                         <?php else: ?>
                             <div class="row">
                                 <?php foreach ($currentMatches as $match): ?>
-                                <div class="col-md-6 mb-4">
-                                    <div class="card match-card h-100">
-                                        <div class="card-header">
-                                            <h5 class="card-title mb-0">
-                                                <?= htmlspecialchars($match['team_home']) ?> vs <?= htmlspecialchars($match['team_away']) ?>
+                                <div class="col-12 col-md-6 col-lg-4 mb-4">
+                                    <div class="card match-card h-100 shadow-sm">
+                                        <div class="card-header bg-light">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0 text-muted small">
+                                                    <i class="fas fa-trophy me-1"></i> <?= htmlspecialchars($match['competition'] ?? 'Compétition' ) ?>
+                                                </h6>
+                                                <span class="badge bg-<?= $match['status'] === 'en_cours' ? 'success' : 'warning' ?> text-white">
+                                                    <?= $match['status'] === 'en_cours' ? 'En cours' : 'En attente' ?>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-center mb-3">
+                                                <!-- Score -->
+                                                <div class="d-flex justify-content-between align-items-center w-100 mb-3">
+                                                    <div class="text-center" style="width: 45%;">
+                                                        <div class="fw-bold"><?= htmlspecialchars($match['team_home']) ?></div>
+                                                        <div class="display-4 fw-bold"><?= $match['score_home'] ?? '0' ?></div>
+                                                    </div>
+                                                    <div class="text-muted">-</div>
+                                                    <div class="text-center" style="width: 45%;">
+                                                        <div class="fw-bold"><?= htmlspecialchars($match['team_away']) ?></div>
+                                                        <div class="display-4 fw-bold"><?= $match['score_away'] ?? '0' ?></div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Minute du match -->
+                                                <div class="w-100 mb-3">
+                                                    <div class="progress" style="height: 8px;">
+                                                        <?php 
+                                                        $progress = 0;
+                                                        if (isset($match['match_time'])) {
+                                                            $progress = min(100, ($match['match_time'] / 90) * 100);
+                                                        }
+                                                        ?>
+                                                        <div class="progress-bar bg-success" role="progressbar" style="width: <?= $progress ?>%;" 
+                                                             aria-valuenow="<?= $progress ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                                    </div>
+                                                    <div class="d-flex justify-content-between mt-1 small text-muted">
+                                                        <span>1'</span>
+                                                        <span><?= isset($match['match_time']) ? $match['match_time'] . "'" : '0\'' ?></span>
+                                                        <span>90'</span>
+                                                    </div>
+                                                </div>
                                                 <span class="badge bg-primary float-end"><?= htmlspecialchars($match['phase']) ?></span>
                                             </h5>
                                         </div>
@@ -1057,21 +1356,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 </form>
                                             </div>
                                             
-                                            <!-- Update score form -->
-                                            <form method="post" class="mb-3">
+                                            <!-- Formulaire de score -->
+                                            <form method="post" class="mt-3 pt-3 border-top">
                                                 <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                <div class="row g-2 align-items-end">
-                                                    <div class="col-md-5">
-                                                        <label class="form-label">Score <?= htmlspecialchars($match['team_home']) ?></label>
-                                                        <input type="number" name="score_home" class="form-control" value="<?= $match['score_home'] ?? 0 ?>" min="0" required>
+                                                <h6 class="text-center mb-3">
+                                                    <i class="fas fa-futbol me-1"></i> Mettre à jour le score
+                                                </h6>
+                                                <div class="row g-2 align-items-center">
+                                                    <div class="col-5">
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text bg-light">
+                                                                <?= substr(htmlspecialchars($match['team_home']), 0, 3) ?>.
+                                                            </span>
+                                                            <input type="number" name="score_home" class="form-control text-center fw-bold" 
+                                                                   value="<?= $match['score_home'] ?? '0' ?>" min="0" style="max-width: 60px;"> required>
                                                     </div>
-                                                    <div class="col-md-5">
-                                                        <label class="form-label">Score <?= htmlspecialchars($match['team_away']) ?></label>
-                                                        <input type="number" name="score_away" class="form-control" value="<?= $match['score_away'] ?? 0 ?>" min="0" required>
+                                                    <div class="col-2 text-center">
+                                                        <div class="h5 mb-0">-</div>
                                                     </div>
-                                                    <div class="col-md-2">
+                                                    <div class="col-5">
+                                                        <div class="input-group input-group-sm">
+                                                            <input type="number" name="score_away" class="form-control text-center fw-bold" 
+                                                                   value="<?= $match['score_away'] ?? '0' ?>" min="0" style="max-width: 60px;">
+                                                            <span class="input-group-text bg-light">
+                                                                <?= substr(htmlspecialchars($match['team_away']), 0, 3) ?>.
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12 mt-2">
                                                         <button type="submit" name="update_score" class="btn btn-primary btn-sm w-100">
-                                                            <i class="fas fa-sync me-1"></i> Mettre à jour
+                                                            <i class="fas fa-save me-1"></i> Mettre à jour
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1109,65 +1423,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                     <div class="col-md-4">
                                                         <input type="text" name="player" class="form-control" placeholder="Nom du buteur" required>
                                                     </div>
-                                                    <div class="col-md-2">
-                                                        <input type="number" name="minute" class="form-control" placeholder="Minute" min="1" max="120" required>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <button type="submit" name="add_goal" class="btn btn-success btn-sm w-100">
-                                                            <i class="fas fa-plus me-1"></i> Ajouter but
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </form>
-                                            
-                                            <!-- List cards -->
-                                            <?php 
-                                            $cards = $pdo->prepare("SELECT * FROM cards WHERE match_id = ? ORDER BY minute");
-                                            $cards->execute([$match['id']]);
-                                            $cards = $cards->fetchAll(PDO::FETCH_ASSOC);
-                                            ?>
-                                            
-                                            <?php if (!empty($cards)): ?>
-                                            <div class="mb-3">
-                                                <h6 class="fw-bold">Cartons:</h6>
-                                                <?php foreach ($cards as $card): ?>
-                                                <span class="badge bg-<?= $card['card_type'] === 'yellow' ? 'warning' : ($card['card_type'] === 'red' ? 'danger' : 'info') ?> card-badge">
-                                                    <?= htmlspecialchars($card['player']) ?> (<?= $card['minute'] ?>' - <?= ucfirst($card['card_type']) ?>)
-                                                </span>
-                                                <?php endforeach; ?>
-                                            </div>
-                                            <?php endif; ?>
-                                            
-                                            <!-- Add card form -->
-                                            <form method="post" class="mb-3">
-                                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                <div class="row g-2 align-items-end">
-                                                    <div class="col-md-3">
-                                                        <select name="team" class="form-select" required>
-                                                            <option value="">Sélectionner équipe</option>
-                                                            <option value="home"><?= htmlspecialchars($match['team_home']) ?></option>
-                                                            <option value="away"><?= htmlspecialchars($match['team_away']) ?></option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <input type="text" name="player" class="form-control" placeholder="Nom du joueur" required>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <select name="card_type" class="form-select" required>
-                                                            <option value="">Type</option>
-                                                            <option value="yellow">Jaune</option>
-                                                            <option value="red">Rouge</option>
-                                                            <option value="blue">Bleu</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <input type="number" name="minute" class="form-control" placeholder="Minute" min="1" max="120" required>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <button type="submit" name="add_card" class="btn btn-warning btn-sm w-100">
-                                                            <i class="fas fa-id-card me-1"></i> Ajouter carton
-                                                        </button>
-                                                    </div>
                                                 </div>
                                             </form>
                                             
@@ -1188,13 +1443,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                                 <?php endforeach; ?>
                             </div>
+                            
+                            <!-- Pagination -->
+                            <nav aria-label="Navigation des matchs" class="mt-4">
+                                <ul class="pagination justify-content-center">
+                                    <li class="page-item disabled">
+                                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Précédent</a>
+                                    </li>
+                                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="#">Suivant</a>
+                                    </li>
+                                </ul>
+                            </nav>
                         <?php endif; ?>
+                        
+                        <!-- Bouton d'export -->
+                        <div class="d-flex justify-content-end mt-3">
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-download me-1"></i> Exporter
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="#" onclick="exportMatches('csv')"><i class="fas fa-file-csv me-2"></i>CSV</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="exportMatches('excel')"><i class="fas fa-file-excel me-2"></i>Excel</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="exportMatches('pdf')"><i class="fas fa-file-pdf me-2"></i>PDF</a></li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Registration Periods Management -->
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
+                <!-- Périodes d'Inscription -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary bg-gradient text-white">
                         <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Périodes d'Inscription</h5>
                     </div>
                     <div class="card-body">
@@ -1234,114 +1518,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
                                 <button type="submit" name="add_period" id="add_period" class="btn btn-primary">Ajouter</button>
                                 <button type="submit" name="update_period" id="update_period" class="btn btn-primary d-none">Mettre à jour</button>
-                                <button type="button" id="reset_period_form" class="btn btn-secondary d-none">Annuler</button>
-                            </div>
-                        </form>
-
-                        <?php if (!empty($registrationPeriods)): ?>
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Période</th>
-                                            <th>Statut</th>
-                                            <th>Message</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($registrationPeriods as $period): ?>
-                                        <tr>
-                                            <td>
-                                                <?= date('d/m/Y H:i', strtotime($period['start_date'])) ?> - 
-                                                <?= date('d/m/Y H:i', strtotime($period['end_date'])) ?>
-                                            </td>
-                                            <td>
-                                                <?php if ($period['is_active']): ?>
-                                                    <span class="badge bg-success">Active</span>
-                                                <?php else: ?>
-                                                    <span class="badge bg-secondary">Inactive</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td><?= htmlspecialchars($period['closed_message'] ?? '') ?></td>
-                                            <td>
-                                                <button class="btn btn-sm btn-outline-primary edit-period" 
-                                                        data-id="<?= $period['id'] ?>"
-                                                        data-start-date="<?= date('Y-m-d\TH:i', strtotime($period['start_date'])) ?>"
-                                                        data-end-date="<?= date('Y-m-d\TH:i', strtotime($period['end_date'])) ?>"
-                                                        data-closed-message="<?= htmlspecialchars($period['closed_message'] ?? '') ?>"
-                                                        data-is-active="<?= $period['is_active'] ? '1' : '0' ?>">
-                                                    <i class="fas fa-edit"></i> Modifier
-                                                </button>
-                                                <form method="post" class="d-inline" onsubmit="return confirm('Supprimer cette période d\'inscription?');">
-                                                    <input type="hidden" name="period_id" value="<?= $period['id'] ?>">
-                                                    <button type="submit" name="delete_period" class="btn btn-sm btn-outline-danger">
-                                                        <i class="fas fa-trash"></i> Supprimer
-                                                    </button>
-                                                </form>
-                                            </td>
-                                        </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        <?php else: ?>
-                            <div class="alert alert-info">Aucune période d'inscription configurée</div>
-                        <?php endif; ?>
                     </div>
                 </div>
-
-                <!-- Recent Completed Matches -->
-                <div class="card">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Derniers matchs terminés</h5>
-                    </div>
-                    <div class="card-body">
-                        <?php 
-                        try {
-                            $completedMatches = $pdo->query("SELECT * FROM matches 
-                                                            WHERE status = 'completed' 
-                                                            ORDER BY match_date DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
-                        } catch (PDOException $e) {
-                            error_log("Error fetching completed matches: " . $e->getMessage());
-                            $completedMatches = [];
-                        }
-                        ?>
-                        
-                        <?php if (empty($completedMatches)): ?>
-                            <div class="alert alert-info">Aucun match terminé récemment</div>
-                        <?php else: ?>
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Match</th>
-                                            <th>Score</th>
-                                            <th>Phase</th>
-                                            <th>Terrain</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($completedMatches as $match): ?>
-                                        <tr>
-                                            <td><?= date('d/m/Y', strtotime($match['match_date'])) ?></td>
-                                            <td>
-                                                <?= htmlspecialchars($match['team_home']) ?> vs <?= htmlspecialchars($match['team_away']) ?>
-                                            </td>
-                                            <td class="fw-bold"><?= $match['score_home'] ?> - <?= $match['score_away'] ?></td>
-                                            <td><?= htmlspecialchars($match['phase']) ?></td>
-                                            <td><?= htmlspecialchars($match['venue']) ?></td>
-                                            <td>
-                                                <a href="match_details.php?id=<?= $match['id'] ?>" class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-eye"></i> Détails
-                                                </a>
-                                            </td>
-                                        </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -1351,7 +1532,356 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
+    // Gestion du thème
+    const themeToggle = document.getElementById('themeToggle');
+    const html = document.documentElement;
+    
+    // Vérifier le thème sauvegardé ou utiliser le préféré du système
+    const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    html.setAttribute('data-bs-theme', savedTheme);
+    
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = html.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        // Animation de transition de thème
+        html.style.transition = 'background-color 0.3s, color 0.3s';
+        
+        // Déclencher le reflow pour forcer l'animation
+        void html.offsetWidth;
+        
+        html.setAttribute('data-bs-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        
+        // Mettre à jour l'icône du bouton
+        const icon = themeToggle.querySelector('i');
+        icon.className = newTheme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
+        
+        // Notifier l'utilisateur du changement de thème
+        const themeName = newTheme === 'dark' ? 'sombre' : 'clair';
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 2000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer);
+                toast.addEventListener('mouseleave', Swal.resumeTimer);
+            }
+        });
+        
+        Toast.fire({
+            icon: 'success',
+            title: `Thème ${themeName} activé`
+        });
+    });
+    
+    // Mettre à jour l'icône du bouton au chargement
+    document.addEventListener('DOMContentLoaded', () => {
+        const currentTheme = html.getAttribute('data-bs-theme');
+        const icon = themeToggle.querySelector('i');
+        icon.className = currentTheme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
+        
+        // Initialisation des tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl, {
+                trigger: 'hover',
+                boundary: 'window',
+                customClass: 'custom-tooltip'
+            });
+        });
+        
+        // Animation des cartes au chargement
+        const cards = document.querySelectorAll('.card');
+        cards.forEach((card, index) => {
+            card.style.animationDelay = `${index * 0.1}s`;
+        });
+    });
+    
+    // Fonction pour confirmer la suppression
+    function confirmDelete(element, message = 'Êtes-vous sûr de vouloir effectuer cette action ?') {
+        return Swal.fire({
+            title: 'Confirmation',
+            text: message,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Oui, continuer',
+            cancelButtonText: 'Annuler'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                if (element.tagName === 'FORM') {
+                    element.submit();
+                } else if (element.tagName === 'A') {
+                    window.location.href = element.href;
+                } else if (typeof element.onclick === 'function') {
+                    element.onclick();
+                }
+            }
+        });
+    }
+    
+    // Délégation d'événements pour les confirmations de suppression
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('confirm-delete') || e.target.closest('.confirm-delete')) {
+            e.preventDefault();
+            const element = e.target.classList.contains('confirm-delete') ? e.target : e.target.closest('.confirm-delete');
+            const message = element.dataset.confirm || 'Êtes-vous sûr de vouloir effectuer cette action ?';
+            confirmDelete(element, message);
+        }
+    });
+    
+    // Fonction pour rafraîchir les matchs en cours
+    function refreshLiveMatches() {
+        fetch('get_live_matches.php')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.querySelector('#live-matches-container');
+                if (container) {
+                    container.innerHTML = data.html;
+                    // Réinitialiser les tooltips après le rafraîchissement
+                    const tooltipTriggerList = [].slice.call(container.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                    tooltipTriggerList.map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+                }
+            })
+            .catch(error => console.error('Erreur lors du rafraîchissement des matchs:', error));
+    }
+    
+    // Rafraîchissement automatique des matchs toutes les 30 secondes
+    let refreshInterval = setInterval(refreshLiveMatches, 30000);
+    
+    // Arrêter le rafraîchissement lorsque la page n'est plus visible
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            clearInterval(refreshInterval);
+        } else {
+            refreshInterval = setInterval(refreshLiveMatches, 30000);
+        }
+    });
+    
+    // Initialisation du graphique des statistiques
+    function initStatsChart() {
+        const statsData = <?php
+            // Exemple de données pour le graphique
+            $stats = [
+                'matches_played' => 45,
+                'goals_scored' => 128,
+                'yellow_cards' => 87,
+                'red_cards' => 12,
+                'avg_goals_per_match' => 2.84
+            ];
+            echo json_encode($stats);
+        ?>;
+        
+        const chartOptions = {
+            series: [{
+                name: 'Statistiques',
+                data: [
+                    statsData.matches_played,
+                    statsData.goals_scored,
+                    statsData.yellow_cards,
+                    statsData.red_cards,
+                    statsData.avg_goals_per_match
+                ]
+            }],
+            chart: {
+                type: 'bar',
+                height: 350,
+                toolbar: {
+                    show: false
+                },
+                background: 'transparent'
+            },
+            plotOptions: {
+                bar: {
+                    borderRadius: 4,
+                    horizontal: true,
+                    distributed: true,
+                    barHeight: '60%',
+                }
+            },
+            colors: ['#4CAF50', '#2196F3', '#FFC107', '#F44336', '#9C27B0'],
+            dataLabels: {
+                enabled: true,
+                formatter: function(val) {
+                    return val.toLocaleString();
+                }
+            },
+            xaxis: {
+                categories: ['Matchs joués', 'Buts marqués', 'Cartons jaunes', 'Cartons rouges', 'Moy. buts/match'],
+                labels: {
+                    style: {
+                        colors: getComputedStyle(document.documentElement).getPropertyValue('--bs-body-color'),
+                        fontSize: '12px'
+                    }
+                }
+            },
+            yaxis: {
+                labels: {
+                    style: {
+                        colors: getComputedStyle(document.documentElement).getPropertyValue('--bs-body-color'),
+                        fontSize: '12px'
+                    }
+                }
+            },
+            grid: {
+                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bs-border-color'),
+                strokeDashArray: 4
+            },
+            tooltip: {
+                theme: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light'
+            }
+        };
+        
+        const chart = new ApexCharts(document.querySelector("#stats-chart"), chartOptions);
+        chart.render();
+        
+        // Mettre à jour le thème du graphique lors du changement de thème
+        themeToggle.addEventListener('click', () => {
+            setTimeout(() => {
+                chart.updateOptions({
+                    tooltip: {
+                        theme: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light'
+                    },
+                    xaxis: {
+                        labels: {
+                            style: {
+                                colors: getComputedStyle(document.documentElement).getPropertyValue('--bs-body-color')
+                            }
+                        }
+                    },
+                    yaxis: {
+                        labels: {
+                            style: {
+                                colors: getComputedStyle(document.documentElement).getPropertyValue('--bs-body-color')
+                            }
+                        }
+                    },
+                    grid: {
+                        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bs-border-color')
+                    }
+                });
+            }, 300); // Attendre la fin de la transition de thème
+        });
+    }
+    
+    // Fonction de filtrage des matchs
+    function filterMatches() {
+        const searchTerm = document.getElementById('matchSearch').value.toLowerCase();
+        const competitionFilter = document.getElementById('competitionFilter').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        const matches = document.querySelectorAll('.match-card');
+        let visibleCount = 0;
+        
+        // Afficher l'indicateur de chargement
+        document.getElementById('loadingIndicator').classList.remove('d-none');
+        
+        // Simuler un délai pour l'animation de chargement
+        setTimeout(() => {
+            matches.forEach(match => {
+                const matchText = match.textContent.toLowerCase();
+                const matchCompetition = match.getAttribute('data-competition') || '';
+                const matchStatus = match.getAttribute('data-status') || '';
+                
+                const matchesSearch = searchTerm === '' || matchText.includes(searchTerm);
+                const matchesCompetition = competitionFilter === '' || matchCompetition.toLowerCase().includes(competitionFilter);
+                const matchesStatus = statusFilter === '' || matchStatus === statusFilter;
+                
+                if (matchesSearch && matchesCompetition && matchesStatus) {
+                    match.style.display = '';
+                    visibleCount++;
+                } else {
+                    match.style.display = 'none';
+                }
+            });
+            
+            // Afficher/masquer le message "Aucun résultat"
+            const noMatchesMessage = document.getElementById('noMatchesMessage');
+            if (visibleCount === 0) {
+                noMatchesMessage.classList.remove('d-none');
+            } else {
+                noMatchesMessage.classList.add('d-none');
+            }
+            
+            // Masquer l'indicateur de chargement
+            document.getElementById('loadingIndicator').classList.add('d-none');
+            
+        }, 300); // Délai pour l'animation
+    }
+    
+    // Fonction d'export des données
+    function exportMatches(format) {
+        // Récupérer les données des matchs filtrés
+        const matches = [];
+        document.querySelectorAll('.match-card:not([style*="display: none"])').forEach(match => {
+            matches.push({
+                id: match.getAttribute('data-match-id'),
+                competition: match.getAttribute('data-competition'),
+                teamHome: match.querySelector('.team-home')?.textContent.trim(),
+                teamAway: match.querySelector('.team-away')?.textContent.trim(),
+                score: match.querySelector('.match-score')?.textContent.trim(),
+                status: match.getAttribute('data-status')
+            });
+        });
+        
+        // Simuler l'export (dans une vraie application, cela enverrait une requête au serveur)
+        Swal.fire({
+            title: 'Export en cours',
+            text: `Préparation de l'export des ${matches.length} matchs au format ${format.toUpperCase()}...`,
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+                // Simulation de délai pour l'export
+                setTimeout(() => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Export réussi',
+                        text: `Les données ont été exportées avec succès au format ${format.toUpperCase()}`,
+                        confirmButtonText: 'Télécharger',
+                        showCancelButton: true,
+                        cancelButtonText: 'Fermer'
+                    });
+                }, 1500);
+            }
+        });
+    }
+    
+    // Gestion des erreurs AJAX
+    function handleAjaxError(xhr, status, error) {
+        console.error('Erreur AJAX:', status, error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Erreur',
+            text: 'Une erreur est survenue lors du chargement des données. Veuillez réessayer.',
+            confirmButtonText: 'OK'
+        });
+    }
+    
+    // Initialisation au chargement de la page
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialiser le graphique des statistiques
+        if (document.querySelector('#stats-chart')) {
+            initStatsChart();
+        }
+        
+        // Initialiser les tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+        
+        // Initialiser les popovers
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
+    });
+    
+    // Initialisation des tooltips
+    document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));

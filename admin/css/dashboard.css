@@ -1,0 +1,208 @@
+/* Styles pour le thème sombre */
+[data-bs-theme="dark"] {
+    --bs-body-bg: #1a1a2e;
+    --bs-body-color: #e6e6e6;
+    --bs-card-bg: #16213e;
+    --bs-border-color: #2a3a5f;
+    --bs-light-rgb: 33, 37, 41;
+    --bs-light: #212529;
+    --bs-gray-200: #2a3a5f;
+    --bs-gray-300: #1e2a4a;
+}
+
+/* Styles de base */
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: var(--bs-gray-100);
+    color: var(--bs-body-color);
+}
+
+/* En-tête */
+.border-bottom {
+    border-bottom: 1px solid var(--bs-border-color) !important;
+}
+
+/* Cartes */
+.card {
+    border: none;
+    border-radius: 0.75rem;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    background-color: var(--bs-card-bg, #fff);
+    margin-bottom: 1.5rem;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-bottom: 1px solid var(--bs-border-color);
+    border-top-left-radius: 0.75rem !important;
+    border-top-right-radius: 0.75rem !important;
+}
+
+/* Badges */
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    padding: 0.4em 0.8em;
+}
+
+/* Boutons */
+.btn {
+    border-radius: 0.5rem;
+    font-weight: 500;
+    padding: 0.375rem 0.75rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+/* Cartes de match */
+.match-card {
+    overflow: hidden;
+    border-left: 4px solid var(--bs-primary);
+}
+
+.match-card .card-header {
+    background: linear-gradient(135deg, var(--bs-primary) 0%, #0d6efd 100%);
+    color: white;
+}
+
+/* Barre de progression */
+.progress {
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--bs-gray-200);
+}
+
+.progress-bar {
+    border-radius: 4px;
+}
+
+/* Tableaux */
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: var(--bs-gray-600);
+    border-bottom-width: 1px;
+}
+
+/* Alertes */
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+    padding: 1rem 1.25rem;
+}
+
+/* Formulaire */
+.form-control, .form-select {
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--bs-border-color);
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Animation de chargement */
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+.loading {
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+}
+
+/* Animation pour les cartes */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Style pour les cartes de période d'inscription */
+.period-card {
+    border-left: 4px solid var(--bs-primary);
+}
+
+.period-card.active {
+    border-left-color: var(--bs-success);
+}
+
+.period-card.upcoming {
+    border-left-color: var(--bs-warning);
+}
+
+.period-card.past {
+    border-left-color: var(--bs-secondary);
+}
+
+/* Style pour les cartes de match terminé */
+.match-result {
+    font-weight: 700;
+    font-size: 1.25rem;
+}
+
+.match-winner {
+    color: var(--bs-success);
+}
+
+/* Tooltip personnalisé */
+.tooltip-inner {
+    max-width: 300px;
+    padding: 0.5rem 1rem;
+    background-color: var(--bs-dark);
+    font-size: 0.875rem;
+    border-radius: 0.5rem;
+}
+
+/* Scrollbar personnalisée */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bs-gray-200);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bs-primary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #0b5ed7;
+}
