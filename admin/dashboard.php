@@ -1191,13 +1191,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Clear any existing content and add loader
                     loadingContainer.innerHTML = '';
                     loadingContainer.appendChild(loadingIndicator);
-                        try {
+                    
+                    // Try to find chart element and update it
+                    try {
+                        const chartElement = document.getElementById('goalsChart');
+                        if (chartElement && chartElement.parentNode) {
                             chartElement.parentNode.innerHTML = '';
                             chartElement.parentNode.appendChild(loadingIndicator);
-                        } catch (e) {
-                            console.error('Error showing loading indicator:', e);
-                        }
-                    } else if (statsContainer) {
+                        } else if (statsContainer) {
                         // If chart element doesn't exist but we have a container, add loading there
                         try {
                             statsContainer.appendChild(loadingIndicator);
