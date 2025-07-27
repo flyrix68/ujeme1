@@ -1188,26 +1188,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p class="mt-2">Chargement des statistiques...</p>
                     `;
                     
-                    // Try to find chart element and update it
-                    try {
-                        // First, try to add to the chart container if it exists
+                    // Function to safely append loading indicator
+                    function appendLoadingIndicator() {
+                        // First try to find the chart container
                         const chartElement = document.getElementById('goalsChart');
-                        if (chartElement && chartElement.parentNode) {
-                            chartElement.parentNode.innerHTML = '';
-                            chartElement.parentNode.appendChild(loadingIndicator);
-                        } 
-                        // If no chart element, try the stats container
-                        else if (statsContainer) {
-                            statsContainer.innerHTML = '';
-                            statsContainer.appendChild(loadingIndicator);
+                        const chartContainer = chartElement && chartElement.parentNode;
+                        
+                        // Try to append to chart container first
+                        if (chartContainer) {
+                            try {
+                                chartContainer.innerHTML = '';
+                                chartContainer.appendChild(loadingIndicator);
+                                return true;
+                            } catch (e) {
+                                console.warn('Failed to append to chart container, trying fallback:', e);
+                            }
                         }
-                        // If neither exists, log a warning and continue
-                        else {
-                            console.warn('No suitable container found for loading indicator');
+                        
+                        // Fall back to stats container
+                        if (statsContainer) {
+                            try {
+                                statsContainer.innerHTML = '';
+                                statsContainer.appendChild(loadingIndicator);
+                                return true;
+                            } catch (e) {
+                                console.error('Failed to append to stats container:', e);
+                            }
                         }
-                    } catch (e) {
-                        console.error('Error setting up loading indicator:', e);
+                        
+                        // Last resort, try document body
+                        try {
+                            document.body.appendChild(loadingIndicator);
+                            return true;
+                        } catch (e) {
+                            console.error('Failed to append loading indicator to any container:', e);
+                            return false;
+                        }
                     }
+                    
+                    // Add the loading indicator to the appropriate container
+                    appendLoadingIndicator();
                     
                     // Make the API request
                     fetch('get_stats_data.php')
