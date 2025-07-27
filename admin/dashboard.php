@@ -955,7 +955,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <?php include '../includes/sidebar.php'; ?>
+            <?php include __DIR__ . '/../includes/sidebar.php'; ?>
 
             <!-- Main Content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
@@ -1361,11 +1361,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <p class="mt-2 mb-0">Chargement des matchs...</p>
                         </div>
                         
-                        <?php if (empty($currentMatches)): ?>
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-2"></i> Aucun match en cours actuellement
-                            </div>
-                        <?php else: ?>
+<?php if (empty($currentMatches)): ?>
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i> Aucun match en cours trouvé, mais on s'attend à en voir.
+        <div class="mt-2">
+            <strong>Debug:</strong>
+            <pre><?= htmlspecialchars(print_r($pdo->query("SELECT * FROM matches WHERE status IN ('ongoing', 'pending')")->fetchAll(PDO::FETCH_ASSOC), true)) ?></pre>
+        </div>
+    </div>
+<?php else: ?>
                             <div class="row">
                                 <?php foreach ($currentMatches as $match): ?>
                                 <div class="col-12 col-md-6 col-lg-4 mb-4 match-card" data-match-id="<?= $match['id'] ?>" data-competition="<?= htmlspecialchars($match['competition']) ?>" data-status="<?= $match['status'] ?>">
