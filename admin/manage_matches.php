@@ -340,6 +340,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
+        // Gestion de la suppression d'un match
+        if (isset($_POST['delete_match'])) {
+            try {
+                $match_id = filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT);
+                
+                if (!$match_id) {
+                    throw new Exception("ID de match invalide.");
+                }
+                
+                // Vérifier si le match existe
+                $stmt = $pdo->prepare("SELECT id FROM matches WHERE id = ?");
+                $stmt->execute([$match_id]);
+                
+                if ($stmt->rowCount() === 0) {
+                    throw new Exception("Le match spécifié n'existe pas.");
+                }
+                
+                // Supprimer le match
+                $stmt = $pdo->prepare("DELETE FROM matches WHERE id = ?");
+                $result = $stmt->execute([$match_id]);
+                
+                if ($result) {
+                    // Journaliser l'action
+                    logAction(
+                        $pdo,
+                        $match_id,
+                        'DELETE_MATCH',
+                        "Match supprimé",
+                        null,
+                        null
+                    );
+                    
+                    $_SESSION['message'] = "Le match a été supprimé avec succès.";
+                } else {
+                    throw new Exception("Échec de la suppression du match.");
+                }
+                
+            } catch (Exception $e) {
+                error_log("Erreur lors de la suppression du match: " . $e->getMessage());
+                $_SESSION['error'] = "Erreur lors de la suppression du match: " . $e->getMessage();
+            }
+            
+            header("Location: manage_matches.php");
+            exit();
+        }
+        
         // Gestion de la finalisation du match
         if (isset($_POST['finalize_match'])) {
             try {
