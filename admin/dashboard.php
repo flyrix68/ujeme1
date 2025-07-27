@@ -1,6 +1,24 @@
 <?php
 require __DIR__ . '/admin_header.php';
 
+// Récupérer les matchs en cours (en attente ou en cours)
+try {
+    $currentMatches = $pdo->query("
+        SELECT m.*, 
+               t1.logo as home_logo, 
+               t2.logo as away_logo
+        FROM matches m
+        LEFT JOIN teams t1 ON m.team_home = t1.team_name
+        LEFT JOIN teams t2 ON m.team_away = t2.team_name
+        WHERE m.status IN ('ongoing', 'pending')
+        ORDER BY m.match_date ASC, m.match_time ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Erreur lors de la récupération des matchs en cours: " . $e->getMessage());
+    $currentMatches = [];
+    $_SESSION['error'] = "Erreur lors du chargement des matchs en cours. Veuillez réessayer.";
+}
+
 // Function to log actions in the audit log
 function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previousValue = null, $newValue = null) {
     // Validate inputs
@@ -1559,18 +1577,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 <div class="d-flex flex-column align-items-center" style="width: 35%;">
                                                     <div class="d-flex align-items-center w-100">
                                                         <?php 
-                                                        // Create a safe filename by removing special characters and converting to lowercase
-                                                        $safeTeamName = preg_replace('/[^a-z0-9-]/', '', strtolower(str_replace(' ', '-', $match['team_home'])));
-                                                        $logoPath = file_exists("../assets/img/teams/{$safeTeamName}.png") 
-                                                            ? "../assets/img/teams/{$safeTeamName}.png" 
-                                                            : "../assets/img/teams/default.png";
+                                                        // Utiliser le chemin du logo depuis la base de données ou un logo par défaut
+                                                        $homeLogo = !empty($match['home_logo']) ? "../" . $match['home_logo'] : "../assets/img/teams/default.png";
                                                         ?>
-                                                        <img src="<?= $logoPath ?>" 
+                                                        <img src="<?= $homeLogo ?>" 
                                                              alt="<?= htmlspecialchars($match['team_home']) ?>" 
                                                              width="24" 
                                                              height="24"
                                                              class="me-2"
-                                                             onerror="this.src='../assets/img/teams/default.png'">
+                                                             onerror="this.src='../assets/img/teams/default.png'"
+                                                             style="object-fit: contain;">
                                                         <div class="text-truncate" style="font-size: 0.85rem; font-weight: 500;">
                                                             <?= mb_strimwidth(htmlspecialchars($match['team_home']), 0, 20, '...') ?>
                                                         </div>
@@ -1626,18 +1642,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                             <?= mb_strimwidth(htmlspecialchars($match['team_away']), 0, 20, '...') ?>
                                                         </div>
                                                         <?php 
-                                                        // Create a safe filename by removing special characters and converting to lowercase
-                                                        $safeTeamName = preg_replace('/[^a-z0-9-]/', '', strtolower(str_replace(' ', '-', $match['team_away'])));
-                                                        $logoPath = file_exists("../assets/img/teams/{$safeTeamName}.png") 
-                                                            ? "../assets/img/teams/{$safeTeamName}.png" 
-                                                            : "../assets/img/teams/default.png";
+                                                        // Utiliser le chemin du logo depuis la base de données ou un logo par défaut
+                                                        $awayLogo = !empty($match['away_logo']) ? "../" . $match['away_logo'] : "../assets/img/teams/default.png";
                                                         ?>
-                                                        <img src="<?= $logoPath ?>" 
+                                                        <img src="<?= $awayLogo ?>" 
                                                              alt="<?= htmlspecialchars($match['team_away']) ?>" 
                                                              width="24" 
                                                              height="24"
                                                              class="ms-2"
-                                                             onerror="this.src='../assets/img/teams/default.png'">
+                                                             onerror="this.src='../assets/img/teams/default.png'"
+                                                             style="object-fit: contain;">
                                                     </div>
                                                     <div class="fw-bold mt-1" style="font-size: 1.1rem;">
                                                         <?= $match['score_away'] ?? '0' ?>
@@ -1813,15 +1827,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div class="card-body">
                         <?php
-                        // Récupérer les 5 derniers matchs terminés
+                        // Récupérer les 5 derniers matchs terminés avec les logos des équipes
                         try {
                             $finishedMatches = $pdo->query("
-                                SELECT m.*, t1.name as team_home, t2.name as team_away
+                                SELECT m.*, 
+                                       t1.team_name as team_home, 
+                                       t2.team_name as team_away,
+                                       t1.logo as home_logo,
+                                       t2.logo as away_logo
                                 FROM matches m
-                                JOIN teams t1 ON m.team_home_id = t1.id
-                                JOIN teams t2 ON m.team_away_id = t2.id
+                                LEFT JOIN teams t1 ON m.team_home = t1.team_name
+                                LEFT JOIN teams t2 ON m.team_away = t2.team_name
                                 WHERE m.status = 'completed'
-                                ORDER BY m.match_date DESC
+                                ORDER BY m.match_date DESC, m.match_time DESC
                                 LIMIT 5
                             ")->fetchAll(PDO::FETCH_ASSOC);
                         } catch (PDOException $e) {
@@ -1853,10 +1871,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             <td><?= date('d/m/Y H:i', strtotime($match['match_date'])) ?></td>
                                             <td><?= htmlspecialchars($match['competition']) ?></td>
                                             <td class="text-end">
-                                                <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_home']))) ?>.png" 
+                                                <?php 
+                                                // Utiliser le chemin du logo depuis la base de données ou un logo par défaut
+                                                $homeLogo = !empty($match['home_logo']) ? "../" . $match['home_logo'] : "../assets/img/teams/default.png";
+                                                ?>
+                                                <img src="<?= $homeLogo ?>" 
                                                      alt="<?= htmlspecialchars($match['team_home']) ?>" 
                                                      width="24" 
+                                                     height="24"
                                                      class="me-2"
+                                                     style="object-fit: contain;"
                                                      onerror="this.src='../assets/img/teams/default.png'">
                                                 <?= htmlspecialchars($match['team_home']) ?>
                                             </td>
@@ -1864,10 +1888,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
                                             </td>
                                             <td>
-                                                <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) ?>.png" 
+                                                <?php 
+                                                // Utiliser le chemin du logo depuis la base de données ou un logo par défaut
+                                                $awayLogo = !empty($match['away_logo']) ? "../" . $match['away_logo'] : "../assets/img/teams/default.png";
+                                                ?>
+                                                <img src="<?= $awayLogo ?>" 
                                                      alt="<?= htmlspecialchars($match['team_away']) ?>" 
                                                      width="24" 
+                                                     height="24"
                                                      class="me-2"
+                                                     style="object-fit: contain;"
                                                      onerror="this.src='../assets/img/teams/default.png'">
                                                 <?= htmlspecialchars($match['team_away']) ?>
                                             </td>
