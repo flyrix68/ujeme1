@@ -4,6 +4,63 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// Function to log actions in the audit log
+function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previousValue = null, $newValue = null) {
+    // Validate inputs
+    if (!is_numeric($matchId) || !is_string($actionType) || !in_array($actionType, [
+        'UPDATE_SCORE', 'ADD_GOAL', 'ADD_CARD', 'START_FIRST_HALF', 'END_FIRST_HALF', 
+        'START_SECOND_HALF', 'END_MATCH', 'SET_EXTRA_TIME', 'FINALIZE_MATCH', 
+        'SET_MATCH_DURATION', 'UPDATE_STANDING', 'CREATE_STANDING', 'DELETE_MATCH'
+    ])) {
+        error_log("Invalid logAction inputs: matchId=$matchId, actionType=$actionType");
+        return;
+    }
+    
+    if (!isset($_SESSION['user_id']) || !is_numeric($_SESSION['user_id'])) {
+        error_log("Invalid user_id in logAction: " . print_r($_SESSION, true));
+        return;
+    }
+
+    // Format action_details as JSON
+    $actionDetailsJson = null;
+    if (!is_null($actionDetails)) {
+        if (function_exists('mb_convert_encoding')) {
+            $actionDetails = mb_convert_encoding((string)$actionDetails, 'UTF-8', 'auto');
+        } else {
+            $actionDetails = (string)$actionDetails;
+        }
+        $actionDetailsJson = json_encode(['details' => $actionDetails], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    // Format previous and new values as JSON
+    $previousValueJson = !is_null($previousValue) ? json_encode(['value' => $previousValue], JSON_UNESCAPED_UNICODE) : null;
+    $newValueJson = !is_null($newValue) ? json_encode(['value' => $newValue], JSON_UNESCAPED_UNICODE) : null;
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO match_logs 
+            (match_id, user_id, action_type, action_details, previous_value, new_value, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+        ");
+        
+        $result = $stmt->execute([
+            $matchId,
+            $_SESSION['user_id'],
+            $actionType,
+            $actionDetailsJson,
+            $previousValueJson,
+            $newValueJson
+        ]);
+        
+        if (!$result) {
+            $errorInfo = $stmt->errorInfo();
+            error_log("Failed to log action: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+    } catch (PDOException $e) {
+        error_log("Database error in logAction: " . $e->getMessage());
+    }
+}
+
 // Start session with consistent settings
 ini_set('session.gc_maxlifetime', 3600);
 session_set_cookie_params(3600, '/');
