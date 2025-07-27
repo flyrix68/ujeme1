@@ -1165,7 +1165,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <script>
                 // Charger les données pour le graphique des buts
                 document.addEventListener('DOMContentLoaded', function() {
+                    // Find the stats container and chart element
                     const statsContainer = document.querySelector('.card.shadow-sm.mb-4 .card-body');
+                    const chartElement = document.getElementById('goalsChart');
+                    
+                    // Create loading indicator
                     const loadingIndicator = document.createElement('div');
                     loadingIndicator.className = 'text-center py-4';
                     loadingIndicator.innerHTML = `
@@ -1175,71 +1179,142 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p class="mt-2">Chargement des statistiques...</p>
                     `;
                     
-                    // Show loading indicator
-                    const chartElement = document.getElementById('goalsChart');
-                    if (chartElement) {
-                        chartElement.parentNode.innerHTML = '';
-                        chartElement.parentNode.appendChild(loadingIndicator);
+                    // Show loading indicator only if we have a valid container
+                    if (chartElement && chartElement.parentNode) {
+                        try {
+                            chartElement.parentNode.innerHTML = '';
+                            chartElement.parentNode.appendChild(loadingIndicator);
+                        } catch (e) {
+                            console.error('Error showing loading indicator:', e);
+                        }
+                    } else if (statsContainer) {
+                        // If chart element doesn't exist but we have a container, add loading there
+                        try {
+                            statsContainer.appendChild(loadingIndicator);
+                        } catch (e) {
+                            console.error('Error adding loading indicator to container:', e);
+                        }
                     }
                     
+                    // Make the API request
                     fetch('get_stats_data.php')
                         .then(response => {
                             if (!response.ok) {
-                                throw new Error('Network response was not ok');
+                                throw new Error('Network response was not ok: ' + response.status);
                             }
-                            return response.json();
+                            return response.json().catch(() => {
+                                throw new Error('Invalid JSON response');
+                            });
                         })
                         .then(data => {
+                            if (!data) {
+                                throw new Error('No data received');
+                            }
+                            
                             if (data.success) {
-                                // Mettre à jour le graphique des buts
-                                if (chartElement) {
-                                    chartElement.parentNode.innerHTML = '<canvas id="goalsChart" height="250"></canvas>';
-                                    initGoalsChart(data.goalsData);
+                                // Update the goals chart if we have the element and data
+                                if (data.goalsData) {
+                                    try {
+                                        // Remove loading indicator
+                                        if (loadingIndicator && loadingIndicator.parentNode) {
+                                            loadingIndicator.parentNode.removeChild(loadingIndicator);
+                                        }
+                                        
+                                        // Create or update chart
+                                        if (chartElement && chartElement.parentNode) {
+                                            chartElement.parentNode.innerHTML = '<canvas id="goalsChart" height="250"></canvas>';
+                                            initGoalsChart(data.goalsData);
+                                        } else if (statsContainer) {
+                                            // If chart element doesn't exist, create it in the container
+                                            const newChart = document.createElement('canvas');
+                                            newChart.id = 'goalsChart';
+                                            newChart.height = 250;
+                                            statsContainer.appendChild(newChart);
+                                            initGoalsChart(data.goalsData);
+                                        }
+                                    } catch (e) {
+                                        console.error('Error initializing chart:', e);
+                                        showError('Erreur lors de l\'initialisation du graphique');
+                                    }
                                 }
                                 
-                                // Mettre à jour les statistiques des matchs
-                                updateMatchStats(data.matchStats);
+                                // Update match statistics if we have the data
+                                if (data.matchStats) {
+                                    try {
+                                        updateMatchStats(data.matchStats);
+                                    } catch (e) {
+                                        console.error('Error updating match stats:', e);
+                                    }
+                                }
                                 
                                 // Update summary stats if they exist
                                 if (data.summary) {
-                                    if (data.summary.totalGoals !== undefined) {
-                                        const totalGoalsElement = document.getElementById('totalGoals');
-                                        if (totalGoalsElement) totalGoalsElement.textContent = data.summary.totalGoals;
-                                    }
-                                    if (data.summary.avgGoals !== undefined) {
-                                        const avgGoalsElement = document.getElementById('avgGoals');
-                                        if (avgGoalsElement) avgGoalsElement.textContent = data.summary.avgGoals;
+                                    try {
+                                        if (data.summary.totalGoals !== undefined) {
+                                            const totalGoalsElement = document.getElementById('totalGoals');
+                                            if (totalGoalsElement) totalGoalsElement.textContent = data.summary.totalGoals;
+                                        }
+                                        if (data.summary.avgGoals !== undefined) {
+                                            const avgGoalsElement = document.getElementById('avgGoals');
+                                            if (avgGoalsElement) avgGoalsElement.textContent = data.summary.avgGoals;
+                                        }
+                                    } catch (e) {
+                                        console.error('Error updating summary stats:', e);
                                     }
                                 }
                             } else {
-                                console.error('Erreur lors du chargement des données:', data.error);
+                                console.error('Erreur lors du chargement des données:', data.error || 'Unknown error');
                                 showError('Impossible de charger les statistiques. Veuillez réessayer plus tard.');
                             }
                         })
                         .catch(error => {
                             console.error('Erreur lors de la récupération des données:', error);
                             showError('Erreur de connexion au serveur. Les statistiques ne sont pas disponibles pour le moment.');
+                            
+                            // If we have a loading indicator, replace it with the error
+                            if (loadingIndicator && loadingIndicator.parentNode) {
+                                loadingIndicator.parentNode.removeChild(loadingIndicator);
+                            }
                         });
                         
                     function showError(message) {
-                        if (chartElement) {
-                            chartElement.parentNode.innerHTML = `
-                                <div class="alert alert-warning mb-0">
+                        try {
+                            // Try to find a container to show the error
+                            let container = chartElement && chartElement.parentNode ? 
+                                chartElement.parentNode : 
+                                (statsContainer || document.querySelector('.card.shadow-sm.mb-4'));
+                            
+                            if (container) {
+                                // Remove loading indicator if it exists
+                                if (loadingIndicator && loadingIndicator.parentNode) {
+                                    loadingIndicator.parentNode.removeChild(loadingIndicator);
+                                }
+                                
+                                // Create error message
+                                const errorDiv = document.createElement('div');
+                                errorDiv.className = 'alert alert-warning mb-0';
+                                errorDiv.innerHTML = `
                                     <i class="fas fa-exclamation-triangle me-2"></i>
                                     ${message}
                                     <button class="btn btn-sm btn-outline-secondary ms-2" onclick="window.location.reload()">
                                         <i class="fas fa-sync-alt me-1"></i> Réessayer
                                     </button>
-                                </div>
-                            `;
-                        }
-                        
-                        // Also update the stats summary to show N/A
-                        document.querySelectorAll('.stat-value').forEach(el => {
-                            if (el.textContent.trim() === '') {
-                                el.textContent = 'N/A';
+                                `;
+                                
+                                // Clear container and add error message
+                                container.innerHTML = '';
+                                container.appendChild(errorDiv);
                             }
-                        });
+                            
+                            // Also update the stats summary to show N/A
+                            document.querySelectorAll('.stat-value').forEach(el => {
+                                if (!el.textContent || el.textContent.trim() === '') {
+                                    el.textContent = 'N/A';
+                                }
+                            });
+                        } catch (e) {
+                            console.error('Error showing error message:', e);
+                        }
                     }
                     
                     // Fonction pour initialiser le graphique des buts
