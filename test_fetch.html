@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Fetch API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        #result { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Test Fetch API</h1>
+    <p>This page tests the fetch API to retrieve data from the get_stats_data.php endpoint.</p>
+    
+    <button id="fetchBtn">Fetch Data</button>
+    
+    <div id="result">
+        <p>Click the button above to test the fetch request.</p>
+    </div>
+
+    <script>
+        document.getElementById('fetchBtn').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Fetching data from get_stats_data.php...</p>';
+            
+            try {
+                // Try with the full path
+                const response = await fetch('http://localhost/ujem/admin/get_stats_data.php');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                resultDiv.innerHTML = `
+                    <p class="success">Successfully fetched data!</p>
+                    <h3>Response:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                console.error('Fetch error:', error);
+                resultDiv.innerHTML = `
+                    <p class="error">Error fetching data: ${error.message}</p>
+                    <p>Check the browser console for more details.</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
