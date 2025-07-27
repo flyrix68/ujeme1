@@ -1163,13 +1163,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 
                 <script>
-                // Charger les données pour le graphique des buts
+                // Load stats data when DOM is ready
                 document.addEventListener('DOMContentLoaded', function() {
-                    // Find the stats container and chart element
-                    const statsContainer = document.querySelector('.card.shadow-sm.mb-4 .card-body');
-                    const chartElement = document.getElementById('goalsChart');
+                    // Get parent container - try multiple fallbacks
+                    let statsContainer = document.querySelector('.card.shadow-sm.mb-4');
+                    if (!statsContainer) statsContainer = document.querySelector('.card-body');
+                    if (!statsContainer) statsContainer = document.querySelector('main');
                     
-                    // Create loading indicator
+                    if (!statsContainer) {
+                        console.error('Could not find container for stats display');
+                        return;
+                    }
+
+                    // Create loading indicator container 
+                    const loadingContainer = document.createElement('div');
+                    loadingContainer.id = 'statsLoadingContainer';
+                    
                     const loadingIndicator = document.createElement('div');
                     loadingIndicator.className = 'text-center py-4';
                     loadingIndicator.innerHTML = `
@@ -1179,8 +1188,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p class="mt-2">Chargement des statistiques...</p>
                     `;
                     
-                    // Show loading indicator only if we have a valid container
-                    if (chartElement && chartElement.parentNode) {
+                    // Clear any existing content and add loader
+                    loadingContainer.innerHTML = '';
+                    loadingContainer.appendChild(loadingIndicator);
                         try {
                             chartElement.parentNode.innerHTML = '';
                             chartElement.parentNode.appendChild(loadingIndicator);
