@@ -30,7 +30,7 @@ function check_php_setting($setting, $expected, $type = '===') {
     }
     
     $status = $result ? "<span style='color: green;'>✓ OK ($current)</span>" : "<span style='color: red;'>✗ Actuel: $current (Attendu: $expected)</span>";
-    echo "<tr>">
+    echo "<tr>";
     echo "<td>$setting</td>";
     echo "<td>$status</td>";
     echo "</tr>";
