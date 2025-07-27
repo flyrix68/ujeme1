@@ -1165,22 +1165,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <script>
                 // Charger les données pour le graphique des buts
                 document.addEventListener('DOMContentLoaded', function() {
+                    const statsContainer = document.querySelector('.card.shadow-sm.mb-4 .card-body');
+                    const loadingIndicator = document.createElement('div');
+                    loadingIndicator.className = 'text-center py-4';
+                    loadingIndicator.innerHTML = `
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Chargement...</span>
+                        </div>
+                        <p class="mt-2">Chargement des statistiques...</p>
+                    `;
+                    
+                    // Show loading indicator
+                    const chartElement = document.getElementById('goalsChart');
+                    if (chartElement) {
+                        chartElement.parentNode.innerHTML = '';
+                        chartElement.parentNode.appendChild(loadingIndicator);
+                    }
+                    
                     fetch('get_stats_data.php')
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.success) {
                                 // Mettre à jour le graphique des buts
-                                initGoalsChart(data.goalsData);
+                                if (chartElement) {
+                                    chartElement.parentNode.innerHTML = '<canvas id="goalsChart" height="250"></canvas>';
+                                    initGoalsChart(data.goalsData);
+                                }
                                 
                                 // Mettre à jour les statistiques des matchs
                                 updateMatchStats(data.matchStats);
+                                
+                                // Update summary stats if they exist
+                                if (data.summary) {
+                                    if (data.summary.totalGoals !== undefined) {
+                                        const totalGoalsElement = document.getElementById('totalGoals');
+                                        if (totalGoalsElement) totalGoalsElement.textContent = data.summary.totalGoals;
+                                    }
+                                    if (data.summary.avgGoals !== undefined) {
+                                        const avgGoalsElement = document.getElementById('avgGoals');
+                                        if (avgGoalsElement) avgGoalsElement.textContent = data.summary.avgGoals;
+                                    }
+                                }
                             } else {
                                 console.error('Erreur lors du chargement des données:', data.error);
+                                showError('Impossible de charger les statistiques. Veuillez réessayer plus tard.');
                             }
                         })
                         .catch(error => {
                             console.error('Erreur lors de la récupération des données:', error);
+                            showError('Erreur de connexion au serveur. Les statistiques ne sont pas disponibles pour le moment.');
                         });
+                        
+                    function showError(message) {
+                        if (chartElement) {
+                            chartElement.parentNode.innerHTML = `
+                                <div class="alert alert-warning mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    ${message}
+                                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="window.location.reload()">
+                                        <i class="fas fa-sync-alt me-1"></i> Réessayer
+                                    </button>
+                                </div>
+                            `;
+                        }
+                        
+                        // Also update the stats summary to show N/A
+                        document.querySelectorAll('.stat-value').forEach(el => {
+                            if (el.textContent.trim() === '') {
+                                el.textContent = 'N/A';
+                            }
+                        });
+                    }
                     
                     // Fonction pour initialiser le graphique des buts
                     function initGoalsChart(goalsData) {

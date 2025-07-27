@@ -2,13 +2,80 @@
 // Configuration de l'en-tête pour le format JSON
 header('Content-Type: application/json');
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Don't show errors to users
+
+// Désactiver la mise en cache pour les requêtes AJAX
+header('Cache-Control: no-cache, must-revalidate');
+header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+
 // Connexion à la base de données
-require_once 'includes/db.php';
+require_once __DIR__ . '/../includes/db-config.php';
+
+function sendJsonResponse($data, $statusCode = 200) {
+    http_response_code($statusCode);
+    header('Content-Type: application/json');
+    echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function getDefaultResponse() {
+    $currentMonth = date('M y');
+    $lastMonth = date('M y', strtotime('-1 month'));
+    $twoMonthsAgo = date('M y', strtotime('-2 months'));
+    
+    return [
+        'success' => true,
+        'goalsData' => [
+            'labels' => [$twoMonthsAgo, $lastMonth, $currentMonth],
+            'data' => [2.5, 3.1, 2.8] // Default average goals
+        ],
+        'matchStats' => [
+            'homeWins' => 45,
+            'awayWins' => 30,
+            'draws' => 25
+        ],
+        'summary' => [
+            'totalGoals' => 0,
+            'avgGoals' => 0,
+            'highestScoringMatch' => null,
+            'topScorer' => null
+        ],
+        'isFallbackData' => true
+    ];
+}
 
 try {
-    // Désactiver la mise en cache pour les requêtes AJAX
-    header('Cache-Control: no-cache, must-revalidate');
-    header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+    // Get database connection with error handling
+    try {
+        $pdo = DatabaseConfig::getConnection(2, 1); // 2 retries, 1 second delay
+    } catch (PDOException $e) {
+        error_log('Database connection error: ' . $e->getMessage());
+        
+        // Return default data instead of an error
+        $response = getDefaultResponse();
+        $response['success'] = false;
+        $response['error'] = 'Could not connect to the database';
+        $response['debug'] = 'Using fallback data';
+        
+        sendJsonResponse($response);
+    }
+    
+    // Test the connection with a simple query
+    try {
+        $pdo->query('SELECT 1')->fetchColumn();
+    } catch (PDOException $e) {
+        error_log('Database test query failed: ' . $e->getMessage());
+        
+        // Return default data instead of an error
+        $response = getDefaultResponse();
+        $response['success'] = false;
+        $response['error'] = 'Database test query failed';
+        $response['debug'] = 'Using fallback data';
+        
+        sendJsonResponse($response);
+    }
     
     // Récupérer les 6 derniers mois avec le nombre de buts par match
     $statsQuery = $pdo->query("
@@ -132,15 +199,23 @@ try {
     echo json_encode($response);
     
 } catch (PDOException $e) {
-    // En cas d'erreur, retourner un message d'erreur
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'error' => 'Erreur lors de la récupération des données statistiques: ' . $e->getMessage(),
-        'trace' => $e->getTraceAsString()
-    ]);
+    // Log the error
+    error_log('Database error in get_stats_data.php: ' . $e->getMessage() . '\n' . $e->getTraceAsString());
     
-    // Enregistrer l'erreur dans les logs
-    error_log('Erreur dans get_stats_data.php: ' . $e->getMessage() . '\n' . $e->getTraceAsString());
+    // Return a sanitized error response
+    sendJsonResponse([
+        'success' => false,
+        'error' => 'Erreur lors de la récupération des données statistiques',
+        'debug' => 'An error occurred while fetching statistics. Please try again later.'
+    ], 500);
+} catch (Exception $e) {
+    // Handle any other exceptions
+    error_log('Unexpected error in get_stats_data.php: ' . $e->getMessage() . '\n' . $e->getTraceAsString());
+    
+    sendJsonResponse([
+        'success' => false,
+        'error' => 'Une erreur inattendue s\'est produite',
+        'debug' => 'An unexpected error occurred. Please try again later.'
+    ], 500);
 }
 ?>

@@ -34,10 +34,19 @@ class DatabaseConfig {
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_TIMEOUT => 30,
-                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",
-                    PDO::MYSQL_ATTR_SSL_CA => realpath(__DIR__.'/cacert.pem'),
-                    PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
                 ];
+                
+                // Only add SSL options if the certificate file exists
+                $certPath = __DIR__ . '/cacert.pem';
+                if (file_exists($certPath)) {
+                    $options[PDO::MYSQL_ATTR_SSL_CA] = realpath($certPath);
+                    $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+                } else {
+                    error_log('SSL certificate not found at: ' . $certPath);
+                    // Try without SSL if certificate is not found
+                    $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+                }
 
                 error_log("Attempting Railway connection to $dbHost:$dbPort");
                 self::$pdo = new PDO($dsn, $dbUser, $dbPass, $options);
