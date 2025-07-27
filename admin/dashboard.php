@@ -1188,19 +1188,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p class="mt-2">Chargement des statistiques...</p>
                     `;
                     
-                    // Clear any existing content and add loader
-                    loadingContainer.innerHTML = '';
-                    loadingContainer.appendChild(loadingIndicator);
-                    
                     // Try to find chart element and update it
                     try {
+                        // First, try to add to the chart container if it exists
                         const chartElement = document.getElementById('goalsChart');
                         if (chartElement && chartElement.parentNode) {
                             chartElement.parentNode.innerHTML = '';
                             chartElement.parentNode.appendChild(loadingIndicator);
-                        } else if (statsContainer) {
-                            // If chart element doesn't exist but we have a container, add loading there
+                        } 
+                        // If no chart element, try the stats container
+                        else if (statsContainer) {
+                            statsContainer.innerHTML = '';
                             statsContainer.appendChild(loadingIndicator);
+                        }
+                        // If neither exists, log a warning and continue
+                        else {
+                            console.warn('No suitable container found for loading indicator');
                         }
                     } catch (e) {
                         console.error('Error setting up loading indicator:', e);
@@ -1535,7 +1538,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 <!-- Équipe à domicile -->
                                                 <div class="d-flex flex-column align-items-center" style="width: 35%;">
                                                     <div class="d-flex align-items-center w-100">
-                                                        <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_home']))) ?>.png" 
+                                                        <?php 
+                                                        // Create a safe filename by removing special characters and converting to lowercase
+                                                        $safeTeamName = preg_replace('/[^a-z0-9-]/', '', strtolower(str_replace(' ', '-', $match['team_home'])));
+                                                        $logoPath = file_exists("../assets/img/teams/{$safeTeamName}.png") 
+                                                            ? "../assets/img/teams/{$safeTeamName}.png" 
+                                                            : "../assets/img/teams/default.png";
+                                                        ?>
+                                                        <img src="<?= $logoPath ?>" 
                                                              alt="<?= htmlspecialchars($match['team_home']) ?>" 
                                                              width="24" 
                                                              height="24"
@@ -1595,10 +1605,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                         <div class="text-truncate text-end me-2" style="font-size: 0.85rem; font-weight: 500;">
                                                             <?= mb_strimwidth(htmlspecialchars($match['team_away']), 0, 20, '...') ?>
                                                         </div>
-                                                        <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) ?>.png" 
+                                                        <?php 
+                                                        // Create a safe filename by removing special characters and converting to lowercase
+                                                        $safeTeamName = preg_replace('/[^a-z0-9-]/', '', strtolower(str_replace(' ', '-', $match['team_away'])));
+                                                        $logoPath = file_exists("../assets/img/teams/{$safeTeamName}.png") 
+                                                            ? "../assets/img/teams/{$safeTeamName}.png" 
+                                                            : "../assets/img/teams/default.png";
+                                                        ?>
+                                                        <img src="<?= $logoPath ?>" 
                                                              alt="<?= htmlspecialchars($match['team_away']) ?>" 
-                                                             width="24"
+                                                             width="24" 
                                                              height="24"
+                                                             class="ms-2"
                                                              onerror="this.src='../assets/img/teams/default.png'">
                                                     </div>
                                                     <div class="fw-bold mt-1" style="font-size: 1.1rem;">
