@@ -2,8 +2,10 @@
 require __DIR__ . '/admin_header.php';
 
 // Récupérer les matchs en cours (en attente ou en cours)
+$currentMatches = [];
 try {
-    $currentMatches = $pdo->query("
+    // D'abord, essayer avec la requête complète
+    $query = "
         SELECT m.*, 
                t1.logo as home_logo, 
                t2.logo as away_logo
@@ -12,11 +14,43 @@ try {
         LEFT JOIN teams t2 ON m.team_away = t2.team_name
         WHERE m.status IN ('ongoing', 'pending')
         ORDER BY m.match_date ASC, m.match_time ASC
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    ";
+    
+    // Exécuter la requête
+    $stmt = $pdo->query($query);
+    if ($stmt) {
+        $currentMatches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        throw new PDOException("Échec de l'exécution de la requête");
+    }
+    
 } catch (PDOException $e) {
-    error_log("Erreur lors de la récupération des matchs en cours: " . $e->getMessage());
-    $currentMatches = [];
-    $_SESSION['error'] = "Erreur lors du chargement des matchs en cours. Veuillez réessayer.";
+    // En cas d'échec, essayer une requête plus simple sans les jointures
+    try {
+        error_log("Erreur avec la requête complète: " . $e->getMessage() . ". Essai avec une requête simplifiée.");
+        
+        $query = "
+            SELECT *
+            FROM matches
+            WHERE status IN ('ongoing', 'pending')
+            ORDER BY match_date ASC, match_time ASC
+        ";
+        
+        $stmt = $pdo->query($query);
+        if ($stmt) {
+            $currentMatches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Ajouter des logos vides pour chaque match
+            foreach ($currentMatches as &$match) {
+                $match['home_logo'] = '';
+                $match['away_logo'] = '';
+            }
+            unset($match);
+        }
+    } catch (PDOException $e2) {
+        error_log("Erreur critique lors de la récupération des matchs: " . $e2->getMessage());
+        $_SESSION['error'] = "Erreur lors du chargement des matchs en cours. Code d'erreur: " . $e2->getCode();
+    }
 }
 
 // Function to log actions in the audit log
