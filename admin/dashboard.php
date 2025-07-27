@@ -1199,12 +1199,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             chartElement.parentNode.innerHTML = '';
                             chartElement.parentNode.appendChild(loadingIndicator);
                         } else if (statsContainer) {
-                        // If chart element doesn't exist but we have a container, add loading there
-                        try {
+                            // If chart element doesn't exist but we have a container, add loading there
                             statsContainer.appendChild(loadingIndicator);
-                        } catch (e) {
-                            console.error('Error adding loading indicator to container:', e);
                         }
+                    } catch (e) {
+                        console.error('Error setting up loading indicator:', e);
                     }
                     
                     // Make the API request
