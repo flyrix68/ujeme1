@@ -246,7 +246,8 @@ try {
 
 // Fetch ongoing and waiting matches
 try {
-    $currentMatches = $pdo->query("SELECT * FROM matches WHERE status IN ('ongoing', 'waiting') ORDER BY match_date DESC")->fetchAll(PDO::FETCH_ASSOC);
+    // Récupérer les matchs avec les statuts 'ongoing' ou 'pending' (en cours ou en attente)
+    $currentMatches = $pdo->query("SELECT * FROM matches WHERE status IN ('ongoing', 'pending') ORDER BY match_date DESC")->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Error fetching current matches: " . $e->getMessage());
     die("Erreur lors du chargement des matchs.");
@@ -971,16 +972,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Récupération des statistiques depuis la base de données
                 try {
                     // Nombre total de matchs joués
-                    $totalMatches = $pdo->query("SELECT COUNT(*) as total FROM matches WHERE status = 'termine'")->fetch(PDO::FETCH_ASSOC)['total'];
+                    $totalMatches = $pdo->query("SELECT COUNT(*) as total FROM matches WHERE status = 'completed'")->fetch(PDO::FETCH_ASSOC)['total'];
                     
                     // Nombre total de buts marqués
-                    $totalGoals = $pdo->query("SELECT SUM(score_home + score_away) as total FROM matches WHERE status = 'termine'")->fetch(PDO::FETCH_ASSOC)['total'];
+                    $totalGoals = $pdo->query("SELECT SUM(score_home + score_away) as total FROM matches WHERE status = 'completed'")->fetch(PDO::FETCH_ASSOC)['total'];
                     
                     // Nombre d'équipes enregistrées
-                    $totalTeams = $pdo->query("SELECT COUNT(*) as total FROM equipes")->fetch(PDO::FETCH_ASSOC)['total'];
+                    $totalTeams = $pdo->query("SELECT COUNT(*) as total FROM teams")->fetch(PDO::FETCH_ASSOC)['total'];
                     
                     // Taux de remplissage (exemple basé sur les matchs programmés vs joués)
-                    $totalScheduled = $pdo->query("SELECT COUNT(*) as total FROM matches WHERE status != 'annule'")->fetch(PDO::FETCH_ASSOC)['total'];
+                    $totalScheduled = $pdo->query("SELECT COUNT(*) as total FROM matches WHERE status != 'cancelled'")->fetch(PDO::FETCH_ASSOC)['total'];
                     $completionRate = $totalScheduled > 0 ? round(($totalMatches / $totalScheduled) * 100) : 0;
                     
                     // Statistiques du mois précédent pour la comparaison
@@ -990,7 +991,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $lastMonthMatches = $pdo->prepare("
                         SELECT COUNT(*) as total 
                         FROM matches 
-                        WHERE status = 'termine' 
+                        WHERE status = 'completed' 
                         AND match_date BETWEEN ? AND ?
                     ");
                     $lastMonthMatches->execute([$lastMonthStart, $lastMonthEnd]);
@@ -998,7 +999,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     // Calcul des pourcentages d'évolution
                     $matchChange = $lastMonthMatchCount > 0 ? 
-                        round(((count($currentMatches) - $lastMonthMatchCount) / $lastMonthMatchCount) * 100) : 100;
+                        round((($totalMatches - $lastMonthMatchCount) / $lastMonthMatchCount) * 100) : 100;
                     
                 } catch (PDOException $e) {
                     error_log("Erreur lors de la récupération des statistiques: " . $e->getMessage());
@@ -1075,7 +1076,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <span class="text-muted small">
                                         <i class="fas fa-trophy me-1"></i> 
                                         <?php 
-                                        $activeCompetitions = $pdo->query("SELECT COUNT(DISTINCT competition) as count FROM matches WHERE status != 'termine'")->fetch(PDO::FETCH_ASSOC)['count'];
+                                        $activeCompetitions = $pdo->query("SELECT COUNT(DISTINCT competition) as count FROM matches WHERE status != 'completed'")->fetch(PDO::FETCH_ASSOC)['count'];
                                         echo $activeCompetitions . ' compétitions actives';
                                         ?>
                                     </span>
@@ -1301,65 +1302,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php unset($_SESSION['error']); ?>
                 <?php endif; ?>
 
-                <div class="row">
-                    <!-- Quick Stats -->
-                    <div class="col-md-6 col-lg-3 mb-4">
-                        <div class="card bg-primary text-white">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="card-title">Matchs en cours</h6>
-                                        <h2 class="mb-0"><?= count($currentMatches) ?></h2>
-                                    </div>
-                                    <i class="fas fa-running fa-3x opacity-50"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6 col-lg-3 mb-4">
-                        <div class="card bg-success text-white">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="card-title">Matchs terminés</h6>
-                                        <h2 class="mb-0"><?= $pdo->query("SELECT COUNT(*) FROM matches WHERE status = 'completed'")->fetchColumn() ?></h2>
-                                    </div>
-                                    <i class="fas fa-flag-checkered fa-3x opacity-50"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6 col-lg-3 mb-4">
-                        <div class="card bg-info text-white">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="card-title">Équipes</h6>
-                                        <h2 class="mb-0"><?= $pdo->query("SELECT COUNT(*) FROM teams")->fetchColumn() ?></h2>
-                                    </div>
-                                    <i class="fas fa-users fa-3x opacity-50"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6 col-lg-3 mb-4">
-                        <div class="card bg-warning text-dark">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="card-title">Joueurs</h6>
-                                        <h2 class="mb-0"><?= $pdo->query("SELECT COUNT(*) FROM players")->fetchColumn() ?></h2>
-                                    </div>
-                                    <i class="fas fa-user fa-3x opacity-50"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Matchs en cours -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-primary bg-gradient text-white d-flex flex-column flex-md-row justify-content-between align-items-md-center">
@@ -1399,9 +1341,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <!-- Filtre par statut -->
                             <select id="statusFilter" class="form-select form-select-sm" style="max-width: 180px;" onchange="filterMatches()">
                                 <option value="">Tous les statuts</option>
-                                <option value="en_cours">En cours</option>
-                                <option value="termine">Terminé</option>
-                                <option value="a_venir">À venir</option>
+                                <option value="ongoing">En cours</option>
+                                <option value="completed">Terminé</option>
+                                <option value="waiting">En attente</option>
                             </select>
                         </div>
                     </div>
@@ -1426,139 +1368,165 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php else: ?>
                             <div class="row">
                                 <?php foreach ($currentMatches as $match): ?>
-                                <div class="col-12 col-md-6 col-lg-4 mb-4">
-                                    <div class="card match-card h-100 shadow-sm">
+                                <div class="col-12 col-md-6 col-lg-4 mb-4 match-card" data-match-id="<?= $match['id'] ?>" data-competition="<?= htmlspecialchars($match['competition']) ?>" data-status="<?= $match['status'] ?>">
+                                    <div class="card h-100 shadow-sm">
                                         <div class="card-header bg-light">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <h6 class="mb-0 text-muted small">
                                                     <i class="fas fa-trophy me-1"></i> <?= htmlspecialchars($match['competition'] ?? 'Compétition' ) ?>
                                                 </h6>
-                                                <span class="badge bg-<?= $match['status'] === 'en_cours' ? 'success' : 'warning' ?> text-white">
-                                                    <?= $match['status'] === 'en_cours' ? 'En cours' : 'En attente' ?>
+                                                <span class="badge bg-<?= in_array($match['status'], ['en_cours', 'ongoing']) ? 'success' : 'warning' ?> text-white">
+                                                    <?= in_array($match['status'], ['en_cours', 'ongoing']) ? 'En cours' : 'En attente' ?>
                                                 </span>
                                             </div>
                                         </div>
                                         <div class="card-body p-3">
                                             <!-- Ligne unique pour les équipes, score et minuteur -->
                                             <div class="d-flex justify-content-between align-items-center">
-                                                <!-- Équipe à domicile (réduit) -->
-                                                <div class="text-truncate" style="width: 30%;">
-                                                    <div class="d-flex flex-column align-items-center">
-                                                        <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_home']))) ?>" 
+                                                <!-- Équipe à domicile -->
+                                                <div class="d-flex flex-column align-items-center" style="width: 35%;">
+                                                    <div class="d-flex align-items-center w-100">
+                                                        <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_home']))) ?>.png" 
                                                              alt="<?= htmlspecialchars($match['team_home']) ?>" 
-                                                             width="30" 
-                                                             class="mb-1"
+                                                             width="24" 
+                                                             height="24"
+                                                             class="me-2"
                                                              onerror="this.src='../assets/img/teams/default.png'">
-                                                        <div class="fw-bold text-center" style="font-size: 0.75rem; line-height: 1.1;">
-                                                            <?= mb_strimwidth(htmlspecialchars($match['team_home']), 0, 15, '...') ?>
+                                                        <div class="text-truncate" style="font-size: 0.85rem; font-weight: 500;">
+                                                            <?= mb_strimwidth(htmlspecialchars($match['team_home']), 0, 20, '...') ?>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                
-                                                <!-- Score (plus petit) -->
-                                                <div class="d-flex flex-column align-items-center" style="width: 20%;">
-                                                    <div class="fw-bold" style="font-size: 1.5rem; line-height: 1.2;">
-                                                        <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
-                                                    </div>
-                                                    <div class="badge bg-primary" style="font-size: 0.6rem;"><?= htmlspecialchars($match['phase']) ?></div>
-                                                </div>
-                                                
-                                                <!-- Équipe à l'extérieur (réduit) -->
-                                                <div class="text-truncate" style="width: 30%;">
-                                                    <div class="d-flex flex-column align-items-center">
-                                                        <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) ?>.png" 
-                                                             alt="<?= htmlspecialchars($match['team_away']) ?>" 
-                                                             width="30"
-                                                             class="mb-1"
-                                                             onerror="this.src='../assets/img/teams/default.png'">
-                                                        <div class="fw-bold text-center" style="font-size: 0.75rem; line-height: 1.1;">
-                                                            <?= mb_strimwidth(htmlspecialchars($match['team_away']), 0, 15, '...') ?>
-                                                        </div>
+                                                    <div class="fw-bold mt-1" style="font-size: 1.1rem;">
+                                                        <?= $match['score_home'] ?? '0' ?>
                                                     </div>
                                                 </div>
                                                 
-                                                <!-- Minuteur et statut (sur la même ligne) -->
-                                                <div class="d-flex flex-column align-items-center" style="width: 20%;">
-                                                    <div class="d-flex align-items-center">
-                                                        <i class="far fa-clock me-1 small" style="font-size: 0.8rem;"></i>
-                                                        <span class="fw-bold" style="font-size: 0.9rem;" id="timer-<?= $match['id'] ?>">
+                                                <!-- Score et minuteur au centre -->
+                                                <div class="d-flex flex-column align-items-center" style="width: 30%;">
+                                                    <div class="badge bg-primary mb-1" style="font-size: 0.65rem;"><?= htmlspecialchars($match['phase']) ?></div>
+                                                    <div class="d-flex align-items-center justify-content-center" style="min-width: 80px;">
+                                                        <span class="fw-bold" style="font-size: 1.1rem;">
+                                                            <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
+                                                        </span>
+                                                    </div>
+                                                    <div class="d-flex align-items-center mt-1" style="font-size: 0.8rem;">
+                                                        <i class="far fa-clock me-1"></i>
+                                                        <span class="fw-bold" id="timer-<?= $match['id'] ?>">
                                                             <?php
-                                                            if ($match['timer_status'] === 'ended') {
+                                                            if (($match['timer_status'] ?? '') === 'ended') {
                                                                 echo '<span class="badge bg-danger">Terminé</span>';
                                                             } else {
-                                                                $elapsed = $match['timer_elapsed'];
-                                                            if ($match['timer_start'] && !$match['timer_paused']) {
-                                                                $elapsed += (strtotime('now') - strtotime($match['timer_start']));
+                                                                $elapsed = $match['timer_elapsed'] ?? 0;
+                                                                if (($match['timer_start'] ?? '') && !($match['timer_paused'] ?? true)) {
+                                                                    $elapsed += (strtotime('now') - strtotime($match['timer_start']));
+                                                                }
+                                                                $displayMinutes = floor($elapsed / 60);
+                                                                if (($match['timer_status'] ?? '') === 'second_half') {
+                                                                    $firstHalfMinutes = floor(($match['first_half_duration'] ?? 0) / 60);
+                                                                    $displayMinutes += $firstHalfMinutes;
+                                                                }
+                                                                $displaySeconds = $elapsed % 60;
+                                                                echo sprintf('%02d:%02d', $displayMinutes, $displaySeconds);
                                                             }
-                                                            $displayMinutes = floor($elapsed / 60);
-                                                            if ($match['timer_status'] === 'second_half') {
-                                                                $firstHalfMinutes = floor(($match['first_half_duration'] ?? 0) / 60);
-                                                                $displayMinutes += $firstHalfMinutes;
-                                                            }
-                                                            $displaySeconds = $elapsed % 60;
-                                                            echo sprintf('%02d:%02d', $displayMinutes, $displaySeconds);
-                                                        }
-                                                        ?>
+                                                            ?>
+                                                        </span>
+                                                    </div>
+                                                    <div class="small text-muted mt-1" style="font-size: 0.7rem;">
+                                                        <?php if (in_array($match['status'] ?? '', ['en_cours', 'ongoing'])): ?>
+                                                            <?= $match['timer_status'] === 'second_half' ? '2ème mi-temps' : '1ère mi-temps' ?>
+                                                        <?php else: ?>
+                                                            En attente
+                                                        <?php endif; ?>
                                                     </div>
                                                 </div>
                                                 
-                                                <div style="width: 40%;">
-                                                    <div class="small text-muted text-center">
-                                                        <i class="fas fa-running me-1"></i> 
-                                                        <?= $match['status'] === 'en_cours' ? 'En cours' : 'En attente' ?>
+                                                <!-- Équipe à l'extérieur -->
+                                                <div class="d-flex flex-column align-items-center" style="width: 35%;">
+                                                    <div class="d-flex align-items-center w-100 justify-content-end">
+                                                        <div class="text-truncate text-end me-2" style="font-size: 0.85rem; font-weight: 500;">
+                                                            <?= mb_strimwidth(htmlspecialchars($match['team_away']), 0, 20, '...') ?>
+                                                        </div>
+                                                        <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) ?>.png" 
+                                                             alt="<?= htmlspecialchars($match['team_away']) ?>" 
+                                                             width="24"
+                                                             height="24"
+                                                             onerror="this.src='../assets/img/teams/default.png'">
+                                                    </div>
+                                                    <div class="fw-bold mt-1" style="font-size: 1.1rem;">
+                                                        <?= $match['score_away'] ?? '0' ?>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            </div>    
                                             
                                             <!-- Barre de progression -->
-                                            <div class="mt-3">
-                                                <div class="progress" style="height: 6px;">
-                                                    <?php 
-                                                    $progress = 0;
-                                                    if (isset($match['match_time'])) {
-                                                        $progress = min(100, ($match['match_time'] / 90) * 100);
-                                                    }
-                                                    ?>
-                                                    <div class="progress-bar bg-success" role="progressbar" 
-                                                         style="width: <?= $progress ?>%;" 
-                                                         aria-valuenow="<?= $progress ?>" 
-                                                         aria-valuemin="0" 
-                                                         aria-valuemax="100">
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex justify-content-between mt-1 small text-muted">
-                                                    <span>1'</span>
-                                                    <span><?= isset($match['match_time']) ? $match['match_time'] . "'" : '0\'' ?></span>
-                                                    <span>90'</span>
+                                            <div class="progress mb-3" style="height: 6px;">
+                                                <?php 
+                                                $progress = 0;
+                                                if (isset($match['timer_elapsed']) && isset($match['timer_duration'])) {
+                                                    $progress = min(100, ($match['timer_elapsed'] / $match['timer_duration']) * 100);
+                                                }
+                                                ?>
+                                                <div class="progress-bar bg-success" role="progressbar" 
+                                                     style="width: <?= $progress ?>%;" 
+                                                     aria-valuenow="<?= $progress ?>" 
+                                                     aria-valuemin="0" 
+                                                     aria-valuemax="100">
                                                 </div>
                                             </div>
                                             
-                                            <!-- Formulaire de mise à jour des scores -->
-                                            <form method="post" class="mt-3">
+                                            <!-- Actions de gestion -->
+                                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                                <!-- Démarrer/Arrêter le match -->
+                                                <?php if ($match['timer_status'] === 'not_started'): ?>
+                                                    <form method="post" class="flex-grow-1">
+                                                        <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                                        <button type="submit" name="start_first_half" class="btn btn-success btn-sm w-100">
+                                                            <i class="fas fa-play me-1"></i> Démarrer
+                                                        </button>
+                                                    </form>
+                                                <?php elseif ($match['timer_status'] === 'first_half' || $match['timer_status'] === 'second_half'): ?>
+                                                    <form method="post" class="flex-grow-1">
+                                                        <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                                        <button type="submit" name="stop_timer" class="btn btn-danger btn-sm w-100">
+                                                            <i class="fas fa-stop me-1"></i> Arrêter
+                                                        </button>
+                                                    </form>
+                                                <?php elseif ($match['timer_status'] === 'half_time'): ?>
+                                                    <form method="post" class="flex-grow-1">
+                                                        <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                                        <button type="submit" name="start_second_half" class="btn btn-info btn-sm w-100">
+                                                            <i class="fas fa-forward me-1"></i> 2ème mi-temps
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
+                                                
+                                                <!-- Finaliser le match -->
+                                                <form method="post" class="flex-grow-1">
+                                                    <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                                    <button type="submit" name="finalize_match" class="btn btn-primary btn-sm w-100">
+                                                        <i class="fas fa-flag-checkered me-1"></i> Finaliser
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            
+                                            <!-- Formulaire de mise à jour du score -->
+                                            <form method="post" class="mb-3">
                                                 <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                <div class="row g-2 align-items-center">
+                                                <div class="row g-2">
                                                     <div class="col-5">
-                                                        <div class="input-group input-group-sm">
-                                                            <span class="input-group-text bg-light">
-                                                                <?= substr(htmlspecialchars($match['team_home']), 0, 3) ?>.
-                                                            </span>
-                                                            <input type="number" name="score_home" class="form-control text-center fw-bold" 
-                                                                   value="<?= $match['score_home'] ?? '0' ?>" min="0" style="max-width: 60px;">
-                                                        </div>
+                                                        <input type="number" name="score_home" class="form-control text-center" 
+                                                               value="<?= $match['score_home'] ?? '0' ?>" min="0" placeholder="Score">
                                                     </div>
-                                                    <div class="col-2 text-center fw-bold">-</div>
+                                                    <div class="col-2 text-center">
+                                                        <div class="h5 mb-0">-</div>
+                                                    </div>
                                                     <div class="col-5">
-                                                        <div class="input-group input-group-sm">
-                                                            <input type="number" name="score_away" class="form-control text-center fw-bold" 
-                                                                   value="<?= $match['score_away'] ?? '0' ?>" min="0" style="max-width: 60px;">
-                                                            <span class="input-group-text bg-light">
-                                                                <?= substr(htmlspecialchars($match['team_away']), 0, 3) ?>.
-                                                            </span>
-                                                        </div>
+                                                        <input type="number" name="score_away" class="form-control text-center" 
+                                                               value="<?= $match['score_away'] ?? '0' ?>" min="0" placeholder="Score">
                                                     </div>
-                                                    <div class="col-12 mt-2">
+                                                    <div class="col-12">
                                                         <button type="submit" name="update_score" class="btn btn-primary btn-sm w-100">
-                                                            <i class="fas fa-save me-1"></i> Mettre à jour le score
+                                                            <i class="fas fa-save me-1"></i> Mettre à jour
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1572,8 +1540,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             ?>
                                             
                                             <?php if (!empty($goals)): ?>
-                                            <div class="mt-3">
-                                                <h6 class="fw-bold mb-2">Buteurs:</h6>
+                                            <div class="mb-3">
+                                                <h6 class="fw-bold">Buteurs:</h6>
                                                 <div class="d-flex flex-wrap gap-1">
                                                     <?php foreach ($goals as $goal): ?>
                                                     <span class="badge bg-<?= $goal['team'] === 'home' ? 'primary' : 'danger' ?> mb-1">
@@ -1585,18 +1553,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             <?php endif; ?>
                                             
                                             <!-- Formulaire d'ajout de but -->
-                                            <form method="post" class="mt-3">
+                                            <form method="post" class="mb-3">
                                                 <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                <div class="row g-2 align-items-end">
+                                                <div class="row g-2">
                                                     <div class="col-md-5">
                                                         <select name="team" class="form-select form-select-sm" required>
-                                                            <option value="">Sélectionner équipe</option>
+                                                            <option value="">Équipe</option>
                                                             <option value="home"><?= htmlspecialchars($match['team_home']) ?></option>
                                                             <option value="away"><?= htmlspecialchars($match['team_away']) ?></option>
                                                         </select>
                                                     </div>
                                                     <div class="col-md-5">
-                                                        <input type="text" name="player" class="form-control form-control-sm" placeholder="Nom du buteur" required>
+                                                        <input type="text" name="player" class="form-control form-control-sm" placeholder="Joueur" required>
                                                     </div>
                                                     <div class="col-md-2">
                                                         <div class="input-group input-group-sm">
@@ -1613,12 +1581,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             </form>
                                             
                                             <!-- Formulaire d'ajout de carton -->
-                                            <form method="post" class="mt-2">
+                                            <form method="post">
                                                 <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                <div class="row g-2 align-items-end">
+                                                <div class="row g-2">
                                                     <div class="col-md-4">
                                                         <select name="card_type" class="form-select form-select-sm" required>
-                                                            <option value="">Type de carton</option>
+                                                            <option value="">Type</option>
                                                             <option value="yellow">Jaune</option>
                                                             <option value="red">Rouge</option>
                                                         </select>
@@ -1639,182 +1607,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                     </div>
                                                 </div>
                                             </form>
-                                            </div>
-                                            
-                                            <div class="mb-3">
-                                                <!-- Set match duration -->
-                                                <form method="post" class="d-inline">
-                                                    <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                    <div class="input-group input-group-sm" style="width: 200px;">
-<input type="number" name="match_duration" class="form-control" 
-       placeholder="Durée (min)" value="<?= ($match['timer_duration'] ?? 3000) / 60 ?>" min="1" max="120">
-                                                        <button type="submit" name="set_duration" class="btn btn-primary">
-                                                            <i class="fas fa-clock me-1"></i> Durée
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                                                                                
-                                                <!-- Set first half extra time -->
-                                                <form method="post" class="d-inline">
-                                                    <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                    <input type="number" name="first_half_extra" class="form-control form-control-sm d-inline" style="width:80px;display:inline-block"
-                                                        placeholder="+min" min="0" max="15" value="<?= (int)($match['first_half_extra'] ?? 0)/60 ?>">
-                                                    <button type="submit" name="set_first_half_extra" class="btn btn-secondary btn-sm">+Temps add. 1ère</button>
-                                                </form>
-
-                                                <!-- Set second half extra time -->
-                                                <form method="post" class="d-inline">
-                                                    <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                    <input type="number" name="second_half_extra" class="form-control form-control-sm d-inline" style="width:80px;display:inline-block"
-                                                        placeholder="+min" min="0" max="15" value="<?= (int)($match['second_half_extra'] ?? 0)/60 ?>">
-                                                    <button type="submit" name="set_second_half_extra" class="btn btn-secondary btn-sm">+Temps add. 2ème</button>
-                                                </form>
-
-                                                <!-- Start first half -->
-                                                <form method="post" class="d-inline">
-                                                    <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                    <button type="submit" name="start_first_half" class="btn btn-success btn-sm"
-                                                            <?= ($match['timer_status'] !== 'not_started') ? 'disabled' : '' ?>>
-                                                        <i class="fas fa-play me-1"></i> 1ère mi-temps
-                                                    </button>
-                                                </form>
-
-                                                <!-- Start second half -->
-                                                <form method="post" class="d-inline">
-                                                    <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                    <button type="submit" name="start_second_half" class="btn btn-info btn-sm"
-                                                        <?= ($match['timer_status'] !== 'half_time') ? 'disabled' : '' ?>>
-                                                        <i class="fas fa-forward me-1"></i> 2ème mi-temps
-                                                    </button>
-                                                </form>
-
-                                                <!-- Stop timer -->
-                                                <form method="post" class="d-inline">
-                                                    <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                    <button type="submit" name="stop_timer" class="btn btn-danger btn-sm"
-                                                            <?= !in_array($match['timer_status'], ['first_half', 'second_half']) ? 'disabled' : '' ?>>
-                                                        <i class="fas fa-stop me-1"></i> Arrêter
-                                                    </button>
-                                                </form>
-                                            </div>
-                                            
-                                            <!-- Formulaire de score -->
-                                            <form method="post" class="mt-3 pt-3 border-top">
-                                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                <h6 class="text-center mb-3">
-                                                    <i class="fas fa-futbol me-1"></i> Mettre à jour le score
-                                                </h6>
-                                                <div class="row g-2 align-items-center">
-                                                    <div class="col-5">
-                                                        <div class="input-group input-group-sm">
-                                                            <span class="input-group-text bg-light">
-                                                                <?= substr(htmlspecialchars($match['team_home']), 0, 3) ?>.
-                                                            </span>
-                                                            <input type="number" name="score_home" class="form-control text-center fw-bold" 
-                                                                   value="<?= $match['score_home'] ?? '0' ?>" min="0" style="max-width: 60px;"> required>
-                                                    </div>
-                                                    <div class="col-2 text-center">
-                                                        <div class="h5 mb-0">-</div>
-                                                    </div>
-                                                    <div class="col-5">
-                                                        <div class="input-group input-group-sm">
-                                                            <input type="number" name="score_away" class="form-control text-center fw-bold" 
-                                                                   value="<?= $match['score_away'] ?? '0' ?>" min="0" style="max-width: 60px;">
-                                                            <span class="input-group-text bg-light">
-                                                                <?= substr(htmlspecialchars($match['team_away']), 0, 3) ?>.
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-12 mt-2">
-                                                        <button type="submit" name="update_score" class="btn btn-primary btn-sm w-100">
-                                                            <i class="fas fa-save me-1"></i> Mettre à jour
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </form>
-                                            
-                                            <!-- List goals -->
-                                            <?php 
-                                            $goals = $pdo->prepare("SELECT * FROM goals WHERE match_id = ? ORDER BY minute");
-                                            $goals->execute([$match['id']]);
-                                            $goals = $goals->fetchAll(PDO::FETCH_ASSOC);
-                                            ?>
-                                            
-                                            <?php if (!empty($goals)): ?>
-                                            <div class="mb-3">
-                                                <h6 class="fw-bold">Buteurs:</h6>
-                                                <?php foreach ($goals as $goal): ?>
-                                                <span class="badge bg-<?= $goal['team'] === 'home' ? 'primary' : 'danger' ?> goal-badge">
-                                                    <?= htmlspecialchars($goal['player']) ?> (<?= $goal['minute'] ?>')
-                                                </span>
-                                                <?php endforeach; ?>
-                                            </div>
-                                            <?php endif; ?>
-                                            
-                                            <!-- Add goal form -->
-                                            <form method="post" class="mb-3">
-                                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                <div class="row g-2 align-items-end">
-                                                    <div class="col-md-4">
-                                                        <select name="team" class="form-select" required>
-                                                            <option value="">Sélectionner équipe</option>
-                                                            <option value="home"><?= htmlspecialchars($match['team_home']) ?></option>
-                                                            <option value="away"><?= htmlspecialchars($match['team_away']) ?></option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <input type="text" name="player" class="form-control" placeholder="Nom du buteur" required>
-                                                    </div>
-                                                </div>
-                                            </form>
-                                            
-                                            <!-- Finalize match -->
-                                            <form method="post">
-                                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                <div class="d-grid">
-                                                    <button type="submit" name="finalize_match" class="btn btn-primary btn-sm">
-                                                        <i class="fas fa-flag-checkered me-1"></i> Finaliser le match
-                                                    </button>
-                                                </div>
-                                            </form>
                                         </div>
                                         <div class="card-footer text-muted small">
-                                            <?= htmlspecialchars($match['venue']) ?> - <?= date('d/m/Y', strtotime($match['match_date'])) ?>
+                                            <?= htmlspecialchars($match['venue']) ?> - <?= date('d/m/Y H:i', strtotime($match['match_date'])) ?>
                                         </div>
                                     </div>
                                 </div>
                                 <?php endforeach; ?>
                             </div>
-                            
-                            <!-- Pagination -->
-                            <nav aria-label="Navigation des matchs" class="mt-4">
-                                <ul class="pagination justify-content-center">
-                                    <li class="page-item disabled">
-                                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Précédent</a>
-                                    </li>
-                                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                                    <li class="page-item"><a class="page-link" href="#">2</a></li>
-                                    <li class="page-item"><a class="page-link" href="#">3</a></li>
-                                    <li class="page-item">
-                                        <a class="page-link" href="#">Suivant</a>
-                                    </li>
-                                </ul>
-                            </nav>
                         <?php endif; ?>
-                        
-                        <!-- Bouton d'export -->
-                        <div class="d-flex justify-content-end mt-3">
-                            <div class="btn-group">
-                                <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-download me-1"></i> Exporter
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><a class="dropdown-item" href="#" onclick="exportMatches('csv')"><i class="fas fa-file-csv me-2"></i>CSV</a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="exportMatches('excel')"><i class="fas fa-file-excel me-2"></i>Excel</a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="exportMatches('pdf')"><i class="fas fa-file-pdf me-2"></i>PDF</a></li>
-                                </ul>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -1828,14 +1629,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Récupérer les 5 derniers matchs terminés
                         try {
                             $finishedMatches = $pdo->query("
-                                SELECT m.*, 
-                                       t1.name as team_home, 
-                                       t2.name as team_away,
-                                       c.name as competition
+                                SELECT m.*, t1.name as team_home, t2.name as team_away
                                 FROM matches m
                                 JOIN teams t1 ON m.team_home_id = t1.id
                                 JOIN teams t2 ON m.team_away_id = t2.id
-                                JOIN competitions c ON m.competition_id = c.id
                                 WHERE m.status = 'completed'
                                 ORDER BY m.match_date DESC
                                 LIMIT 5
@@ -1878,12 +1675,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             </td>
                                             <td class="text-center fw-bold">
                                                 <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
-                                                <?php if ($match['penalty_home'] !== null && $match['penalty_away'] !== null): ?>
-                                                    <br>
-                                                    <small class="text-muted">
-                                                        (<?= $match['penalty_home'] ?? '0' ?> - <?= $match['penalty_away'] ?? '0' ?> tab)
-                                                    </small>
-                                                <?php endif; ?>
                                             </td>
                                             <td>
                                                 <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) ?>.png" 
@@ -1899,11 +1690,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                    title="Voir les détails">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
-                                                <button class="btn btn-sm btn-outline-secondary"
-                                                        onclick="showMatchStats(<?= $match['id'] ?>)"
-                                                        title="Statistiques">
-                                                    <i class="fas fa-chart-bar"></i>
-                                                </button>
                                             </td>
                                         </tr>
                                         <?php endforeach; ?>
@@ -1912,7 +1698,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                             
                             <div class="text-end mt-3">
-                                <a href="matches.php?status=termine" class="btn btn-sm btn-outline-primary">
+                                <a href="matches.php?status=completed" class="btn btn-sm btn-outline-primary">
                                     <i class="fas fa-list me-1"></i> Voir tous les matchs terminés
                                 </a>
                             </div>
@@ -1962,8 +1748,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
                                 <button type="submit" name="add_period" id="add_period" class="btn btn-primary">Ajouter</button>
                                 <button type="submit" name="update_period" id="update_period" class="btn btn-primary d-none">Mettre à jour</button>
+                                <button type="button" id="reset_period_form" class="btn btn-outline-secondary d-none">Annuler</button>
                             </div>
                         </form>
+
+                        <!-- Liste des périodes existantes -->
+                        <?php if (!empty($registrationPeriods)): ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Période</th>
+                                            <th>Statut</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($registrationPeriods as $period): ?>
+                                        <tr>
+                                            <td>
+                                                <strong><?= date('d/m/Y H:i', strtotime($period['start_date'])) ?></strong> au 
+                                                <strong><?= date('d/m/Y H:i', strtotime($period['end_date'])) ?></strong>
+                                            </td>
+                                            <td>
+                                                <?php if ($period['is_active']): ?>
+                                                    <span class="badge bg-success">Active</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary edit-period"
+                                                        data-id="<?= $period['id'] ?>"
+                                                        data-start-date="<?= date('Y-m-d\TH:i', strtotime($period['start_date'])) ?>"
+                                                        data-end-date="<?= date('Y-m-d\TH:i', strtotime($period['end_date'])) ?>"
+                                                        data-closed-message="<?= htmlspecialchars($period['closed_message']) ?>"
+                                                        data-is-active="<?= $period['is_active'] ?>">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <form method="post" class="d-inline">
+                                                    <input type="hidden" name="period_id" value="<?= $period['id'] ?>">
+                                                    <button type="submit" name="delete_period" class="btn btn-sm btn-outline-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette période ?')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php else: ?>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i> Aucune période d'inscription configurée
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </main>
@@ -1973,7 +1812,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
     // Gestion du thème
     const themeToggle = document.getElementById('themeToggle');
@@ -2029,189 +1867,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Initialisation des tooltips
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl, {
-                trigger: 'hover',
-                boundary: 'window',
-                customClass: 'custom-tooltip'
-            });
-        });
-        
-        // Animation des cartes au chargement
-        const cards = document.querySelectorAll('.card');
-        cards.forEach((card, index) => {
-            card.style.animationDelay = `${index * 0.1}s`;
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
     });
     
-    // Fonction pour confirmer la suppression
-    function confirmDelete(element, message = 'Êtes-vous sûr de vouloir effectuer cette action ?') {
-        return Swal.fire({
-            title: 'Confirmation',
-            text: message,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Oui, continuer',
-            cancelButtonText: 'Annuler'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                if (element.tagName === 'FORM') {
-                    element.submit();
-                } else if (element.tagName === 'A') {
-                    window.location.href = element.href;
-                } else if (typeof element.onclick === 'function') {
-                    element.onclick();
-                }
-            }
-        });
-    }
-    
-    // Délégation d'événements pour les confirmations de suppression
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('confirm-delete') || e.target.closest('.confirm-delete')) {
-            e.preventDefault();
-            const element = e.target.classList.contains('confirm-delete') ? e.target : e.target.closest('.confirm-delete');
-            const message = element.dataset.confirm || 'Êtes-vous sûr de vouloir effectuer cette action ?';
-            confirmDelete(element, message);
-        }
-    });
-    
-    // Fonction pour rafraîchir les matchs en cours
-    function refreshLiveMatches() {
-        fetch('get_live_matches.php')
-            .then(response => response.json())
-            .then(data => {
-                const container = document.querySelector('#live-matches-container');
-                if (container) {
-                    container.innerHTML = data.html;
-                    // Réinitialiser les tooltips après le rafraîchissement
-                    const tooltipTriggerList = [].slice.call(container.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                    tooltipTriggerList.map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
-                }
-            })
-            .catch(error => console.error('Erreur lors du rafraîchissement des matchs:', error));
-    }
-    
-    // Rafraîchissement automatique des matchs toutes les 30 secondes
-    let refreshInterval = setInterval(refreshLiveMatches, 30000);
-    
-    // Arrêter le rafraîchissement lorsque la page n'est plus visible
-    document.addEventListener('visibilitychange', function() {
-        if (document.hidden) {
-            clearInterval(refreshInterval);
-        } else {
-            refreshInterval = setInterval(refreshLiveMatches, 30000);
-        }
-    });
-    
-    // Initialisation du graphique des statistiques
-    function initStatsChart() {
-        const statsData = <?php
-            // Exemple de données pour le graphique
-            $stats = [
-                'matches_played' => 45,
-                'goals_scored' => 128,
-                'yellow_cards' => 87,
-                'red_cards' => 12,
-                'avg_goals_per_match' => 2.84
-            ];
-            echo json_encode($stats);
-        ?>;
-        
-        const chartOptions = {
-            series: [{
-                name: 'Statistiques',
-                data: [
-                    statsData.matches_played,
-                    statsData.goals_scored,
-                    statsData.yellow_cards,
-                    statsData.red_cards,
-                    statsData.avg_goals_per_match
-                ]
-            }],
-            chart: {
-                type: 'bar',
-                height: 350,
-                toolbar: {
-                    show: false
-                },
-                background: 'transparent'
-            },
-            plotOptions: {
-                bar: {
-                    borderRadius: 4,
-                    horizontal: true,
-                    distributed: true,
-                    barHeight: '60%',
-                }
-            },
-            colors: ['#4CAF50', '#2196F3', '#FFC107', '#F44336', '#9C27B0'],
-            dataLabels: {
-                enabled: true,
-                formatter: function(val) {
-                    return val.toLocaleString();
-                }
-            },
-            xaxis: {
-                categories: ['Matchs joués', 'Buts marqués', 'Cartons jaunes', 'Cartons rouges', 'Moy. buts/match'],
-                labels: {
-                    style: {
-                        colors: getComputedStyle(document.documentElement).getPropertyValue('--bs-body-color'),
-                        fontSize: '12px'
-                    }
-                }
-            },
-            yaxis: {
-                labels: {
-                    style: {
-                        colors: getComputedStyle(document.documentElement).getPropertyValue('--bs-body-color'),
-                        fontSize: '12px'
-                    }
-                }
-            },
-            grid: {
-                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bs-border-color'),
-                strokeDashArray: 4
-            },
-            tooltip: {
-                theme: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light'
-            }
-        };
-        
-        const chart = new ApexCharts(document.querySelector("#stats-chart"), chartOptions);
-        chart.render();
-        
-        // Mettre à jour le thème du graphique lors du changement de thème
-        themeToggle.addEventListener('click', () => {
-            setTimeout(() => {
-                chart.updateOptions({
-                    tooltip: {
-                        theme: document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light'
-                    },
-                    xaxis: {
-                        labels: {
-                            style: {
-                                colors: getComputedStyle(document.documentElement).getPropertyValue('--bs-body-color')
-                            }
-                        }
-                    },
-                    yaxis: {
-                        labels: {
-                            style: {
-                                colors: getComputedStyle(document.documentElement).getPropertyValue('--bs-body-color')
-                            }
-                        }
-                    },
-                    grid: {
-                        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bs-border-color')
-                    }
-                });
-            }, 300); // Attendre la fin de la transition de thème
-        });
-    }
-    
-    // Fonction de filtrage des matchs
+    // Fonction pour filtrer les matchs
     function filterMatches() {
         const searchTerm = document.getElementById('matchSearch').value.toLowerCase();
         const competitionFilter = document.getElementById('competitionFilter').value.toLowerCase();
@@ -2219,223 +1879,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         const matches = document.querySelectorAll('.match-card');
         let visibleCount = 0;
         
-        // Afficher l'indicateur de chargement
-        document.getElementById('loadingIndicator').classList.remove('d-none');
-        
-        // Simuler un délai pour l'animation de chargement
-        setTimeout(() => {
-            matches.forEach(match => {
-                const matchText = match.textContent.toLowerCase();
-                const matchCompetition = match.getAttribute('data-competition') || '';
-                const matchStatus = match.getAttribute('data-status') || '';
-                
-                const matchesSearch = searchTerm === '' || matchText.includes(searchTerm);
-                const matchesCompetition = competitionFilter === '' || matchCompetition.toLowerCase().includes(competitionFilter);
-                const matchesStatus = statusFilter === '' || matchStatus === statusFilter;
-                
-                if (matchesSearch && matchesCompetition && matchesStatus) {
-                    match.style.display = '';
-                    visibleCount++;
-                } else {
-                    match.style.display = 'none';
-                }
-            });
+        matches.forEach(match => {
+            const matchText = match.textContent.toLowerCase();
+            const matchCompetition = match.getAttribute('data-competition').toLowerCase();
+            const matchStatus = match.getAttribute('data-status');
             
-            // Afficher/masquer le message "Aucun résultat"
-            const noMatchesMessage = document.getElementById('noMatchesMessage');
-            if (visibleCount === 0) {
-                noMatchesMessage.classList.remove('d-none');
+            const matchesSearch = searchTerm === '' || matchText.includes(searchTerm);
+            const matchesCompetition = competitionFilter === '' || matchCompetition.includes(competitionFilter);
+            const matchesStatus = statusFilter === '' || matchStatus === statusFilter;
+            
+            if (matchesSearch && matchesCompetition && matchesStatus) {
+                match.style.display = '';
+                visibleCount++;
             } else {
-                noMatchesMessage.classList.add('d-none');
+                match.style.display = 'none';
             }
-            
-            // Masquer l'indicateur de chargement
-            document.getElementById('loadingIndicator').classList.add('d-none');
-            
-        }, 300); // Délai pour l'animation
-    }
-    
-    // Fonction d'export des données
-    function exportMatches(format) {
-        // Récupérer les données des matchs filtrés
-        const matches = [];
-        document.querySelectorAll('.match-card:not([style*="display: none"])').forEach(match => {
-            matches.push({
-                id: match.getAttribute('data-match-id'),
-                competition: match.getAttribute('data-competition'),
-                teamHome: match.querySelector('.team-home')?.textContent.trim(),
-                teamAway: match.querySelector('.team-away')?.textContent.trim(),
-                score: match.querySelector('.match-score')?.textContent.trim(),
-                status: match.getAttribute('data-status')
-            });
         });
         
-        // Simuler l'export (dans une vraie application, cela enverrait une requête au serveur)
-        Swal.fire({
-            title: 'Export en cours',
-            text: `Préparation de l'export des ${matches.length} matchs au format ${format.toUpperCase()}...`,
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-                // Simulation de délai pour l'export
-                setTimeout(() => {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Export réussi',
-                        text: `Les données ont été exportées avec succès au format ${format.toUpperCase()}`,
-                        confirmButtonText: 'Télécharger',
-                        showCancelButton: true,
-                        cancelButtonText: 'Fermer'
-                    });
-                }, 1500);
-            }
-        });
-    }
-    
-    // Gestion des erreurs AJAX
-    function handleAjaxError(xhr, status, error) {
-        console.error('Erreur AJAX:', status, error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Erreur',
-            text: 'Une erreur est survenue lors du chargement des données. Veuillez réessayer.',
-            confirmButtonText: 'OK'
-        });
-    }
-    
-    // Initialisation au chargement de la page
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialiser le graphique des statistiques
-        if (document.querySelector('#stats-chart')) {
-            initStatsChart();
+        // Afficher/masquer le message "Aucun résultat"
+        const noMatchesMessage = document.getElementById('noMatchesMessage');
+        if (visibleCount === 0) {
+            noMatchesMessage.classList.remove('d-none');
+        } else {
+            noMatchesMessage.classList.add('d-none');
         }
-        
-        // Initialiser les tooltips
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
-        
-        // Initialiser les popovers
-        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-        popoverTriggerList.map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
-    });
+    }
     
-    // Initialisation des tooltips
-    document.addEventListener('DOMContentLoaded', function() {
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-
-    // Handle edit period button clicks
-    document.querySelectorAll('.edit-period').forEach(button => {
-        button.addEventListener('click', function() {
-            document.getElementById('period_id').value = this.dataset.id;
-            document.getElementById('start_date').value = this.dataset.startDate;
-            document.getElementById('end_date').value = this.dataset.endDate;
-            document.getElementById('closed_message').value = this.dataset.closedMessage;
-            document.getElementById('is_active').checked = this.dataset.isActive === '1';
+    // Gestion des timers des matchs en cours
+    function updateTimers() {
+        document.querySelectorAll('.match-card').forEach(card => {
+            const matchId = card.getAttribute('data-match-id');
+            const timerElement = document.getElementById(`timer-${matchId}`);
             
-            document.getElementById('add_period').classList.add('d-none');
-            document.getElementById('update_period').classList.remove('d-none');
-            document.getElementById('reset_period_form').classList.remove('d-none');
+            if (!timerElement) return;
             
-            // Scroll to form
-            document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
-        });
-    });
-
-    // Reset period form button
-    document.getElementById('reset_period_form').addEventListener('click', function() {
-        document.querySelector('form').reset();
-        document.getElementById('period_id').value = '';
-        document.getElementById('add_period').classList.remove('d-none');
-        document.getElementById('update_period').classList.add('d-none');
-        document.getElementById('reset_period_form').classList.add('d-none');
-    });
-
-    // Manage timers
-    var stoppedTimers = new Set();
-
-    <?php foreach ($currentMatches as $match): ?>
-    <?php if ($match['timer_start'] && !$match['timer_paused'] && in_array($match['timer_status'], ['first_half', 'second_half'])): ?>
-    (function() {
-        var matchId = <?= $match['id'] ?>;
-        if (stoppedTimers.has(matchId)) return;
-
-        var timerElement = document.getElementById('timer-<?= $match['id'] ?>');
-        var startTime = new Date('<?= $match['timer_start'] ?>').getTime() / 1000;
-        var elapsed = <?= $match['timer_elapsed'] ?>;
-        var duration = <?= $match['timer_duration'] ?: 5400 ?>;
-        var halfDuration = Math.floor(duration / 2);
-        var additionalTime = <?= $match['timer_status'] === 'first_half' ? (isset($match['first_half_extra']) ? (int)$match['first_half_extra'] : 0) : (isset($match['second_half_extra']) ? (int)$match['second_half_extra'] : 0) ?>;
-        var firstHalfDuration = <?= $match['first_half_duration'] ?? 0 ?>;
-        var isSecondHalf = <?= $match['timer_status'] === 'second_half' ? 'true' : 'false' ?>;
-        var timerStatus = '<?= $match['timer_status'] ?>';
-        var intervalId = null;
-
-        function stopTimer() {
-            if (stoppedTimers.has(matchId)) return;
-            stoppedTimers.add(matchId);
-            if (intervalId) clearInterval(intervalId);
-            fetch('dashboard.php', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'match_id=' + matchId + '&stop_timer=1'
-            }).then(() => {
-                if (timerElement) {
-                    timerElement.textContent = isSecondHalf ? 'Terminé' : 'Mi-temps';
+            // Simuler la mise à jour du timer (dans une vraie application, cela serait géré par le serveur)
+            const currentTime = timerElement.textContent;
+            if (currentTime.includes(':')) {
+                const [minutes, seconds] = currentTime.split(':').map(Number);
+                let newSeconds = seconds + 1;
+                let newMinutes = minutes;
+                
+                if (newSeconds >= 60) {
+                    newSeconds = 0;
+                    newMinutes++;
                 }
-                setTimeout(() => location.reload(), 500);
-            }).catch(error => {
-                console.error('Error stopping timer:', error);
+                
+                timerElement.textContent = `${newMinutes.toString().padStart(2, '0')}:${newSeconds.toString().padStart(2, '0')}`;
+            }
+        });
+    }
+    
+    // Mettre à jour les timers toutes les secondes
+    setInterval(updateTimers, 1000);
+    
+    // Gestion du formulaire des périodes d'inscription
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialisation des tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Handle edit period button clicks
+        document.querySelectorAll('.edit-period').forEach(button => {
+            button.addEventListener('click', function() {
+                document.getElementById('period_id').value = this.dataset.id;
+                document.getElementById('start_date').value = this.dataset.startDate;
+                document.getElementById('end_date').value = this.dataset.endDate;
+                document.getElementById('closed_message').value = this.dataset.closedMessage;
+                document.getElementById('is_active').checked = this.dataset.isActive === '1';
+                
+                document.getElementById('add_period').classList.add('d-none');
+                document.getElementById('update_period').classList.remove('d-none');
+                document.getElementById('reset_period_form').classList.remove('d-none');
+                
+                // Scroll to form
+                document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
             });
-        }
+        });
 
-        function updateTimer() {
-            if (stoppedTimers.has(matchId)) return;
-
-            // Display "Terminé" for ended matches
-            if (timerStatus === 'ended') {
-                timerElement.textContent = 'Terminé';
-                return;
-            }
-
-            var now = Math.floor(Date.now() / 1000);
-            var totalSeconds = elapsed + (now - startTime);
-            if (totalSeconds < 0) totalSeconds = 0;
-
-            // Cap elapsed time
-            var limit = halfDuration + additionalTime;
-            if (totalSeconds > limit) {
-                totalSeconds = limit;
-                stopTimer();
-                return;
-            }
-
-            // Calculate display time
-            var minutes = Math.floor(totalSeconds / 60);
-            var seconds = Math.floor(totalSeconds % 60);
-
-            // Adjust for second half
-            if (isSecondHalf) {
-                var firstHalfMinutes = Math.floor(firstHalfDuration / 60);
-                minutes += firstHalfMinutes;
-            }
-
-            // Update display
-            timerElement.textContent =
-                (minutes < 10 ? '0' : '') + minutes + ':' +
-                (seconds < 10 ? '0' : '') + seconds;
-        }
-
-        updateTimer();
-        intervalId = setInterval(updateTimer, 1000);
-    })();
-    <?php endif; ?>
-    <?php endforeach; ?>
-});
-</script>
+        // Reset period form button
+        document.getElementById('reset_period_form').addEventListener('click', function() {
+            document.querySelector('form').reset();
+            document.getElementById('period_id').value = '';
+            document.getElementById('add_period').classList.remove('d-none');
+            document.getElementById('update_period').classList.add('d-none');
+            document.getElementById('reset_period_form').classList.add('d-none');
+        });
+    });
+    </script>
 </body>
 </html>
