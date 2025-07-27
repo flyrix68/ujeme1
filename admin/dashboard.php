@@ -967,6 +967,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
                 
+                <?php
+                // Récupération des statistiques depuis la base de données
+                try {
+                    // Nombre total de matchs joués
+                    $totalMatches = $pdo->query("SELECT COUNT(*) as total FROM matches WHERE status = 'termine'")->fetch(PDO::FETCH_ASSOC)['total'];
+                    
+                    // Nombre total de buts marqués
+                    $totalGoals = $pdo->query("SELECT SUM(score_home + score_away) as total FROM matches WHERE status = 'termine'")->fetch(PDO::FETCH_ASSOC)['total'];
+                    
+                    // Nombre d'équipes enregistrées
+                    $totalTeams = $pdo->query("SELECT COUNT(*) as total FROM equipes")->fetch(PDO::FETCH_ASSOC)['total'];
+                    
+                    // Taux de remplissage (exemple basé sur les matchs programmés vs joués)
+                    $totalScheduled = $pdo->query("SELECT COUNT(*) as total FROM matches WHERE status != 'annule'")->fetch(PDO::FETCH_ASSOC)['total'];
+                    $completionRate = $totalScheduled > 0 ? round(($totalMatches / $totalScheduled) * 100) : 0;
+                    
+                    // Statistiques du mois précédent pour la comparaison
+                    $lastMonthStart = date('Y-m-01', strtotime('first day of last month'));
+                    $lastMonthEnd = date('Y-m-t', strtotime('last day of last month'));
+                    
+                    $lastMonthMatches = $pdo->prepare("
+                        SELECT COUNT(*) as total 
+                        FROM matches 
+                        WHERE status = 'termine' 
+                        AND match_date BETWEEN ? AND ?
+                    ");
+                    $lastMonthMatches->execute([$lastMonthStart, $lastMonthEnd]);
+                    $lastMonthMatchCount = $lastMonthMatches->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+                    
+                    // Calcul des pourcentages d'évolution
+                    $matchChange = $lastMonthMatchCount > 0 ? 
+                        round(((count($currentMatches) - $lastMonthMatchCount) / $lastMonthMatchCount) * 100) : 100;
+                    
+                } catch (PDOException $e) {
+                    error_log("Erreur lors de la récupération des statistiques: " . $e->getMessage());
+                    // Valeurs par défaut en cas d'erreur
+                    $totalMatches = 0;
+                    $totalGoals = 0;
+                    $totalTeams = 0;
+                    $completionRate = 0;
+                    $matchChange = 0;
+                }
+                ?>
+                
                 <!-- Statistiques et indicateurs clés -->
                 <div class="row mb-4">
                     <!-- KPI Cards -->
@@ -982,11 +1026,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <i class="fas fa-futbol text-primary" style="font-size: 1.5rem;"></i>
                                     </div>
                                 </div>
+                                <?php if ($matchChange != 0): ?>
                                 <div class="mt-3">
-                                    <span class="badge bg-primary bg-opacity-10 text-primary">
-                                        <i class="fas fa-arrow-up me-1"></i> 12% ce mois-ci
+                                    <span class="badge bg-<?= $matchChange > 0 ? 'success' : 'danger' ?> bg-opacity-10 text-<?= $matchChange > 0 ? 'success' : 'danger' ?>">
+                                        <i class="fas fa-arrow-<?= $matchChange > 0 ? 'up' : 'down' ?> me-1"></i> 
+                                        <?= abs($matchChange) ?>% vs mois dernier
                                     </span>
                                 </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -997,15 +1044,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <h6 class="text-muted mb-2">Matchs terminés</h6>
-                                        <h3 class="mb-0">87</h3>
+                                        <h3 class="mb-0"><?= $totalMatches ?></h3>
                                     </div>
                                     <div class="bg-success bg-opacity-10 p-3 rounded">
                                         <i class="fas fa-flag-checkered text-success" style="font-size: 1.5rem;"></i>
                                     </div>
                                 </div>
                                 <div class="mt-3">
-                                    <span class="badge bg-success bg-opacity-10 text-success">
-                                        <i class="fas fa-arrow-up me-1"></i> 8% ce mois-ci
+                                    <span class="text-muted small">
+                                        <i class="fas fa-futbol me-1"></i> <?= $totalGoals ?> buts marqués
                                     </span>
                                 </div>
                             </div>
@@ -1018,15 +1065,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <h6 class="text-muted mb-2">Équipes enregistrées</h6>
-                                        <h3 class="mb-0">24</h3>
+                                        <h3 class="mb-0"><?= $totalTeams ?></h3>
                                     </div>
                                     <div class="bg-warning bg-opacity-10 p-3 rounded">
                                         <i class="fas fa-users text-warning" style="font-size: 1.5rem;"></i>
                                     </div>
                                 </div>
                                 <div class="mt-3">
-                                    <span class="badge bg-warning bg-opacity-10 text-warning">
-                                        <i class="fas fa-arrow-up me-1"></i> 3 cette semaine
+                                    <span class="text-muted small">
+                                        <i class="fas fa-trophy me-1"></i> 
+                                        <?php 
+                                        $activeCompetitions = $pdo->query("SELECT COUNT(DISTINCT competition) as count FROM matches WHERE status != 'termine'")->fetch(PDO::FETCH_ASSOC)['count'];
+                                        echo $activeCompetitions . ' compétitions actives';
+                                        ?>
                                     </span>
                                 </div>
                             </div>
@@ -1038,8 +1089,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <h6 class="text-muted mb-2">Taux de remplissage</h6>
-                                        <h3 class="mb-0">92%</h3>
+                                        <h6 class="text-muted mb-2">Taux de complétion</h6>
+                                        <h3 class="mb-0"><?= $completionRate ?>%</h3>
                                     </div>
                                     <div class="bg-info bg-opacity-10 p-3 rounded">
                                         <i class="fas fa-chart-pie text-info" style="font-size: 1.5rem;"></i>
@@ -1047,8 +1098,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                                 <div class="mt-3">
                                     <div class="progress" style="height: 6px;">
-                                        <div class="progress-bar bg-info" role="progressbar" style="width: 92%;" 
-                                             aria-valuenow="92" aria-valuemin="0" aria-valuemax="100"></div>
+                                        <div class="progress-bar bg-info" role="progressbar" 
+                                             style="width: <?= $completionRate ?>%;" 
+                                             aria-valuenow="<?= $completionRate ?>" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1061,10 +1116,171 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="card-header bg-white">
                         <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Aperçu des statistiques</h5>
                     </div>
-                    <div class="card-body
-                        <div id="stats-chart"></div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <canvas id="goalsChart" height="250"></canvas>
+                            </div>
+                            <div class="col-md-4">
+                                <h6 class="text-muted mb-3">Résumé des matchs</h6>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>Victoires à domicile</span>
+                                        <strong id="homeWins">0%</strong>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: 0%" 
+                                             aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>Matchs nuls</span>
+                                        <strong id="draws">0%</strong>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar bg-warning" role="progressbar" style="width: 0%" 
+                                             aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>Victoires à l'extérieur</span>
+                                        <strong id="awayWins">0%</strong>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar bg-info" role="progressbar" style="width: 0%" 
+                                             aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                                <div class="text-muted small mt-4">
+                                    <i class="fas fa-info-circle me-1"></i> Données mises à jour en temps réel
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                
+                <script>
+                // Charger les données pour le graphique des buts
+                document.addEventListener('DOMContentLoaded', function() {
+                    fetch('get_stats_data.php')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Mettre à jour le graphique des buts
+                                initGoalsChart(data.goalsData);
+                                
+                                // Mettre à jour les statistiques des matchs
+                                updateMatchStats(data.matchStats);
+                            } else {
+                                console.error('Erreur lors du chargement des données:', data.error);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erreur lors de la récupération des données:', error);
+                        });
+                    
+                    // Fonction pour initialiser le graphique des buts
+                    function initGoalsChart(goalsData) {
+                        const ctx = document.getElementById('goalsChart').getContext('2d');
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: goalsData.labels || [],
+                                datasets: [{
+                                    label: 'Buts marqués par match',
+                                    data: goalsData.data || [],
+                                    borderColor: 'rgba(54, 162, 235, 1)',
+                                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                                    tension: 0.3,
+                                    fill: true,
+                                    borderWidth: 2,
+                                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                                    pointBorderColor: '#fff',
+                                    pointHoverRadius: 5,
+                                    pointHoverBackgroundColor: 'rgba(54, 162, 235, 1)',
+                                    pointHoverBorderColor: '#fff',
+                                    pointHitRadius: 10,
+                                    pointBorderWidth: 2
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    },
+                                    tooltip: {
+                                        mode: 'index',
+                                        intersect: false,
+                                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                        titleFont: {
+                                            size: 14,
+                                            weight: 'bold'
+                                        },
+                                        bodyFont: {
+                                            size: 13
+                                        },
+                                        padding: 12,
+                                        displayColors: false
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            precision: 0
+                                        },
+                                        grid: {
+                                            drawBorder: false,
+                                            color: 'rgba(0, 0, 0, 0.05)'
+                                        }
+                                    },
+                                    x: {
+                                        grid: {
+                                            display: false
+                                        }
+                                    }
+                                },
+                                elements: {
+                                    line: {
+                                        borderWidth: 2
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Fonction pour mettre à jour les statistiques des matchs
+                    function updateMatchStats(stats) {
+                        if (!stats) return;
+                        
+                        // Mettre à jour les pourcentages et les barres de progression
+                        ['homeWins', 'draws', 'awayWins'].forEach((key, index) => {
+                            const element = document.getElementById(key);
+                            const progressBar = element.closest('.mb-3').querySelector('.progress-bar');
+                            const value = stats[key] || 0;
+                            
+                            element.textContent = value + '%';
+                            progressBar.style.width = value + '%';
+                            progressBar.setAttribute('aria-valuenow', value);
+                        });
+                    }
+                    
+                    // Rafraîchir les données toutes les 5 minutes
+                    setInterval(() => {
+                        fetch('get_stats_data.php?cache=' + new Date().getTime())
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    updateMatchStats(data.matchStats);
+                                }
+                            });
+                    }, 300000); // 5 minutes
+                });
+                </script>
                 
                 <!-- Alertes -->
                 <?php if (isset($_SESSION['message'])): ?>
@@ -1223,59 +1439,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             </div>
                                         </div>
                                         <div class="card-body p-3">
-                                            <!-- Ligne 1: Équipes et score -->
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <!-- Équipe à domicile -->
-                                                <div class="d-flex flex-column align-items-center" style="width: 40%;">
-                                                    <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_home']))) ?>.png" 
-                                                         alt="<?= htmlspecialchars($match['team_home']) ?>" 
-                                                         width="40" 
-                                                         class="mb-1"
-                                                         onerror="this.src='../assets/img/teams/default.png'">
-                                                    <div class="fw-bold text-center small"><?= htmlspecialchars($match['team_home']) ?></div>
+                                            <!-- Ligne unique pour les équipes, score et minuteur -->
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <!-- Équipe à domicile (réduit) -->
+                                                <div class="text-truncate" style="width: 30%;">
+                                                    <div class="d-flex flex-column align-items-center">
+                                                        <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_home']))) ?>" 
+                                                             alt="<?= htmlspecialchars($match['team_home']) ?>" 
+                                                             width="30" 
+                                                             class="mb-1"
+                                                             onerror="this.src='../assets/img/teams/default.png'">
+                                                        <div class="fw-bold text-center" style="font-size: 0.75rem; line-height: 1.1;">
+                                                            <?= mb_strimwidth(htmlspecialchars($match['team_home']), 0, 15, '...') ?>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 
-                                                <!-- Score -->
+                                                <!-- Score (plus petit) -->
                                                 <div class="d-flex flex-column align-items-center" style="width: 20%;">
-                                                    <div class="display-4 fw-bold text-center">
+                                                    <div class="fw-bold" style="font-size: 1.5rem; line-height: 1.2;">
                                                         <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
                                                     </div>
-                                                    <div class="badge bg-primary"><?= htmlspecialchars($match['phase']) ?></div>
+                                                    <div class="badge bg-primary" style="font-size: 0.6rem;"><?= htmlspecialchars($match['phase']) ?></div>
                                                 </div>
                                                 
-                                                <!-- Équipe à l'extérieur -->
-                                                <div class="d-flex flex-column align-items-center" style="width: 40%;">
-                                                    <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) ?>.png" 
-                                                         alt="<?= htmlspecialchars($match['team_away']) ?>" 
-                                                         width="40"
-                                                         class="mb-1"
-                                                         onerror="this.src='../assets/img/teams/default.png'">
-                                                    <div class="fw-bold text-center small"><?= htmlspecialchars($match['team_away']) ?></div>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Ligne 2: Minute du match et minuteur -->
-                                            <div class="d-flex justify-content-between align-items-center mt-3">
-                                                <div style="width: 40%;">
-                                                    <div class="small text-muted text-center">
-                                                        <i class="far fa-clock me-1"></i> 
-                                                        <?php 
-                                                        if (isset($match['match_time'])) {
-                                                            echo date('H:i', strtotime($match['match_time']));
-                                                        } else {
-                                                            echo '--:--';
-                                                        }
-                                                        ?>
+                                                <!-- Équipe à l'extérieur (réduit) -->
+                                                <div class="text-truncate" style="width: 30%;">
+                                                    <div class="d-flex flex-column align-items-center">
+                                                        <img src="../assets/img/teams/<?= htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) ?>.png" 
+                                                             alt="<?= htmlspecialchars($match['team_away']) ?>" 
+                                                             width="30"
+                                                             class="mb-1"
+                                                             onerror="this.src='../assets/img/teams/default.png'">
+                                                        <div class="fw-bold text-center" style="font-size: 0.75rem; line-height: 1.1;">
+                                                            <?= mb_strimwidth(htmlspecialchars($match['team_away']), 0, 15, '...') ?>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 
-                                                <div style="width: 20%;">
-                                                    <div class="timer-display text-center fw-bold" id="timer-<?= $match['id'] ?>">
-                                                        <?php
-                                                        if ($match['timer_status'] === 'ended') {
-                                                            echo '<span class="badge bg-danger">Terminé</span>';
-                                                        } else {
-                                                            $elapsed = $match['timer_elapsed'];
+                                                <!-- Minuteur et statut (sur la même ligne) -->
+                                                <div class="d-flex flex-column align-items-center" style="width: 20%;">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="far fa-clock me-1 small" style="font-size: 0.8rem;"></i>
+                                                        <span class="fw-bold" style="font-size: 0.9rem;" id="timer-<?= $match['id'] ?>">
+                                                            <?php
+                                                            if ($match['timer_status'] === 'ended') {
+                                                                echo '<span class="badge bg-danger">Terminé</span>';
+                                                            } else {
+                                                                $elapsed = $match['timer_elapsed'];
                                                             if ($match['timer_start'] && !$match['timer_paused']) {
                                                                 $elapsed += (strtotime('now') - strtotime($match['timer_start']));
                                                             }
@@ -1321,6 +1532,113 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                     <span>90'</span>
                                                 </div>
                                             </div>
+                                            
+                                            <!-- Formulaire de mise à jour des scores -->
+                                            <form method="post" class="mt-3">
+                                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                                <div class="row g-2 align-items-center">
+                                                    <div class="col-5">
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text bg-light">
+                                                                <?= substr(htmlspecialchars($match['team_home']), 0, 3) ?>.
+                                                            </span>
+                                                            <input type="number" name="score_home" class="form-control text-center fw-bold" 
+                                                                   value="<?= $match['score_home'] ?? '0' ?>" min="0" style="max-width: 60px;">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-2 text-center fw-bold">-</div>
+                                                    <div class="col-5">
+                                                        <div class="input-group input-group-sm">
+                                                            <input type="number" name="score_away" class="form-control text-center fw-bold" 
+                                                                   value="<?= $match['score_away'] ?? '0' ?>" min="0" style="max-width: 60px;">
+                                                            <span class="input-group-text bg-light">
+                                                                <?= substr(htmlspecialchars($match['team_away']), 0, 3) ?>.
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12 mt-2">
+                                                        <button type="submit" name="update_score" class="btn btn-primary btn-sm w-100">
+                                                            <i class="fas fa-save me-1"></i> Mettre à jour le score
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                            
+                                            <!-- Liste des buts -->
+                                            <?php 
+                                            $goals = $pdo->prepare("SELECT * FROM goals WHERE match_id = ? ORDER BY minute");
+                                            $goals->execute([$match['id']]);
+                                            $goals = $goals->fetchAll(PDO::FETCH_ASSOC);
+                                            ?>
+                                            
+                                            <?php if (!empty($goals)): ?>
+                                            <div class="mt-3">
+                                                <h6 class="fw-bold mb-2">Buteurs:</h6>
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    <?php foreach ($goals as $goal): ?>
+                                                    <span class="badge bg-<?= $goal['team'] === 'home' ? 'primary' : 'danger' ?> mb-1">
+                                                        <?= htmlspecialchars($goal['player']) ?> (<?= $goal['minute'] ?>')
+                                                    </span>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                            <?php endif; ?>
+                                            
+                                            <!-- Formulaire d'ajout de but -->
+                                            <form method="post" class="mt-3">
+                                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                                <div class="row g-2 align-items-end">
+                                                    <div class="col-md-5">
+                                                        <select name="team" class="form-select form-select-sm" required>
+                                                            <option value="">Sélectionner équipe</option>
+                                                            <option value="home"><?= htmlspecialchars($match['team_home']) ?></option>
+                                                            <option value="away"><?= htmlspecialchars($match['team_away']) ?></option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-5">
+                                                        <input type="text" name="player" class="form-control form-control-sm" placeholder="Nom du buteur" required>
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <div class="input-group input-group-sm">
+                                                            <input type="number" name="minute" class="form-control" placeholder="Min" min="1" max="120" required>
+                                                            <span class="input-group-text">'</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <button type="submit" name="add_goal" class="btn btn-success btn-sm w-100">
+                                                            <i class="fas fa-futbol me-1"></i> Ajouter but
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                            
+                                            <!-- Formulaire d'ajout de carton -->
+                                            <form method="post" class="mt-2">
+                                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                                <div class="row g-2 align-items-end">
+                                                    <div class="col-md-4">
+                                                        <select name="card_type" class="form-select form-select-sm" required>
+                                                            <option value="">Type de carton</option>
+                                                            <option value="yellow">Jaune</option>
+                                                            <option value="red">Rouge</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <input type="text" name="player" class="form-control form-control-sm" placeholder="Joueur" required>
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <div class="input-group input-group-sm">
+                                                            <input type="number" name="minute" class="form-control" placeholder="Min" min="1" max="120" required>
+                                                            <span class="input-group-text">'</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <button type="submit" name="add_card" class="btn btn-warning btn-sm w-100">
+                                                            <i class="fas fa-card me-1"></i> Ajouter
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </form>
                                             </div>
                                             
                                             <div class="mb-3">
@@ -1518,7 +1836,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 JOIN teams t1 ON m.team_home_id = t1.id
                                 JOIN teams t2 ON m.team_away_id = t2.id
                                 JOIN competitions c ON m.competition_id = c.id
-                                WHERE m.status = 'termine'
+                                WHERE m.status = 'completed'
                                 ORDER BY m.match_date DESC
                                 LIMIT 5
                             ")->fetchAll(PDO::FETCH_ASSOC);
