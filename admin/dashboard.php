@@ -1582,7 +1582,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <option value="">Tous les statuts</option>
                                 <option value="ongoing">En cours</option>
                                 <option value="completed">Terminé</option>
-                                <option value="waiting">En attente</option>
+                                <option value="pending">En attente</option>
                             </select>
                         </div>
                     </div>
@@ -1609,331 +1609,409 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 <?php else: ?>
-                            <div class="row">
-                                <?php foreach ($currentMatches as $match): ?>
-                                <div class="col-12 col-md-6 col-lg-4 mb-4 match-card" data-match-id="<?= $match['id'] ?>" data-competition="<?= htmlspecialchars($match['competition']) ?>" data-status="<?= $match['status'] ?>">
-                                    <div class="card h-100 shadow-sm">
-                                        <div class="card-header bg-light">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <h6 class="mb-0 text-muted small">
-                                                    <i class="fas fa-trophy me-1"></i> <?= htmlspecialchars($match['competition'] ?? 'Compétition' ) ?>
-                                                </h6>
-                                                <span class="badge bg-<?= in_array($match['status'], ['en_cours', 'ongoing']) ? 'success' : 'warning' ?> text-white">
-                                                    <?= in_array($match['status'], ['en_cours', 'ongoing']) ? 'En cours' : 'En attente' ?>
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div class="card-body p-3">
-                                            <!-- Ligne unique pour les équipes, score et minuteur -->
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <!-- Équipe à domicile -->
-                                                <div class="d-flex flex-column align-items-center" style="width: 35%;">
-                                                    <div class="d-flex align-items-center w-100">
-                                                        <?php 
-                                                        // Utiliser le chemin du logo depuis la base de données ou un logo par défaut
-                                                        $homeLogo = !empty($match['home_logo']) ? "../" . $match['home_logo'] : "../assets/img/teams/default.png";
-                                                        ?>
-                                                        <img src="<?= $homeLogo ?>" 
-                                                             alt="<?= htmlspecialchars($match['team_home']) ?>" 
-                                                             width="24" 
-                                                             height="24"
-                                                             class="me-2"
-                                                             onerror="this.src='../assets/img/teams/default.png'"
-                                                             style="object-fit: contain;">
-                                                        <div class="text-truncate" style="font-size: 0.85rem; font-weight: 500;">
-                                                            <?= mb_strimwidth(htmlspecialchars($match['team_home']), 0, 20, '...') ?>
-                                                        </div>
-                                                    </div>
-                                                    <div class="fw-bold mt-1" style="font-size: 1.1rem;">
-                                                        <?= $match['score_home'] ?? '0' ?>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Score et minuteur au centre -->
-                                                <div class="d-flex flex-column align-items-center" style="width: 30%;">
-                                                    <div class="badge bg-primary mb-1" style="font-size: 0.65rem;"><?= htmlspecialchars($match['phase']) ?></div>
-                                                    <div class="d-flex align-items-center justify-content-center" style="min-width: 80px;">
-                                                        <span class="fw-bold" style="font-size: 1.1rem;">
-                                                            <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
-                                                        </span>
-                                                    </div>
-                                                    <div class="d-flex align-items-center mt-1" style="font-size: 0.8rem;">
-                                                        <i class="far fa-clock me-1"></i>
-                                                        <span class="fw-bold" id="timer-<?= $match['id'] ?>">
-                                                            <?php
-                                                            if (($match['timer_status'] ?? '') === 'ended') {
-                                                                echo '<span class="badge bg-danger">Terminé</span>';
-                                                            } else {
-                                                                $elapsed = $match['timer_elapsed'] ?? 0;
-                                                                if (($match['timer_start'] ?? '') && !($match['timer_paused'] ?? true)) {
-                                                                    $elapsed += (strtotime('now') - strtotime($match['timer_start']));
-                                                                }
-                                                                $displayMinutes = floor($elapsed / 60);
-                                                                if (($match['timer_status'] ?? '') === 'second_half') {
-                                                                    $firstHalfMinutes = floor(($match['first_half_duration'] ?? 0) / 60);
-                                                                    $displayMinutes += $firstHalfMinutes;
-                                                                }
-                                                                $displaySeconds = $elapsed % 60;
-                                                                echo sprintf('%02d:%02d', $displayMinutes, $displaySeconds);
-                                                            }
-                                                            ?>
-                                                        </span>
-                                                    </div>
-                                                    <div class="small text-muted mt-1" style="font-size: 0.7rem;">
-                                                        <?php if (in_array($match['status'] ?? '', ['en_cours', 'ongoing'])): ?>
-                                                            <?= $match['timer_status'] === 'second_half' ? '2ème mi-temps' : '1ère mi-temps' ?>
-                                                        <?php else: ?>
-                                                            En attente
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Équipe à l'extérieur -->
-                                                <div class="d-flex flex-column align-items-center" style="width: 35%;">
-                                                    <div class="d-flex align-items-center w-100 justify-content-end">
-                                                        <div class="text-truncate text-end me-2" style="font-size: 0.85rem; font-weight: 500;">
-                                                            <?= mb_strimwidth(htmlspecialchars($match['team_away']), 0, 20, '...') ?>
-                                                        </div>
-                                                        <?php 
-                                                        // Utiliser le chemin du logo depuis la base de données ou un logo par défaut
-                                                        $awayLogo = !empty($match['away_logo']) ? "../" . $match['away_logo'] : "../assets/img/teams/default.png";
-                                                        ?>
-                                                        <img src="<?= $awayLogo ?>" 
-                                                             alt="<?= htmlspecialchars($match['team_away']) ?>" 
-                                                             width="24" 
-                                                             height="24"
-                                                             class="ms-2"
-                                                             onerror="this.src='../assets/img/teams/default.png'"
-                                                             style="object-fit: contain;">
-                                                    </div>
-                                                    <div class="fw-bold mt-1" style="font-size: 1.1rem;">
-                                                        <?= $match['score_away'] ?? '0' ?>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Détails du match -->
-                                            <div class="text-center text-muted small mt-2">
-                                                <i class="fas fa-calendar-alt me-1"></i> 
-                                                <?= date('d/m/Y H:i', strtotime($match['match_date'] . ' ' . $match['match_time'])) ?>
-                                                <br>
-                                                <i class="fas fa-map-marker-alt me-1"></i> 
-                                                <?= htmlspecialchars($match['location'] ?? 'Lieu non spécifié') ?>
-                                            </div>
-                                            
-                                            <!-- Boutons d'action -->
-                                            <div class="action-buttons mt-3 d-flex flex-wrap justify-content-center gap-1">
-                                                <?php if ($match['status'] === 'pending'): ?>
-                                                    <form method="POST" class="d-inline">
-                                                        <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                        <button type="submit" name="start_first_half" class="btn btn-sm btn-primary">
-                                                            <i class="fas fa-play me-1"></i> Débuter
-                                                        </button>
-                                                    </form>
-                                                <?php elseif ($match['status'] === 'ongoing'): ?>
-                                                    <form method="POST" class="d-inline">
-                                                        <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                        <button type="submit" name="stop_timer" class="btn btn-sm btn-warning">
-                                                            <i class="fas fa-pause me-1"></i> Mi-temps/Fin
-                                                        </button>
-                                                    </form>
-                                                    <?php if ($match['timer_status'] === 'half_time'): ?>
-                                                        <form method="POST" class="d-inline">
-                                                            <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                            <button type="submit" name="start_second_half" class="btn btn-sm btn-primary">
-                                                                <i class="fas fa-play me-1"></i> 2ème mi-temps
-                                                            </button>
-                                                        </form>
-                                                    <?php endif; ?>
-                                                    <button class="btn btn-sm btn-success" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#scoreModal-<?= $match['id'] ?>">
-                                                        <i class="fas fa-futbol me-1"></i> Score
-                                                    </button>
-                                                    <button class="btn btn-sm btn-info" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#goalModal-<?= $match['id'] ?>">
-                                                        <i class="fas fa-plus me-1"></i> But
-                                                    </button>
-                                                    <button class="btn btn-sm btn-warning" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#cardModal-<?= $match['id'] ?>">
-                                                        <i class="fas fa-id-card me-1"></i> Carton
-                                                    </button>
-                                                    <button class="btn btn-sm btn-secondary" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#extraTimeModal-<?= $match['id'] ?>">
-                                                        <i class="fas fa-clock me-1"></i> Temps add.
-                                                    </button>
-                                                    <form method="POST" class="d-inline">
-                                                        <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                        <button type="submit" name="finalize_match" class="btn btn-sm btn-danger"
-                                                                onclick="return confirm('Confirmez-vous la finalisation du match ?')">
-                                                            <i class="fas fa-flag-checkered me-1"></i> Finaliser
-                                                        </button>
-                                                    </form>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
+    <div class="row g-3">
+        <?php foreach ($currentMatches as $match): 
+            // Déterminer l'état du match pour le style
+            $matchStatus = '';
+            $statusText = '';
+            
+            if (in_array($match['status'], ['en_cours', 'ongoing'])) {
+                $matchStatus = 'ongoing';
+                $statusText = 'En cours';
+                $badgeClass = 'bg-success';
+                $borderClass = 'border-primary';
+            } elseif ($match['status'] === 'pending') {
+                $matchStatus = 'pending';
+                $statusText = 'En attente';
+                $badgeClass = 'bg-warning text-dark';
+                $borderClass = 'border-warning';
+            } elseif ($match['status'] === 'completed') {
+                $matchStatus = 'completed';
+                $statusText = 'Terminé';
+                $badgeClass = 'bg-secondary';
+                $borderClass = 'border-secondary';
+            }
+            
+            // Déterminer la mi-temps en cours
+            $halfText = '';
+            if (in_array($match['status'], ['en_cours', 'ongoing'])) {
+                $halfText = ($match['timer_status'] === 'second_half') ? '2ème mi-temps' : '1ère mi-temps';
+            }
+            
+            // Calculer le temps écoulé
+            $elapsed = $match['timer_elapsed'] ?? 0;
+            if (($match['timer_start'] ?? '') && !($match['timer_paused'] ?? true) && $matchStatus === 'ongoing') {
+                $elapsed += (time() - strtotime($match['timer_start']));
+            }
+            
+            // Ajuster pour la deuxième mi-temps
+            $displayMinutes = floor($elapsed / 60);
+            if (($match['timer_status'] ?? '') === 'second_half') {
+                $firstHalfMinutes = floor(($match['first_half_duration'] ?? 0) / 60);
+                $displayMinutes += $firstHalfMinutes;
+            }
+            $displaySeconds = $elapsed % 60;
+            
+            // Chemins des logos
+            $homeLogo = !empty($match['home_logo']) ? "../" . $match['home_logo'] : "../assets/img/teams/default.png";
+            $awayLogo = !empty($match['away_logo']) ? "../" . $match['away_logo'] : "../assets/img/teams/default.png";
+        ?>
+        <div class="col-12 col-md-6 col-xl-4 match-card" 
+             data-match-id="<?= $match['id'] ?>" 
+             data-competition="<?= htmlspecialchars($match['competition']) ?>" 
+             data-status="<?= $matchStatus ?>">
+            
+            <div class="card h-100 shadow-sm border-2 <?= $borderClass ?>">
+                <!-- En-tête de la carte -->
+                <div class="card-header d-flex justify-content-between align-items-center <?= $matchStatus === 'ongoing' ? 'bg-primary' : ($matchStatus === 'completed' ? 'bg-success' : 'bg-warning') ?> text-white">
+                    <div>
+                        <i class="fas fa-trophy me-1"></i>
+                        <span class="fw-bold"><?= htmlspecialchars($match['competition'] ?? 'Compétition') ?></span>
+                    </div>
+                    <span class="badge <?= $badgeClass ?>">
+                        <?= $statusText ?>
+                    </span>
+                </div>
+                
+                <!-- Corps de la carte -->
+                <div class="card-body">
+                    <!-- Ligne des équipes et du score -->
+                    <div class="row align-items-center mb-3">
+                        <!-- Équipe à domicile -->
+                        <div class="col-5 text-end">
+                            <div class="d-flex flex-column align-items-end">
+                                <div class="fw-bold text-truncate" style="max-width: 100%;">
+                                    <?= htmlspecialchars($match['team_home']) ?>
+                                </div>
+                                <div class="small text-muted">
+                                    <?= $match['score_home'] ?? '0' ?>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Logo à domicile -->
+                        <div class="col-2 text-center">
+                            <img src="<?= $homeLogo ?>" 
+                                 alt="<?= htmlspecialchars($match['team_home']) ?>" 
+                                 class="img-fluid" 
+                                 style="max-height: 40px; width: auto;"
+                                 onerror="this.src='../assets/img/teams/default.png'">
+                        </div>
+                        
+                        <!-- Score et minuteur -->
+                        <div class="col-2 text-center">
+                            <div class="fw-bold">
+                                <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
+                            </div>
+                            <div class="small text-muted">
+                                <i class="far fa-clock"></i> 
+                                <?= sprintf('%02d:%02d', $displayMinutes, $displaySeconds) ?>
+                            </div>
+                            <?php if (!empty($halfText)): ?>
+                                <span class="badge bg-info text-dark small"><?= $halfText ?></span>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <!-- Logo à l'extérieur -->
+                        <div class="col-2 text-center">
+                            <img src="<?= $awayLogo ?>" 
+                                 alt="<?= htmlspecialchars($match['team_away']) ?>" 
+                                 class="img-fluid" 
+                                 style="max-height: 40px; width: auto;"
+                                 onerror="this.src='../assets/img/teams/default.png'">
+                        </div>
+                        
+                        <!-- Équipe à l'extérieur -->
+                        <div class="col-5 text-start">
+                            <div class="d-flex flex-column align-items-start">
+                                <div class="fw-bold text-truncate" style="max-width: 100%;">
+                                    <?= htmlspecialchars($match['team_away']) ?>
+                                </div>
+                                <div class="small text-muted">
+                                    <?= $match['score_away'] ?? '0' ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Détails du match -->
+                    <div class="text-center text-muted small mb-3">
+                        <div class="mb-1">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            <?= date('d/m/Y H:i', strtotime($match['match_date'])) ?>
+                            <span class="mx-2">•</span>
+                            <i class="fas fa-map-marker-alt me-1"></i>
+                            <?= htmlspecialchars($match['stadium'] ?? 'Stade non spécifié') ?>
+                        </div>
+                        <?php if (!empty($match['referee'])): ?>
+                            <div>
+                                <i class="fas fa-whistle me-1"></i>
+                                Arbitre: <?= htmlspecialchars($match['referee']) ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Boutons d'action -->
+                    <div class="d-flex flex-wrap justify-content-center gap-2">
+                        <?php if ($matchStatus === 'pending'): ?>
+                            <!-- Bouton pour démarrer le match -->
+                            <form method="POST" class="d-inline">
+                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                <button type="submit" name="start_first_half" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-play me-1"></i> Démarrer le match
+                                </button>
+                            </form>
+                        <?php else: ?>
+                            <!-- Boutons pour les matchs en cours -->
+                            <div class="btn-group btn-group-sm" role="group">
+                                <!-- Bouton Score -->
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#scoreModal-<?= $match['id'] ?>">
+                                    <i class="fas fa-futbol"></i> Score
+                                </button>
+
+                                <!-- Bouton But -->
+                                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#goalModal-<?= $match['id'] ?>">
+                                    <i class="fas fa-futbol"></i> But
+                                </button>
+
+                                <!-- Bouton Carton -->
+                                <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#cardModal-<?= $match['id'] ?>">
+                                    <i class="fas fa-card"></i> Carton
+                                </button>
+
+                                <?php if (($match['timer_status'] ?? '') !== 'ended'): ?>
+                                    <?php if (($match['timer_paused'] ?? true) || !($match['timer_start'] ?? '')): ?>
+                                        <form method="POST" class="d-inline">
+                                            <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                            <button type="submit" name="resume_timer" class="btn btn-success">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <form method="POST" class="d-inline">
+                                            <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                            <button type="submit" name="stop_timer" class="btn btn-warning">
+                                                <i class="fas fa-pause"></i>
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+
+                                    <?php if (($match['timer_status'] ?? '') === 'first_half' && ($match['timer_elapsed'] ?? 0) >= ($match['first_half_duration'] ?? 0)): ?>
+                                        <form method="POST" class="d-inline">
+                                            <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                            <button type="submit" name="start_second_half" class="btn btn-info">
+                                                <i class="fas fa-forward"></i> 2ème mi-temps
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+
+                                    <?php if (($match['timer_status'] ?? '') === 'second_half' && ($match['timer_elapsed'] ?? 0) >= ($match['second_half_duration'] ?? 0)): ?>
+                                        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#extraTimeModal-<?= $match['id'] ?>">
+                                            <i class="fas fa-plus-circle"></i> Prolong.
+                                        </button>
+
+                                        <form method="POST" class="d-inline">
+                                            <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                            <button type="submit" name="finalize_match" class="btn btn-danger"
+                                                    onclick="return confirm('Êtes-vous sûr de vouloir terminer ce match ?');">
+                                                <i class="fas fa-flag-checkered"></i> Terminer
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="badge bg-secondary align-self-center">Terminé</span>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Score -->
+            <div class="modal fade" id="scoreModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="scoreModalLabel-<?= $match['id'] ?>" aria-hidden="true">
+                <div class="modal-dialog modal-sm">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="scoreModalLabel-<?= $match['id'] ?>">
+                                Mettre à jour le score
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="POST">
+                            <div class="modal-body">
+                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label small">
+                                            <?= htmlspecialchars($match['team_home']) ?>
+                                        </label>
+                                        <input type="number" name="score_home" class="form-control form-control-sm"
+                                               value="<?= $match['score_home'] ?? 0 ?>" min="0" required>
                                     </div>
-                                    
-                                    <!-- Modal Score -->
-                                    <div class="modal fade" id="scoreModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="scoreModalLabel-<?= $match['id'] ?>" aria-hidden="true">
-                                        <div class="modal-dialog modal-sm">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title" id="scoreModalLabel-<?= $match['id'] ?>">
-                                                        Mettre à jour le score
-                                                    </h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <form method="POST">
-                                                    <div class="modal-body">
-                                                        <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                        <div class="row g-2">
-                                                            <div class="col-6">
-                                                                <label class="form-label small">
-                                                                    <?= htmlspecialchars($match['team_home']) ?>
-                                                                </label>
-                                                                <input type="number" name="score_home" class="form-control form-control-sm" 
-                                                                       value="<?= $match['score_home'] ?? 0 ?>" min="0" required>
-                                                            </div>
-                                                            <div class="col-6">
-                                                                <label class="form-label small">
-                                                                    <?= htmlspecialchars($match['team_away']) ?>
-                                                                </label>
-                                                                <input type="number" name="score_away" class="form-control form-control-sm" 
-                                                                       value="<?= $match['score_away'] ?? 0 ?>" min="0" required>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                                        <button type="submit" name="update_score" class="btn btn-sm btn-primary">Mettre à jour</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Modal But -->
-                                    <div class="modal fade" id="goalModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="goalModalLabel-<?= $match['id'] ?>" aria-hidden="true">
-                                        <div class="modal-dialog modal-sm">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title" id="goalModalLabel-<?= $match['id'] ?>">
-                                                        Ajouter un but
-                                                    </h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <form method="POST">
-                                                    <div class="modal-body">
-                                                        <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                        <div class="mb-2">
-                                                            <label class="form-label small">Équipe</label>
-                                                            <select name="team" class="form-select form-select-sm" required>
-                                                                <option value="home"><?= htmlspecialchars($match['team_home']) ?></option>
-                                                                <option value="away"><?= htmlspecialchars($match['team_away']) ?></option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label small">Joueur</label>
-                                                            <input type="text" name="player" class="form-control form-control-sm" required>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label small">Minute</label>
-                                                            <input type="number" name="minute" class="form-control form-control-sm" min="1" max="120" required>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                                        <button type="submit" name="add_goal" class="btn btn-sm btn-primary">Ajouter</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Modal Carton -->
-                                    <div class="modal fade" id="cardModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="cardModalLabel-<?= $match['id'] ?>" aria-hidden="true">
-                                        <div class="modal-dialog modal-sm">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title" id="cardModalLabel-<?= $match['id'] ?>">
-                                                        Ajouter un carton
-                                                    </h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <form method="POST">
-                                                    <div class="modal-body">
-                                                        <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                        <div class="mb-2">
-                                                            <label class="form-label small">Équipe</label>
-                                                            <select name="team" class="form-select form-select-sm" required>
-                                                                <option value="home"><?= htmlspecialchars($match['team_home']) ?></option>
-                                                                <option value="away"><?= htmlspecialchars($match['team_away']) ?></option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label small">Joueur</label>
-                                                            <input type="text" name="player" class="form-control form-control-sm" required>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label small">Type de carton</label>
-                                                            <select name="card_type" class="form-select form-select-sm" required>
-                                                                <option value="yellow">Jaune</option>
-                                                                <option value="red">Rouge</option>
-                                                                <option value="blue">Bleu</option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label small">Minute</label>
-                                                            <input type="number" name="minute" class="form-control form-control-sm" min="1" max="120" required>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                                        <button type="submit" name="add_card" class="btn btn-sm btn-primary">Ajouter</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Modal Temps additionnel -->
-                                    <div class="modal fade" id="extraTimeModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="extraTimeModalLabel-<?= $match['id'] ?>" aria-hidden="true">
-                                        <div class="modal-dialog modal-sm">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title" id="extraTimeModalLabel-<?= $match['id'] ?>">
-                                                        Temps additionnel
-                                                    </h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <form method="POST">
-                                                    <div class="modal-body">
-                                                        <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                                        <div class="mb-2">
-                                                            <label class="form-label small">Temps additionnel 1ère mi-temps (min)</label>
-                                                            <input type="number" name="first_half_extra" class="form-control form-control-sm" 
-                                                                   value="<?= ($match['first_half_extra'] ?? 0) / 60 ?>" min="0" max="30">
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <label class="form-label small">Temps additionnel 2ème mi-temps (min)</label>
-                                                            <input type="number" name="second_half_extra" class="form-control form-control-sm" 
-                                                                   value="<?= ($match['second_half_extra'] ?? 0) / 60 ?>" min="0" max="30">
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                                        <button type="submit" name="set_first_half_extra" class="btn btn-sm btn-primary">1ère mi-temps</button>
-                                                        <button type="submit" name="set_second_half_extra" class="btn btn-sm btn-primary">2ème mi-temps</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
+                                    <div class="col-6">
+                                        <label class="form-label small">
+                                            <?= htmlspecialchars($match['team_away']) ?>
+                                        </label>
+                                        <input type="number" name="score_away" class="form-control form-control-sm" 
+                                               value="<?= $match['score_away'] ?? 0 ?>" min="0" required>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <button type="submit" name="update_score" class="btn btn-sm btn-primary">Mettre à jour</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+                                    
+            <!-- Modal But -->
+            <div class="modal fade" id="goalModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="goalModalLabel-<?= $match['id'] ?>" aria-hidden="true">
+                <div class="modal-dialog modal-sm">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="goalModalLabel-<?= $match['id'] ?>">
+                                Ajouter un but
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="POST">
+                            <div class="modal-body">
+                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                <div class="mb-2">
+                                    <label class="form-label small">Équipe</label>
+                                    <select name="team" class="form-select form-select-sm" required>
+                                        <option value="home"><?= htmlspecialchars($match['team_home']) ?></option>
+                                        <option value="away"><?= htmlspecialchars($match['team_away']) ?></option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small">Joueur</label>
+                                    <input type="text" name="player" class="form-control form-control-sm" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small">Minute</label>
+                                    <input type="number" name="minute" class="form-control form-control-sm" min="1" max="120" required>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <button type="submit" name="add_goal" class="btn btn-sm btn-primary">Ajouter</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+                                    
+            <!-- Modal Carton -->
+            <div class="modal fade" id="cardModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="cardModalLabel-<?= $match['id'] ?>" aria-hidden="true">
+                <div class="modal-dialog modal-sm">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="cardModalLabel-<?= $match['id'] ?>">
+                                Ajouter un carton
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="POST">
+                            <div class="modal-body">
+                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                <div class="mb-2">
+                                    <label class="form-label small">Équipe</label>
+                                    <select name="team" class="form-select form-select-sm" required>
+                                        <option value="home"><?= htmlspecialchars($match['team_home']) ?></option>
+                                        <option value="away"><?= htmlspecialchars($match['team_away']) ?></option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small">Joueur</label>
+                                    <input type="text" name="player" class="form-control form-control-sm" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small">Type de carton</label>
+                                    <select name="card_type" class="form-select form-select-sm" required>
+                                        <option value="yellow">Jaune</option>
+                                        <option value="red">Rouge</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small">Minute</label>
+                                    <input type="number" name="minute" class="form-control form-control-sm" min="1" max="120" required>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <button type="submit" name="add_card" class="btn btn-sm btn-primary">Ajouter</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+                                    
+            <!-- Modal Temps additionnel -->
+            <div class="modal fade" id="extraTimeModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="extraTimeModalLabel-<?= $match['id'] ?>" aria-hidden="true">
+                <div class="modal-dialog modal-sm">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="extraTimeModalLabel-<?= $match['id'] ?>">
+                                Temps additionnel
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="POST">
+                            <div class="modal-body">
+                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                <div class="mb-2">
+                                    <label class="form-label small">Temps additionnel 1ère mi-temps (min)</label>
+                                    <input type="number" name="first_half_extra" class="form-control form-control-sm" 
+                                           value="<?= ($match['first_half_extra'] ?? 0) / 60 ?>" min="0" max="30">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small">Temps additionnel 2ème mi-temps (min)</label>
+                                    <input type="number" name="second_half_extra" class="form-control form-control-sm" 
+                                           value="<?= ($match['second_half_extra'] ?? 0) / 60 ?>" min="0" max="30">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <button type="submit" name="set_first_half_extra" class="btn btn-sm btn-primary">1ère mi-temps</button>
+                                <button type="submit" name="set_second_half_extra" class="btn btn-sm btn-primary">2ème mi-temps</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="extraTimeModalLabel-<?= $match['id'] ?>">
+                                Temps additionnel
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="POST">
+                            <div class="modal-body">
+                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                                <div class="mb-2">
+                                    <label class="form-label small">Temps additionnel 1ère mi-temps (min)</label>
+                                    <input type="number" name="first_half_extra" class="form-control form-control-sm" 
+                                           value="<?= ($match['first_half_extra'] ?? 0) / 60 ?>" min="0" max="30">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small">Temps additionnel 2ème mi-temps (min)</label>
+                                    <input type="number" name="second_half_extra" class="form-control form-control-sm" 
+                                           value="<?= ($match['second_half_extra'] ?? 0) / 60 ?>" min="0" max="30">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <button type="submit" name="set_first_half_extra" class="btn btn-sm btn-primary">1ère mi-temps</button>
+                                <button type="submit" name="set_second_half_extra" class="btn btn-sm btn-primary">2ème mi-temps</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
