@@ -1,5 +1,9 @@
 <?php
 require __DIR__ . '/admin_header.php';
+require_once __DIR__ . '/includes/match_functions.php';
+require_once __DIR__ . '/includes/match_actions/modals/score_modal.php';
+require_once __DIR__ . '/includes/match_actions/modals/goal_modal.php';
+require_once __DIR__ . '/includes/match_actions/modals/card_modal.php';
 
 // Récupérer les matchs en cours (en attente ou en cours)
 $currentMatches = [];
@@ -1765,18 +1769,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <!-- Boutons pour les matchs en cours -->
                             <div class="btn-group btn-group-sm" role="group">
                                 <!-- Bouton Score -->
-                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#scoreModal-<?= $match['id'] ?>">
-                                    <i class="fas fa-futbol"></i> Score
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#scoreModal-<?= $match['id'] ?>"
+                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Mettre à jour le score">
+                                    <i class="fas fa-futbol me-1"></i> Score
                                 </button>
 
                                 <!-- Bouton But -->
-                                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#goalModal-<?= $match['id'] ?>">
-                                    <i class="fas fa-futbol"></i> But
+                                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#goalModal-<?= $match['id'] ?>"
+                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Ajouter un but">
+                                    <i class="fas fa-futbol me-1"></i> But
                                 </button>
 
                                 <!-- Bouton Carton -->
-                                <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#cardModal-<?= $match['id'] ?>">
-                                    <i class="fas fa-card"></i> Carton
+                                <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#cardModal-<?= $match['id'] ?>"
+                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Ajouter un carton">
+                                    <i class="fas fa-card me-1"></i> Carton
                                 </button>
 
                                 <?php if (($match['timer_status'] ?? '') !== 'ended'): ?>
@@ -1827,127 +1834,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
-            <!-- Modal Score -->
-            <div class="modal fade" id="scoreModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="scoreModalLabel-<?= $match['id'] ?>" aria-hidden="true">
-                <div class="modal-dialog modal-sm">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="scoreModalLabel-<?= $match['id'] ?>">
-                                Mettre à jour le score
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form method="POST">
-                            <div class="modal-body">
-                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <label class="form-label small">
-                                            <?= htmlspecialchars($match['team_home']) ?>
-                                        </label>
-                                        <input type="number" name="score_home" class="form-control form-control-sm"
-                                               value="<?= $match['score_home'] ?? 0 ?>" min="0" required>
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label small">
-                                            <?= htmlspecialchars($match['team_away']) ?>
-                                        </label>
-                                        <input type="number" name="score_away" class="form-control form-control-sm" 
-                                               value="<?= $match['score_away'] ?? 0 ?>" min="0" required>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                <button type="submit" name="update_score" class="btn btn-sm btn-primary">Mettre à jour</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-                                    
-            <!-- Modal But -->
-            <div class="modal fade" id="goalModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="goalModalLabel-<?= $match['id'] ?>" aria-hidden="true">
-                <div class="modal-dialog modal-sm">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="goalModalLabel-<?= $match['id'] ?>">
-                                Ajouter un but
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form method="POST">
-                            <div class="modal-body">
-                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                <div class="mb-2">
-                                    <label class="form-label small">Équipe</label>
-                                    <select name="team" class="form-select form-select-sm" required>
-                                        <option value="home"><?= htmlspecialchars($match['team_home']) ?></option>
-                                        <option value="away"><?= htmlspecialchars($match['team_away']) ?></option>
-                                    </select>
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small">Joueur</label>
-                                    <input type="text" name="player" class="form-control form-control-sm" required>
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small">Minute</label>
-                                    <input type="number" name="minute" class="form-control form-control-sm" min="1" max="120" required>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                <button type="submit" name="add_goal" class="btn btn-sm btn-primary">Ajouter</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-                                    
-            <!-- Modal Carton -->
-            <div class="modal fade" id="cardModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="cardModalLabel-<?= $match['id'] ?>" aria-hidden="true">
-                <div class="modal-dialog modal-sm">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="cardModalLabel-<?= $match['id'] ?>">
-                                Ajouter un carton
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form method="POST">
-                            <div class="modal-body">
-                                <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
-                                <div class="mb-2">
-                                    <label class="form-label small">Équipe</label>
-                                    <select name="team" class="form-select form-select-sm" required>
-                                        <option value="home"><?= htmlspecialchars($match['team_home']) ?></option>
-                                        <option value="away"><?= htmlspecialchars($match['team_away']) ?></option>
-                                    </select>
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small">Joueur</label>
-                                    <input type="text" name="player" class="form-control form-control-sm" required>
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small">Type de carton</label>
-                                    <select name="card_type" class="form-select form-select-sm" required>
-                                        <option value="yellow">Jaune</option>
-                                        <option value="red">Rouge</option>
-                                    </select>
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small">Minute</label>
-                                    <input type="number" name="minute" class="form-control form-control-sm" min="1" max="120" required>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                <button type="submit" name="add_card" class="btn btn-sm btn-primary">Ajouter</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
+            <!-- Modales réutilisables -->
+            <?php 
+            // Afficher les modales réutilisables
+            if (isset($match['id'], $match['score_home'], $match['score_away'], $match['team_home'], $match['team_away'])) {
+                echo renderScoreModal($match['id'], $match['score_home'], $match['score_away']);
+                echo renderGoalModal($match['id'], $match['team_home'], $match['team_away']);
+                echo renderCardModal($match['id'], $match['team_home'], $match['team_away']);
+            }
+            ?>
                                     
             <!-- Modal Temps additionnel -->
             <div class="modal fade" id="extraTimeModal-<?= $match['id'] ?>" tabindex="-1" aria-labelledby="extraTimeModalLabel-<?= $match['id'] ?>" aria-hidden="true">
@@ -2093,6 +1988,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/match-actions.js"></script>
     <script>
         // Fonction de filtrage des matchs
         function filterMatches() {

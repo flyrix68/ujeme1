@@ -75,7 +75,7 @@ try {
 }
 
 // Calculate half duration
-$timerDuration = $match['timer_duration'] ?? 5400; // Default 90 minutes
+    $timerDuration = $match['timer_duration'] ?? 3000; // Default 50 minutes
 $halfDuration = floor($timerDuration / 2); // e.g., 2700 seconds (45 minutes)
 $firstHalfEndMinute = floor(($match['first_half_duration'] ?? $halfDuration) / 60); // Includes extra time
 
@@ -321,10 +321,22 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
                         <?php endif; ?>
                     </div>
 
-                    <!-- Back Button -->
-                    <a href="matches.php" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left me-1"></i> Retour aux Matchs
-                    </a>
+                    <!-- Match Controls -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="matches.php" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i> Retour aux Matchs  
+                        </a>
+                        <?php if ($match['status'] === 'ongoing'): ?>
+                            <div>
+                                <button class="btn btn-primary add-time" data-minutes="1">
+                                    +1 min
+                                </button>
+                                <button class="btn btn-primary add-time" data-minutes="3">  
+                                    +3 min
+                                </button>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div class="card-footer text-muted small">
                     Dernière mise à jour: <?= date('d/m/Y H:i:s') ?>
@@ -339,6 +351,29 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Handle add time buttons
+            document.querySelectorAll('.add-time').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const minutes = parseInt(this.dataset.minutes);
+                    fetch('api/add_match_time.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            match_id: <?= $matchId ?>,
+                            minutes: minutes
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        }
+                    });
+                });
+            });
+
             // Initialize tooltips
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.forEach(function(tooltipTriggerEl) {

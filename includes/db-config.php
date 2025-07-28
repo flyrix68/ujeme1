@@ -1,4 +1,5 @@
 <?php
+if (!class_exists('DatabaseConfig')) {
 class DatabaseConfig {
     private static $pdo = null;
     private static $last_connection_time = null;
@@ -103,3 +104,4 @@ class DatabaseConfig {
         return $defaultPath;
     }
 }
+} // Fin de la vérification class_exists
