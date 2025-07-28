@@ -4,13 +4,15 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// Database connection
+require_once 'includes/db-config.php';
+
 // Start session with consistent settings
 ini_set('session.gc_maxlifetime', 3600);
 session_set_cookie_params(3600, '/');
 session_start();
 
-// Database connection
-require_once 'includes/db-config.php';
+
 
 // Verify database connection
 if (!isset($pdo) || $pdo === null) {
@@ -108,15 +110,36 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
         }
         .match-card {
             transition: all 0.3s;
+            margin: 2rem auto;
+            max-width: 900px;
         }
         .match-card:hover {
             box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
         }
         .timer-display {
             font-family: monospace;
-            font-size: 1.5rem;
+            font-size: 2rem;
             font-weight: bold;
             color: #dc3545;
+        }
+        .team-display {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+        .team-display__logos img {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+        }
+        .team-display__score {
+            font-size: 3rem;
+        }
+        .team-display__name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            min-width: 150px;
+            text-align: center;
         }
     </style>
 </head>
@@ -150,8 +173,8 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div class="text-center">
+                    <div class="team-display">
+                        <div class="team-display__logos text-center">
                             <?php
                             $home_logo = 'assets/img/teams/' . htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_home']))) . '.png';
                             if (!file_exists($home_logo)) {
@@ -159,14 +182,15 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
                             }
                             ?>
                             <img src="<?= DatabaseConfig::getTeamLogo($match['team_home']) ?>" 
-                                 alt="<?= htmlspecialchars($match['team_home']) ?>" width="70">
-                            <div class="fw-bold mt-2 fs-5"><?= htmlspecialchars($match['team_home']) ?></div>
+                                 alt="<?= htmlspecialchars($match['team_home']) ?>">
+                            <div class="team-display__name"><?= htmlspecialchars($match['team_home']) ?></div>
                         </div>
-                        <div class="text-center">
-                            <div class="display-3 fw-bold">
+                        
+                        <div class="team-display__score text-center">
+                            <div class="fw-bold">
                                 <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
                             </div>
-                            <div class="timer-display mt-2" id="match-timer">
+                            <div class="timer-display" id="match-timer">
                                 <?php
                                 if ($match['status'] === 'completed' || $match['timer_status'] === 'ended') {
                                     // Show X/X for completed matches
@@ -194,7 +218,7 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
                                     <?php endif; ?>
                                 </small>
                         </div>
-                        <div class="text-center">
+                        <div class="team-display__logos text-center">
                             <?php
                             $away_logo = 'assets/img/teams/' . htmlspecialchars(strtolower(str_replace(' ', '-', $match['team_away']))) . '.png';
                             if (!file_exists($away_logo)) {
@@ -202,8 +226,8 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
                             }
                             ?>
                             <img src="<?= DatabaseConfig::getTeamLogo($match['team_away']) ?>" 
-                                 alt="<?= htmlspecialchars($match['team_away']) ?>" width="70">
-                            <div class="fw-bold mt-2 fs-5"><?= htmlspecialchars($match['team_away']) ?></div>
+                                 alt="<?= htmlspecialchars($match['team_away']) ?>">
+                            <div class="team-display__name"><?= htmlspecialchars($match['team_away']) ?></div>
                         </div>
                     </div>
 
@@ -322,10 +346,10 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
             });
 
             // Real-time timer for ongoing matches
-            <?php if ($match['status'] === 'ongoing' && $match['timer_start_unix'] && $match['timer_status'] !== 'half_time' && $match['timer_status'] !== 'ended'): ?>
+            <?php if ($match['status'] === 'ongoing'): ?>
                 (function() {
                     var timerElement = document.getElementById('match-timer');
-                    var startTime = <?= $match['timer_start_unix'] ?>;
+                    var startTime = <?= $match['timer_start_unix'] ?? 'null' ?>;
                     var elapsed = <?= $match['timer_elapsed'] ?? 0 ?>;
                     var duration = <?= $timerDuration ?>;
                     var halfDuration = <?= $halfDuration ?>;
@@ -335,29 +359,9 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
                     var intervalId = null;
 
                     function updateTimer() {
-                        if (timerStatus === 'half_time') {
-                            timerElement.textContent = 'Mi-temps / ' + formatTime(duration);
-                            clearInterval(intervalId);
-                            return;
-                        }
-                        if (timerStatus === 'ended') {
-                            timerElement.textContent = formatTime(duration) + ' / ' + formatTime(duration);
-                            clearInterval(intervalId);
-                            return;
-                        }
-
                         var now = Math.floor(Date.now() / 1000);
-                        var totalSeconds = elapsed + (now - startTime);
+                        var totalSeconds = elapsed + (startTime ? (now - startTime) : 0);
                         if (totalSeconds < 0) totalSeconds = 0;
-
-                        // Cap elapsed time
-                        var limit = halfDuration + additionalTime;
-                        if (totalSeconds > limit) {
-                            totalSeconds = limit;
-                            timerElement.textContent = (isSecondHalf ? 'Terminé' : 'Mi-temps') + ' / ' + formatTime(duration);
-                            clearInterval(intervalId);
-                            return;
-                        }
 
                         // Calculate display time
                         var minutes = Math.floor(totalSeconds / 60);
@@ -366,6 +370,16 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
 
                         // Update display
                         timerElement.textContent = displayTime + ' / ' + formatTime(duration);
+
+                        // Check if match should end
+                        if (timerStatus === 'first_half' && totalSeconds >= halfDuration + additionalTime) {
+                            timerElement.textContent = 'Mi-temps / ' + formatTime(duration);
+                            if (intervalId) clearInterval(intervalId);
+                        }
+                        else if (timerStatus === 'second_half' && totalSeconds >= duration) {
+                            timerElement.textContent = 'Terminé / ' + formatTime(duration);
+                            if (intervalId) clearInterval(intervalId);
+                        }
                     }
 
                     function formatTime(seconds) {
@@ -374,8 +388,11 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
                         return (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
                     }
 
+                    // Update immediately and every second
                     updateTimer();
-                    intervalId = setInterval(updateTimer, 1000);
+                    if (startTime && timerStatus !== 'half_time' && timerStatus !== 'ended') {
+                        intervalId = setInterval(updateTimer, 1000);
+                    }
                 })();
             <?php endif; ?>
         });
