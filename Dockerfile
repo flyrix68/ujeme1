@@ -5,22 +5,29 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
     gnupg \
-    lsb-release
+    lsb-release \
+    && rm -rf /var/lib/apt/lists/*
 
 # Add PHP repository
 RUN curl -sSLo /usr/share/keyrings/php.gpg https://packages.sury.org/php/apt.gpg
 RUN echo "deb [signed-by=/usr/share/keyrings/php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list
 
-# Install Apache and PHP
+# Install Apache, PHP, and required extensions
 RUN apt-get update && apt-get install -y \
     apache2 \
     libapache2-mod-php8.2 \
     php8.2 \
-    php8.2-mysql \
+    php8.2-cli \
     php8.2-common \
+    php8.2-mysql \
+    php8.2-pdo \
     php8.2-opcache \
+    php8.2-mbstring \
+    php8.2-xml \
+    php8.2-curl \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && phpenmod pdo_mysql
 
 # Configure Apache
 RUN a2enmod rewrite
@@ -35,9 +42,27 @@ WORKDIR /var/www/html
 
 # PHP configuration
 RUN mkdir -p /etc/php/8.2/apache2/conf.d
-RUN echo "display_errors = On" >> /etc/php/8.2/apache2/conf.d/error-logging.ini
-RUN echo "error_log = /var/log/php_errors.log" >> /etc/php/8.2/apache2/conf.d/error-logging.ini
-RUN echo "log_errors = On" >> /etc/php/8.2/apache2/conf.d/error-logging.ini
+
+# Create PHP configuration file with essential settings
+RUN { \
+    echo 'display_errors = On'; \
+    echo 'error_log = /var/log/php_errors.log'; \
+    echo 'log_errors = On'; \
+    echo 'error_reporting = E_ALL'; \
+    echo 'display_startup_errors = On'; \
+    echo 'date.timezone = UTC'; \
+    echo 'memory_limit = 256M'; \
+    echo 'upload_max_filesize = 64M'; \
+    echo 'post_max_size = 64M'; \
+    echo 'max_execution_time = 300'; \
+    echo 'session.save_handler = files'; \
+    echo 'session.save_path = "/var/lib/php/sessions"'; \
+} > /etc/php/8.2/apache2/conf.d/99-custom.ini
+
+# Ensure the sessions directory exists and has correct permissions
+RUN mkdir -p /var/lib/php/sessions \
+    && chown -R www-data:www-data /var/lib/php/sessions \
+    && chmod 1733 /var/lib/php/sessions
 
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www/html

@@ -1,4 +1,8 @@
 <?php
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 if (!class_exists('DatabaseConfig')) {
 class DatabaseConfig {
     private static $pdo = null;
@@ -17,7 +21,7 @@ class DatabaseConfig {
                         self::$pdo->query('SELECT 1')->fetchColumn();
                         return self::$pdo;
                     } catch (PDOException $e) {
-                        error_log("Existing connection failed - creating new one");
+                        error_log("Existing connection failed - " . $e->getMessage());
                         self::$pdo = null;
                     }
                 }
@@ -39,15 +43,24 @@ class DatabaseConfig {
                 ];
                 
                 // Only add SSL options if the certificate file exists
+                // For Railway, we'll try both with and without SSL
                 $certPath = __DIR__ . '/cacert.pem';
                 if (file_exists($certPath)) {
                     $options[PDO::MYSQL_ATTR_SSL_CA] = realpath($certPath);
                     $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+                    error_log('Using SSL with certificate: ' . $certPath);
                 } else {
                     error_log('SSL certificate not found at: ' . $certPath);
-                    // Try without SSL if certificate is not found
+                    // For Railway, we can try without SSL if needed
                     $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+                    error_log('Proceeding without SSL certificate verification');
                 }
+                
+                // Add connection timeout and other options
+                $options[PDO::ATTR_TIMEOUT] = 10;
+                $options[PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
+                $options[PDO::ATTR_EMULATE_PREPARES] = false;
+                $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES utf8mb4";
 
                 error_log("Attempting Railway connection to $dbHost:$dbPort");
                 self::$pdo = new PDO($dsn, $dbUser, $dbPass, $options);
