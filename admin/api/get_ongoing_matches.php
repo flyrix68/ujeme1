@@ -98,9 +98,17 @@ try {
         throw new Exception('Erreur de base de données: ' . $e->getMessage(), 500);
     }
 
+    // Durée par défaut pour un match de maracana (en secondes)
+    $defaultMatchDuration = 50 * 60; // 50 minutes
+    $defaultHalfDuration = $defaultMatchDuration / 2; // 25 minutes par mi-temps
+    
     // Calculer le temps écoulé pour chaque match
     $currentTime = time();
     foreach ($matches as &$match) {
+        // Utiliser la durée du match depuis la base de données ou la valeur par défaut (50 min)
+        $matchDuration = (int)($match['timer_duration'] ?? $defaultMatchDuration);
+        $halfDuration = $matchDuration / 2; // 25 minutes par défaut pour le maracana
+        
         $elapsed = (int)$match['timer_elapsed'];
         $displayMinutes = 0;
         $displaySeconds = 0;
@@ -113,11 +121,10 @@ try {
             $elapsed += ($currentTime - strtotime($match['timer_start']));
         }
         
-        // Calculer le temps d'affichage en fonction de la mi-temps
+        // Calculer le temps d'affichage en fonction de la mi-temps (format maracana 2x25 min)
         if ($isFirstHalf) {
-            $halfDuration = ($match['timer_duration'] ?? 2700) / 2; // 45 minutes par défaut
-            $extraTime = (int)($match['first_half_extra'] ?? 0);
-            $maxElapsed = $halfDuration + $extraTime;
+            // Pour la première mi-temps, on ne dépasse pas la durée de la mi-temps (25 min)
+            $maxElapsed = $halfDuration; // Pas de temps additionnel pour le maracana
             
             if ($elapsed > $maxElapsed) {
                 $elapsed = $maxElapsed;
@@ -129,22 +136,26 @@ try {
             $match['max_minutes'] = floor($maxElapsed / 60);
             
         } elseif ($isSecondHalf) {
-            $halfDuration = ($match['timer_duration'] ?? 2700) / 2; // 45 minutes par défaut
-            $firstHalfDuration = (int)($match['first_half_duration'] ?? $halfDuration);
-            $extraTime = (int)($match['second_half_extra'] ?? 0);
-            $maxElapsed = $halfDuration + $extraTime;
+            // Pour la seconde mi-temps, on commence à 25 min et on ne dépasse pas 50 min
+            $firstHalfDuration = $halfDuration; // 25 minutes pour la première mi-temps
+            $maxElapsed = $halfDuration; // 25 minutes pour la seconde mi-temps (pas de temps additionnel)
+            
+            // On ajuste le temps écoulé pour la seconde mi-temps (on soustrait la durée de la première mi-temps)
+            $elapsed = max(0, $elapsed - $firstHalfDuration);
             
             if ($elapsed > $maxElapsed) {
                 $elapsed = $maxElapsed;
             }
             
-            $displayMinutes = floor($elapsed / 60) + floor($firstHalfDuration / 60);
+            // Affichage du temps total (25 + temps écoulé en seconde mi-temps)
+            $displayMinutes = 25 + floor($elapsed / 60);
             $displaySeconds = $elapsed % 60;
             $match['half'] = '2ème';
-            $match['max_minutes'] = floor($maxElapsed / 60) + floor($firstHalfDuration / 60);
+            $match['max_minutes'] = 50; // 25 + 25 minutes
         } elseif ($isHalfTime) {
-            $displayMinutes = floor(($match['first_half_duration'] ?? $halfDuration) / 60);
-            $displaySeconds = ($match['first_half_duration'] ?? $halfDuration) % 60;
+            // Pendant la mi-temps, on affiche 25:00 (fin de la première mi-temps)
+            $displayMinutes = 25; // 25 minutes pour la première mi-temps
+            $displaySeconds = 0;
             $match['half'] = 'Mi-temps';
         } elseif ($isEnded) {
             $firstHalfDuration = (int)($match['first_half_duration'] ?? $halfDuration);
@@ -178,12 +189,12 @@ try {
                 'away_team' => $match['away_team'],
                 'score_home' => $match['score_home'],
                 'score_away' => $match['score_away'],
-                'timer_start' => strtotime($match['timer_start']),
+                'timer_start' => strtotime($match['timer_start'] ?? 'now'),
                 'timer_elapsed' => (int)($match['timer_elapsed'] ?? 0),
-                'match_duration' => (int)($match['match_duration'] ?? 5400), // 90 minutes par défaut
+                'match_duration' => (int)($match['timer_duration'] ?? $defaultMatchDuration), // 50 minutes par défaut pour le maracana
                 'timer_status' => $match['timer_status'] ?? 'not_started',
-                'first_half_duration' => (int)($match['first_half_duration'] ?? 2700), // 45 minutes par défaut
-                'second_half_duration' => (int)($match['second_half_duration'] ?? 2700) // 45 minutes par défaut
+                'first_half_duration' => (int)($match['first_half_duration'] ?? $defaultHalfDuration), // 25 minutes par défaut
+                'second_half_duration' => (int)($match['second_half_duration'] ?? $defaultHalfDuration) // 25 minutes par défaut
             ];
         }, $matches),
         'timestamp' => time()

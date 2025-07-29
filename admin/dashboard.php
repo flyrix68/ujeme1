@@ -2196,6 +2196,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- Inclure les scripts du minuteur -->
         <script src="js/match-timer.js"></script>
         <script src="js/init-match-timers.js"></script>
-        </script>
     </body>
 </html>
