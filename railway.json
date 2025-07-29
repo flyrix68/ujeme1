@@ -6,7 +6,7 @@
   },
   "deploy": {
     "startCommand": "/docker-entrypoint.sh",
-    "healthcheckPath": "/api/test_db.php",
+    "healthcheckPath": "/api/info.php",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5
