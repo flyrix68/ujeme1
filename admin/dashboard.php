@@ -2202,9 +2202,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Fonction pour mettre à jour les minuteurs des matchs
         function updateMatchTimers() {
+            console.log('Mise à jour des minuteurs...');
             fetch('api/get_ongoing_matches.php')
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Réponse reçue du serveur:', response.status);
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau: ' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Données reçues:', data);
                     if (data.success && data.matches) {
                         data.matches.forEach(match => {
                             const matchElement = document.querySelector(`.match-card[data-match-id="${match.id}"]`);
@@ -2270,11 +2278,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 });
         }
 
-        // Mettre à jour les minuteurs toutes les secondes
-        setInterval(updateMatchTimers, 1000);
+        // Fonction d'initialisation du minuteur
+        function initTimer() {
+            console.log('Initialisation du minuteur...');
+            // Mettre à jour immédiatement
+            updateMatchTimers();
+            // Puis toutes les secondes
+            setInterval(updateMatchTimers, 1000);
+        }
 
-        // Mettre à jour immédiatement au chargement de la page
-        document.addEventListener('DOMContentLoaded', updateMatchTimers);
+        // Démarrer le minuteur quand le DOM est chargé
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initTimer);
+        } else {
+            initTimer();
+        }
         </script>
     </body>
 </html>
