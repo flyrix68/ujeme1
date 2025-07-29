@@ -4,6 +4,13 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// Initialize session with consistent settings
+ini_set('session.gc_maxlifetime', 3600);
+session_set_cookie_params(3600, '/');
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Function to log actions in the audit log
 function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previousValue = null, $newValue = null) {
     // Validate inputs
@@ -61,10 +68,6 @@ function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previous
     }
 }
 
-// Start session with consistent settings
-ini_set('session.gc_maxlifetime', 3600);
-session_set_cookie_params(3600, '/');
-session_start();
 
 // Helper function to safely output HTML
 function safe_html($value, $default = '') {
@@ -414,90 +417,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception("Le match spécifié n'existe pas.");
                 }
                 
-            // First get match details to see if it was completed
-            $stmt = $pdo->prepare("SELECT status, competition, poule_id FROM matches WHERE id = ?");
-<?php
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+                // Récupérer les détails du match pour voir s'il était terminé
+                $stmt = $pdo->prepare("SELECT status, competition, poule_id, team_home, team_away, score_home, score_away FROM matches WHERE id = ?");
+                $stmt->execute([$match_id]);
+                $match = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$match) {
+                    throw new Exception("Impossible de récupérer les détails du match.");
+                }
 
-// Function to log actions in the audit log
-function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previousValue = null, $newValue = null) {
-    // Validate inputs
-    if (!is_numeric($matchId) || !is_string($actionType) || !in_array($actionType, [
-        'UPDATE_SCORE', 'ADD_GOAL', 'ADD_CARD', 'START_FIRST_HALF', 'END_FIRST_HALF', 
-        'START_SECOND_HALF', 'END_MATCH', 'SET_EXTRA_TIME', 'FINALIZE_MATCH', 
-        'SET_MATCH_DURATION', 'UPDATE_STANDING', 'CREATE_STANDING', 'DELETE_MATCH'
-    ])) {
-        error_log("Invalid logAction inputs: matchId=$matchId, actionType=$actionType");
-        return;
-    }
-    
-    if (!isset($_SESSION['user_id']) || !is_numeric($_SESSION['user_id'])) {
-        error_log("Invalid user_id in logAction: " . print_r($_SESSION, true));
-        return;
-    }
-
-    // Format action_details as JSON
-    $actionDetailsJson = null;
-    if (!is_null($actionDetails)) {
-        if (function_exists('mb_convert_encoding')) {
-            $actionDetails = mb_convert_encoding((string)$actionDetails, 'UTF-8', 'auto');
-        } else {
-            $actionDetails = (string)$actionDetails;
-        }
-        $actionDetailsJson = json_encode(['details' => $actionDetails], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    }
-
-    // Format previous and new values as JSON
-    $previousValueJson = !is_null($previousValue) ? json_encode(['value' => $previousValue], JSON_UNESCAPED_UNICODE) : null;
-    $newValueJson = !is_null($newValue) ? json_encode(['value' => $newValue], JSON_UNESCAPED_UNICODE) : null;
-
-    try {
-        $stmt = $pdo->prepare("
-            INSERT INTO match_logs 
-            (match_id, user_id, action_type, action_details, previous_value, new_value, created_at) 
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
-        ");
-        
-        $result = $stmt->execute([
-            $matchId,
-            $_SESSION['user_id'],
-            $actionType,
-            $actionDetailsJson,
-            $previousValueJson,
-            $newValueJson
-        ]);
-        
-        if (!$result) {
-            $errorInfo = $stmt->errorInfo();
-            error_log("Failed to log action: " . ($errorInfo[2] ?? 'Unknown error'));
-        }
-    } catch (PDOException $e) {
-        error_log("Database error in logAction: " . $e->getMessage());
-    }
-}
-
-// Start session with consistent settings
-ini_set('session.gc_maxlifetime', 3600);
-session_set_cookie_params(3600, '/');
-session_start();
-
-// Helper function to safely output HTML
-function safe_html($value, $default = '') {
-    return htmlspecialchars($value ?? $default, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-}
-
-// Log session data
-error_log("Session data in admin/manage_matches.php: " . print_r($_SESSION, true));
-
-// Verify admin authentication before anything else
-if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || ($_SESSION['role'] ?? 'membre') !== 'admin') {
-    error_log("Unauthorized access attempt to admin/manage_matches.php");
-    header('Location: ../index.php');
-    exit();
-}
+                // Démarrer une transaction pour la suppression
+                $pdo->beginTransaction();
+                
+                try {
+                    // Supprimer les logs associés au match
+                    $stmt = $pdo->prepare("DELETE FROM match_logs WHERE match_id = ?");
+                    $stmt->execute([$match_id]);
+                    
+                    // Supprimer le match
+                    $stmt = $pdo->prepare("DELETE FROM matches WHERE id = ?");
+                    $result = $stmt->execute([$match_id]);
+                    
+                    if ($result) {
+                        // Si c'était un match terminé, mettre à jour le classement
+                        if ($match['status'] === 'completed') {
+                            // Logique de mise à jour du classement ici
+                            // ...
+                        }
+                        
+                        // Valider la transaction
+                        $pdo->commit();
+                        
+                        // Journaliser l'action
+                        logAction($pdo, $match_id, 'DELETE_MATCH', 'Match supprimé', null, null);
+                        
+                        $_SESSION['message'] = "Le match a été supprimé avec succès.";
+                    } else {
+                        throw new Exception("Échec de la suppression du match.");
+                    }
+                } catch (Exception $e) {
+                    // En cas d'erreur, annuler la transaction
+                    $pdo->rollBack();
+                    throw $e;
+                }
 
 // Now initialize database connection safely
 try {
@@ -832,33 +794,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception("Le match spécifié n'existe pas.");
                 }
                 
-                // Récupérer les détails du match avant suppression pour mettre à jour le classement
-                $matchStmt = $pdo->prepare("SELECT m.*, p.name as poule_name, p.competition 
-                                         FROM matches m 
-                                         LEFT JOIN poules p ON m.poule_id = p.id 
-                                         WHERE m.id = ?");
+                // Récupérer les détails complets du match avant suppression
+                error_log("Récupération des détails du match ID: " . $match_id);
+                $matchStmt = $pdo->prepare("
+                    SELECT m.*, p.name as poule_name, p.competition 
+                    FROM matches m 
+                    LEFT JOIN poules p ON m.poule_id = p.id 
+                    WHERE m.id = ?
+                ");
                 $matchStmt->execute([$match_id]);
                 $match = $matchStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$match) {
+                    throw new Exception("Impossible de récupérer les détails du match.");
+                }
+                
+                error_log("Détails du match récupérés: " . print_r($match, true));
+                error_log("Statut du match: " . ($match['status'] ?? 'inconnu'));
                 
                 // Démarrer une transaction pour garantir l'intégrité des données
                 $pdo->beginTransaction();
                 
                 try {
                     // Si c'est un match terminé, mettre à jour le classement
-                    if ($match && $match['status'] === 'completed') {
-                        // Inverser les scores pour soustraire les statistiques
-                        $temp = $match['score_home'];
-                        $match['score_home'] = $match['score_away'];
-                        $match['score_away'] = $temp;
-                        
-                        // Mettre à jour le classement avec des valeurs négatives pour soustraire
+                    if ($match && isset($match['status']) && $match['status'] === 'completed') {
+                        error_log("Mise à jour du classement pour le match terminé ID: " . $match_id);
                         $season = date('Y') . '-' . (date('Y') + 1);
                         
-                        // Mettre à jour les statistiques de l'équipe à domicile
-                        $points = ($match['score_away'] > $match['score_home']) ? 3 : 
-                                 ($match['score_away'] == $match['score_home'] ? 1 : 0);
+                        // Récupération des scores
+                        $home_goals = (int)$match['score_home'];
+                        $away_goals = (int)$match['score_away'];
                         
-                        $stmt = $pdo->prepare("
+                        // Calcul des points pour chaque équipe
+                        $home_points = 0;
+                        $away_points = 0;
+                        
+                        if ($home_goals > $away_goals) {
+                            $home_points = 3;  // Victoire à domicile
+                        } elseif ($home_goals < $away_goals) {
+                            $away_points = 3;  // Victoire à l'extérieur
+                        } else {
+                            $home_points = 1;  // Match nul
+                            $away_points = 1;
+                        }
+                        
+                        // Mettre à jour le classement de l'équipe à domicile
+                        $updateStmt = $pdo->prepare("
                             UPDATE classement 
                             SET matchs_joues = GREATEST(0, matchs_joues - 1),
                                 matchs_gagnes = GREATEST(0, matchs_gagnes - ?),
@@ -866,66 +847,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 matchs_perdus = GREATEST(0, matchs_perdus - ?),
                                 buts_pour = GREATEST(0, buts_pour - ?),
                                 buts_contre = GREATEST(0, buts_contre - ?),
-                                difference_buts = buts_pour - buts_contre,
+                                difference_buts = (GREATEST(0, buts_pour - ?)) - (GREATEST(0, buts_contre - ?)),
                                 points = GREATEST(0, points - ?),
-                                forme = SUBSTRING(forme, 1, 4)  /* Supprimer le dernier résultat de la forme */
+                                forme = IF(LENGTH(forme) > 0, SUBSTRING(forme, 1, LENGTH(forme) - 1), ''),
+                                dernier_match_traite = NULL
                             WHERE saison = ? 
                             AND competition = ? 
                             AND poule_id = ? 
                             AND nom_equipe = ?
                         ");
-                        $stmt->execute([
-                            $points == 3 ? 1 : 0,  // matchs_gagnes
-                            $points == 1 ? 1 : 0,  // matchs_nuls
-                            $points == 0 ? 1 : 0,  // matchs_perdus
-                            $match['score_away'],  // buts_pour
-                            $match['score_home'],  // buts_contre
-                            $points,               // points
-                            $season,
-                            $match['competition'],
-                            $match['poule_id'],
-                            $match['team_away']
-                        ]);
                         
-                        // Mettre à jour les statistiques de l'équipe à l'extérieur
-                        $points = ($match['score_home'] > $match['score_away']) ? 3 : 
-                                 ($match['score_home'] == $match['score_away'] ? 1 : 0);
-                        
-                        $stmt->execute([
-                            $points == 3 ? 1 : 0,  // matchs_gagnes
-                            $points == 1 ? 1 : 0,  // matchs_nuls
-                            $points == 0 ? 1 : 0,  // matchs_perdus
-                            $match['score_home'],  // buts_pour
-                            $match['score_away'],  // buts_contre
-                            $points,               // points
+                        // Mise à jour de l'équipe à domicile
+                        $updateStmt->execute([
+                            $home_points == 3 ? 1 : 0,  // matchs_gagnes
+                            $home_points == 1 ? 1 : 0,  // matchs_nuls
+                            $home_points == 0 ? 1 : 0,  // matchs_perdus
+                            $home_goals,  // buts_pour
+                            $away_goals,  // buts_contre
+                            $home_goals,  // pour le calcul de la différence de buts
+                            $away_goals,  // pour le calcul de la différence de buts
+                            $home_points, // points
                             $season,
                             $match['competition'],
                             $match['poule_id'],
                             $match['team_home']
                         ]);
+                        
+                        // Mise à jour de l'équipe à l'extérieur
+                        $updateStmt->execute([
+                            $away_points == 3 ? 1 : 0,  // matchs_gagnes
+                            $away_points == 1 ? 1 : 0,  // matchs_nuls
+                            $away_points == 0 ? 1 : 0,  // matchs_perdus
+                            $away_goals,  // buts_pour
+                            $home_goals,  // buts_contre
+                            $away_goals,  // pour le calcul de la différence de buts
+                            $home_goals,  // pour le calcul de la différence de buts
+                            $away_points, // points
+                            $season,
+                            $match['competition'],
+                            $match['poule_id'],
+                            $match['team_away']
+                        ]);
                     }
                     
-                    // Maintenant supprimer le match
-                    $stmt = $pdo->prepare("DELETE FROM matches WHERE id = ?");
-                    $result = $stmt->execute([$match_id]);
+                    // Supprimer le match
+                    error_log("Tentative de suppression du match ID: " . $match_id);
+                    $deleteStmt = $pdo->prepare("DELETE FROM matches WHERE id = ?");
+                    $result = $deleteStmt->execute([$match_id]);
                     
                     if ($result) {
-                        // Valider la transaction
-                        $pdo->commit();
-                        
-                        // Journaliser l'action
+                        error_log("Match supprimé avec succès. ID: " . $match_id);
+                        // Journaliser l'action avant de valider la transaction
                         logAction(
                             $pdo,
                             $match_id,
                             'DELETE_MATCH',
-                            "Match supprimé",
+                            "Match supprimé avec mise à jour du classement",
                             json_encode($match),
                             null
                         );
                         
+                        // Valider la transaction si tout s'est bien passé
+                        $pdo->commit();
+                        
                         $_SESSION['message'] = "Le match a été supprimé avec succès et le classement a été mis à jour.";
-                } else {
-                    throw new Exception("Échec de la suppression du match.");
+                    } else {
+                        throw new Exception("Échec de la suppression du match.");
+                    }
+                } catch (Exception $e) {
+                    // En cas d'erreur, annuler la transaction
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+                    error_log("Erreur lors de la suppression du match: " . $e->getMessage());
+                    throw $e; // Relancer l'exception pour qu'elle soit traitée par le bloc catch parent
                 }
                 
             } catch (Exception $e) {
@@ -1185,6 +1180,7 @@ try {
             error_log("Erreur lors du traitement du match ID {$match['id']}: " . $e->getMessage());
             continue;  // Continuer avec le match suivant en cas d'erreur
         }
+    }  // Fin de la boucle foreach
 } catch (PDOException $e) {
     error_log("Error backfilling completed matches: " . $e->getMessage());
 }
@@ -1375,6 +1371,4 @@ try {
                 }
             }
         });
-    </script>
-</body>
-</html>
+?>
