@@ -178,11 +178,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_poule'])) {
 
 // Handle match form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
         error_log("Début du traitement du formulaire de match");
         
         // Add or update match
         if (isset($_POST['add_match']) || isset($_POST['update_match'])) {
+            error_log("Traitement d'ajout/mise à jour de match");
             error_log("Traitement d'ajout/mise à jour de match");
             
             // Récupération des données du formulaire
@@ -457,9 +457,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 } catch (Exception $e) {
                     // En cas d'erreur, annuler la transaction
-                    $pdo->rollBack();
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
                     throw $e;
                 }
+            } catch (Exception $e) {
+                error_log("Erreur lors de la suppression du match: " . $e->getMessage());
+                $_SESSION['error'] = "Erreur lors de la suppression du match: " . $e->getMessage();
+            }
+        }
+    }
+
+
+
 
 // Now initialize database connection safely
 try {
@@ -1217,15 +1228,77 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../styles.css">
-                    
-                    const homeTeam = match.team_home;
-                    const awayTeam = match.team_away;
-                    const homeScore = parseInt(match.score_home);
-                    const awayScore = parseInt(match.score_away);
-                    
-                    // Update home team stats
-                    teamStats[homeTeam].played++;
-                    teamStats[homeTeam].goalsFor += homeScore;
+    <script>
+        // JavaScript functions for match management
+        function updateMatchScores() {
+            const homeTeam = document.getElementById('home_team')?.value || '';
+            const awayTeam = document.getElementById('away_team')?.value || '';
+            const homeScore = parseInt(document.getElementById('home_score')?.value) || 0;
+            const awayScore = parseInt(document.getElementById('away_score')?.value) || 0;
+            
+            // Make sure we have valid team names
+            if (!homeTeam || !awayTeam) {
+                console.error('Missing team information');
+                return;
+            }
+            
+            // Initialize teamStats if it doesn't exist
+            window.teamStats = window.teamStats || {};
+            
+            // Initialize home team stats if they don't exist
+            if (!teamStats[homeTeam]) {
+                teamStats[homeTeam] = {
+                    played: 0,
+                    won: 0,
+                    drawn: 0,
+                    lost: 0,
+                    goalsFor: 0,
+                    goalsAgainst: 0,
+                    points: 0
+                };
+            }
+            
+            // Initialize away team stats if they don't exist
+            if (!teamStats[awayTeam]) {
+                teamStats[awayTeam] = {
+                    played: 0,
+                    won: 0,
+                    drawn: 0,
+                    lost: 0,
+                    goalsFor: 0,
+                    goalsAgainst: 0,
+                    points: 0
+                };
+            }
+            
+            // Update home team stats
+            teamStats[homeTeam].played++;
+            teamStats[homeTeam].goalsFor += homeScore;
+            teamStats[homeTeam].goalsAgainst += awayScore;
+            
+            // Update away team stats
+            teamStats[awayTeam].played++;
+            teamStats[awayTeam].goalsFor += awayScore;
+            teamStats[awayTeam].goalsAgainst += homeScore;
+            
+            // Update points based on match result
+            if (homeScore > awayScore) {
+                teamStats[homeTeam].won++;
+                teamStats[homeTeam].points += 3;
+                teamStats[awayTeam].lost++;
+            } else if (homeScore < awayScore) {
+                teamStats[awayTeam].won++;
+                teamStats[awayTeam].points += 3;
+                teamStats[homeTeam].lost++;
+            } else {
+                teamStats[homeTeam].drawn++;
+                teamStats[homeTeam].points += 1;
+                teamStats[awayTeam].drawn++;
+                teamStats[awayTeam].points += 1;
+            }
+            
+            // Update the UI
+            updateStandingsTable();
                     teamStats[homeTeam].goalsAgainst += awayScore;
                     
                     // Update away team stats
@@ -1318,7 +1391,7 @@ try {
                 standingsContainer.appendChild(standingsBody);
                 
                 document.getElementById('poules').appendChild(standingsContainer);
-            });
+           
             
             // Create a dropdown to select which standings to display
             const selectContainer = document.createElement('div');
@@ -1352,23 +1425,50 @@ try {
                     }
                 });
             });
+        
+        
+        // Function to update the standings table
+        function updateStandingsTable() {
+            const tableBody = document.getElementById('standings-body');
+            if (!tableBody) return;
+            
+            // Convert teamStats to array and sort by points (descending)
+            const standings = Object.entries(teamStats)
+                .map(([team, stats]) => ({
+                    team,
+                    ...stats,
+                    goalDifference: stats.goalsFor - stats.goalsAgainst
+                }))
+                .sort((a, b) => {
+                    // Sort by points (descending)
+                    if (b.points !== a.points) return b.points - a.points;
+                    // If points are equal, sort by goal difference (descending)
+                    if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+                    // If goal difference is equal, sort by goals scored (descending)
+                    return b.goalsFor - a.goalsFor;
+                });
+            
+            // Clear existing rows
+            tableBody.innerHTML = '';
+            
+            // Add rows for each team
+            standings.forEach((team, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${team.team}</td>
+                    <td>${team.played}</td>
+                    <td>${team.won}</td>
+                    <td>${team.drawn}</td>
+                    <td>${team.lost}</td>
+                    <td>${team.goalsFor}-${team.goalsAgainst}</td>
+                    <td>${team.goalDifference}</td>
+                    <td><strong>${team.points}</strong></td>
+                `;
+                tableBody.appendChild(row);
+            });
         }
         
-        // Call generateStandings when the page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize tooltips
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-            });
             
-            // Only generate standings if there are poules
-            const poules = <?= json_encode($poules) ?>;
-            if (poules && poules.length > 0) {
-                // Generate standings tables
-                if (document.querySelectorAll('#poules .card').length > 0) {
-                    generateStandings();
-                }
-            }
-        });
+        
 ?>

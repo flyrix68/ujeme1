@@ -81,21 +81,21 @@ try {
                 ALTER TABLE `classement`
                 ADD COLUMN `dernier_match_traite` TIMESTAMP NULL DEFAULT NULL
                 AFTER `forme`
-            
-            
+            ");
+
             // Mettre à jour les enregistrements existants avec la date actuelle
             $pdo->exec("
                 UPDATE `classement` 
                 SET `dernier_match_traite` = NOW() 
                 WHERE `dernier_match_traite` IS NULL
-            
-            
+            ");
+
             // Ajouter un index sur la colonne
             $pdo->exec("
                 ALTER TABLE `classement`
                 ADD INDEX `idx_dernier_match_traite` (`dernier_match_traite`)
-            
-            
+            ");
+
             $pdo->commit();
             
             echo "<div style='color: green; margin-top: 20px;'>✓ La colonne 'dernier_match_traite' a été ajoutée avec succès.</div>";
