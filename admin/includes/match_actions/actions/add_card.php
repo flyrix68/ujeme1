@@ -37,7 +37,7 @@ $reason = filter_input(INPUT_POST, 'reason', FILTER_SANITIZE_STRING);
 
 // Valider les données
 if ($matchId === false || !in_array($team, ['home', 'away']) || empty($player) || 
-    !in_array($cardType, ['yellow', 'red']) || $minute === false || $minute < 1 || $minute > 120) {
+    !in_array($cardType, ['yellow', 'red', 'blue']) || $minute === false || $minute < 1 || $minute > 120) {
     
     error_log("Données de carton invalides reçues: match_id=$matchId, team=$team, player=$player, card_type=$cardType, minute=$minute");
     header('HTTP/1.1 400 Bad Request');

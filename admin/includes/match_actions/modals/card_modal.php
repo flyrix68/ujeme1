@@ -68,6 +68,13 @@ function renderCardModal($matchId, $homeTeam, $awayTeam) {
                                         <i class="fas fa-square text-danger"></i> Rouge
                                     </label>
                                 </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="card_type" 
+                                           id="blue_{$matchId}" value="blue" required>
+                                    <label class="form-check-label" for="blue_{$matchId}">
+                                        <i class="fas fa-square text-primary"></i> Bleu (Maracana)
+                                    </label>
+                                </div>
                                 <div class="invalid-feedback">
                                     Veuillez sélectionner un type de carton
                                 </div>
