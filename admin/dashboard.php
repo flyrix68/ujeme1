@@ -2219,56 +2219,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             if (matchElement) {
                                 // Mettre à jour le minuteur
                                 const timerElement = matchElement.querySelector('.match-timer');
+                                const halfElement = matchElement.querySelector('.match-half');
+                                
                                 if (timerElement) {
-                                    timerElement.textContent = formatTime(match.current_elapsed);
+                                    // Mettre à jour le temps d'affichage
+                                    timerElement.textContent = match.display_time || '00:00';
                                     
-                                    // Mettre à jour la classe en fonction de l'état du match
+                                    // Mettre à jour l'affichage de la mi-temps
+                                    if (halfElement) {
+                                        halfElement.textContent = match.half || '';
+                                        if (match.is_first_half) {
+                                            halfElement.className = 'badge bg-primary me-2 match-half';
+                                        } else if (match.is_second_half) {
+                                            halfElement.className = 'badge bg-danger me-2 match-half';
+                                        } else if (match.is_half_time) {
+                                            halfElement.className = 'badge bg-warning text-dark me-2 match-half';
+                                        } else if (match.is_ended) {
+                                            halfElement.className = 'badge bg-secondary me-2 match-half';
+                                        }
+                                    }
+                                    
+                                    // Mettre en surbrillance si le match est en cours
                                     if (match.status === 'ongoing') {
-                                        timerElement.classList.add('text-danger', 'fw-bold');
-                                        timerElement.innerHTML = `
-                                            <i class="fas fa-play-circle me-1"></i>
-                                            ${formatTime(match.current_elapsed)}
-                                        `;
+                                        timerElement.classList.add('fw-bold');
+                                        if (match.is_first_half || match.is_second_half) {
+                                            timerElement.classList.add('text-success');
+                                            timerElement.classList.remove('text-warning', 'text-danger');
+                                        } else if (match.is_half_time) {
+                                            timerElement.classList.add('text-warning');
+                                            timerElement.classList.remove('text-success', 'text-danger');
+                                        } else {
+                                            timerElement.classList.remove('text-success', 'text-warning', 'text-danger');
+                                        }
                                     } else if (match.status === 'paused') {
                                         timerElement.classList.add('text-warning');
-                                        timerElement.innerHTML = `
-                                            <i class="fas fa-pause-circle me-1"></i>
-                                            ${formatTime(match.current_elapsed)}
-                                        `;
+                                        timerElement.classList.remove('text-success', 'text-danger', 'fw-bold');
                                     } else {
-                                        timerElement.classList.remove('text-danger', 'text-warning', 'fw-bold');
-                                        timerElement.textContent = formatTime(match.current_elapsed);
+                                        timerElement.classList.remove('text-success', 'text-warning', 'text-danger', 'fw-bold');
                                     }
                                 }
 
-                                // Mettre à jour le score si nécessaire
+                                // Mettre à jour le score
                                 const scoreElement = matchElement.querySelector('.match-score');
                                 if (scoreElement) {
-                                    scoreElement.textContent = `${match.score_home} - ${match.score_away}`;
+                                    scoreElement.textContent = `${match.score_home || 0} - ${match.score_away || 0}`;
                                 }
 
-                                // Mettre à jour les boutons d'action en fonction de l'état du match
-                                const startBtn = matchElement.querySelector('.btn-start-match');
-                                const pauseBtn = matchElement.querySelector('.btn-pause-match');
-                                const resumeBtn = matchElement.querySelector('.btn-resume-match');
+                                // Mettre à jour les boutons d'action
+                                const startFirstHalfBtn = matchElement.querySelector('.btn-start-first-half');
+                                const startSecondHalfBtn = matchElement.querySelector('.btn-start-second-half');
+                                const stopTimerBtn = matchElement.querySelector('.btn-stop-timer');
                                 const finalizeBtn = matchElement.querySelector('.btn-finalize-match');
+                                const extraTimeModal = matchElement.querySelector('.extra-time-modal');
 
-                                if (match.status === 'ongoing') {
-                                    if (startBtn) startBtn.style.display = 'none';
-                                    if (pauseBtn) pauseBtn.style.display = 'inline-block';
-                                    if (resumeBtn) resumeBtn.style.display = 'none';
-                                    if (finalizeBtn) finalizeBtn.style.display = 'inline-block';
-                                } else if (match.status === 'paused') {
-                                    if (startBtn) startBtn.style.display = 'none';
-                                    if (pauseBtn) pauseBtn.style.display = 'none';
-                                    if (resumeBtn) resumeBtn.style.display = 'inline-block';
-                                    if (finalizeBtn) finalizeBtn.style.display = 'inline-block';
-                                } else {
-                                    if (startBtn) startBtn.style.display = 'inline-block';
-                                    if (pauseBtn) pauseBtn.style.display = 'none';
-                                    if (resumeBtn) resumeBtn.style.display = 'none';
-                                    if (finalizeBtn) finalizeBtn.style.display = 'inline-block';
+                                // Gérer l'affichage des boutons en fonction de l'état du match
+                                if (startFirstHalfBtn) {
+                                    startFirstHalfBtn.style.display = (!match.timer_status || match.timer_status === 'not_started') ? 'inline-block' : 'none';
                                 }
+                                if (startSecondHalfBtn) {
+                                    startSecondHalfBtn.style.display = (match.timer_status === 'half_time') ? 'inline-block' : 'none';
+                                }
+                                if (stopTimerBtn) {
+                                    stopTimerBtn.style.display = (match.timer_status === 'first_half' || match.timer_status === 'second_half') ? 'inline-block' : 'none';
+                                }
+                                if (finalizeBtn) {
+                                    finalizeBtn.style.display = (match.timer_status === 'ended') ? 'inline-block' : 'none';
+                                }
+                                
+                                // Mettre à jour le statut du match dans le DOM pour référence
+                                matchElement.dataset.status = match.status;
+                                matchElement.dataset.timerStatus = match.timer_status || 'not_started';
                             }
                         });
                     }
