@@ -35,9 +35,19 @@ try {
     }
     require_once $dbConfigPath;
 
-    // Vérifier la connexion à la base de données
-    if (!isset($pdo) || !($pdo instanceof PDO)) {
-        throw new Exception('Erreur de connexion à la base de données', 500);
+    // Vérifier si la classe DatabaseConfig existe
+    if (!class_exists('DatabaseConfig')) {
+        throw new Exception('La classe DatabaseConfig est introuvable', 500);
+    }
+
+    // Obtenir une connexion PDO via DatabaseConfig
+    try {
+        $pdo = DatabaseConfig::getConnection();
+        if (!($pdo instanceof PDO)) {
+            throw new Exception('Échec de la connexion à la base de données', 500);
+        }
+    } catch (Exception $e) {
+        throw new Exception('Impossible de se connecter à la base de données: ' . $e->getMessage(), 500);
     }
 
     // Récupérer les matchs en cours
@@ -76,12 +86,17 @@ try {
             m.match_time ASC
     ";
     
-    $stmt = $pdo->query($query);
-    if ($stmt === false) {
-        throw new Exception('Erreur lors de l\'exécution de la requête SQL', 500);
+    try {
+        $stmt = $pdo->prepare($query);
+        if (!$stmt->execute()) {
+            throw new Exception('Erreur lors de l\'exécution de la requête SQL', 500);
+        }
+        
+        $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('Erreur PDO: ' . $e->getMessage());
+        throw new Exception('Erreur de base de données: ' . $e->getMessage(), 500);
     }
-    
-    $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Calculer le temps écoulé pour chaque match
     $currentTime = time();
@@ -153,13 +168,29 @@ try {
     }
     unset($match); // Casser la référence
 
-    // Préparer et envoyer la réponse
+    // Simplifier la réponse pour le minuteur
     $response = [
         'success' => true,
-        'matches' => $matches,
-        'timestamp' => date('Y-m-d H:i:s')
+        'matches' => array_map(function($match) {
+            return [
+                'id' => $match['id'],
+                'home_team' => $match['home_team'],
+                'away_team' => $match['away_team'],
+                'score_home' => $match['score_home'],
+                'score_away' => $match['score_away'],
+                'timer_start' => strtotime($match['timer_start']),
+                'timer_elapsed' => (int)($match['timer_elapsed'] ?? 0),
+                'match_duration' => (int)($match['match_duration'] ?? 5400), // 90 minutes par défaut
+                'timer_status' => $match['timer_status'] ?? 'not_started',
+                'first_half_duration' => (int)($match['first_half_duration'] ?? 2700), // 45 minutes par défaut
+                'second_half_duration' => (int)($match['second_half_duration'] ?? 2700) // 45 minutes par défaut
+            ];
+        }, $matches),
+        'timestamp' => time()
     ];
     
+    // Envoyer la réponse JSON
+    header('Content-Type: application/json');
     echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     
 } catch (PDOException $e) {

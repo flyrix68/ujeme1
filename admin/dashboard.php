@@ -1701,7 +1701,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="col-12 col-md-6 col-xl-4 match-card" 
              data-match-id="<?= $match['id'] ?>" 
              data-competition="<?= htmlspecialchars($match['competition']) ?>" 
-             data-status="<?= $matchStatus ?>">
+             data-status="<?= $matchStatus ?>"
+             data-match-timer>
             
             <div class="card h-100 shadow-sm border-2 <?= $borderClass ?>">
                 <!-- En-tête de la carte -->
@@ -2192,127 +2193,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     </script>
         
-        <script>
-        // Fonction pour formater le temps en minutes:secondes
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return `${mins}':${secs < 10 ? '0' : ''}${secs}`;
-        }
-
-        // Fonction pour mettre à jour les minuteurs des matchs
-        function updateMatchTimers() {
-            console.log('Mise à jour des minuteurs...');
-            fetch('api/get_ongoing_matches.php')
-                .then(response => {
-                    console.log('Réponse reçue du serveur:', response.status);
-                    if (!response.ok) {
-                        throw new Error('Erreur réseau: ' + response.status);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Données reçues:', data);
-                    if (data.success && data.matches) {
-                        data.matches.forEach(match => {
-                            const matchElement = document.querySelector(`.match-card[data-match-id="${match.id}"]`);
-                            if (matchElement) {
-                                // Mettre à jour le minuteur
-                                const timerElement = matchElement.querySelector('.match-timer');
-                                const halfElement = matchElement.querySelector('.match-half');
-                                
-                                if (timerElement) {
-                                    // Mettre à jour le temps d'affichage
-                                    timerElement.textContent = match.display_time || '00:00';
-                                    
-                                    // Mettre à jour l'affichage de la mi-temps
-                                    if (halfElement) {
-                                        halfElement.textContent = match.half || '';
-                                        if (match.is_first_half) {
-                                            halfElement.className = 'badge bg-primary me-2 match-half';
-                                        } else if (match.is_second_half) {
-                                            halfElement.className = 'badge bg-danger me-2 match-half';
-                                        } else if (match.is_half_time) {
-                                            halfElement.className = 'badge bg-warning text-dark me-2 match-half';
-                                        } else if (match.is_ended) {
-                                            halfElement.className = 'badge bg-secondary me-2 match-half';
-                                        }
-                                    }
-                                    
-                                    // Mettre en surbrillance si le match est en cours
-                                    if (match.status === 'ongoing') {
-                                        timerElement.classList.add('fw-bold');
-                                        if (match.is_first_half || match.is_second_half) {
-                                            timerElement.classList.add('text-success');
-                                            timerElement.classList.remove('text-warning', 'text-danger');
-                                        } else if (match.is_half_time) {
-                                            timerElement.classList.add('text-warning');
-                                            timerElement.classList.remove('text-success', 'text-danger');
-                                        } else {
-                                            timerElement.classList.remove('text-success', 'text-warning', 'text-danger');
-                                        }
-                                    } else if (match.status === 'paused') {
-                                        timerElement.classList.add('text-warning');
-                                        timerElement.classList.remove('text-success', 'text-danger', 'fw-bold');
-                                    } else {
-                                        timerElement.classList.remove('text-success', 'text-warning', 'text-danger', 'fw-bold');
-                                    }
-                                }
-
-                                // Mettre à jour le score
-                                const scoreElement = matchElement.querySelector('.match-score');
-                                if (scoreElement) {
-                                    scoreElement.textContent = `${match.score_home || 0} - ${match.score_away || 0}`;
-                                }
-
-                                // Mettre à jour les boutons d'action
-                                const startFirstHalfBtn = matchElement.querySelector('.btn-start-first-half');
-                                const startSecondHalfBtn = matchElement.querySelector('.btn-start-second-half');
-                                const stopTimerBtn = matchElement.querySelector('.btn-stop-timer');
-                                const finalizeBtn = matchElement.querySelector('.btn-finalize-match');
-                                const extraTimeModal = matchElement.querySelector('.extra-time-modal');
-
-                                // Gérer l'affichage des boutons en fonction de l'état du match
-                                if (startFirstHalfBtn) {
-                                    startFirstHalfBtn.style.display = (!match.timer_status || match.timer_status === 'not_started') ? 'inline-block' : 'none';
-                                }
-                                if (startSecondHalfBtn) {
-                                    startSecondHalfBtn.style.display = (match.timer_status === 'half_time') ? 'inline-block' : 'none';
-                                }
-                                if (stopTimerBtn) {
-                                    stopTimerBtn.style.display = (match.timer_status === 'first_half' || match.timer_status === 'second_half') ? 'inline-block' : 'none';
-                                }
-                                if (finalizeBtn) {
-                                    finalizeBtn.style.display = (match.timer_status === 'ended') ? 'inline-block' : 'none';
-                                }
-                                
-                                // Mettre à jour le statut du match dans le DOM pour référence
-                                matchElement.dataset.status = match.status;
-                                matchElement.dataset.timerStatus = match.timer_status || 'not_started';
-                            }
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('Erreur lors de la mise à jour des minuteurs:', error);
-                });
-        }
-
-        // Fonction d'initialisation du minuteur
-        function initTimer() {
-            console.log('Initialisation du minuteur...');
-            // Mettre à jour immédiatement
-            updateMatchTimers();
-            // Puis toutes les secondes
-            setInterval(updateMatchTimers, 1000);
-        }
-
-        // Démarrer le minuteur quand le DOM est chargé
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initTimer);
-        } else {
-            initTimer();
-        }
+        <!-- Inclure les scripts du minuteur -->
+        <script src="js/match-timer.js"></script>
+        <script src="js/init-match-timers.js"></script>
         </script>
     </body>
 </html>
