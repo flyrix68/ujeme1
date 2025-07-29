@@ -1,28 +1,47 @@
 <?php
-// Autoriser les requêtes depuis le même domaine
-header('Access-Control-Allow-Origin: ' . ($_SERVER['HTTP_ORIGIN'] ?? '*'));
-header('Access-Control-Allow-Credentials: true');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-header('Content-Type: application/json; charset=utf-8');
-
-// Répondre immédiatement aux requêtes OPTIONS (prévol)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
-require_once '../../includes/db-config.php';
-
-// Vérifier l'authentification de l'administrateur
-session_start();
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
-    http_response_code(403);
-    echo json_encode(['error' => 'Accès non autorisé']);
-    exit();
-}
+// Activer l'affichage des erreurs pour le débogage
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/../../logs/api_errors.log');
 
 try {
-    $matches = $pdo->query("
+    // Définir les en-têtes CORS
+    header('Access-Control-Allow-Origin: ' . ($_SERVER['HTTP_ORIGIN'] ?? '*'));
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    header('Content-Type: application/json; charset=utf-8');
+
+    // Répondre immédiatement aux requêtes OPTIONS (prévol)
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(200);
+        exit();
+    }
+
+    // Vérifier la session
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    // Vérifier l'authentification de l'administrateur
+    if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
+        throw new Exception('Accès non autorisé', 403);
+    }
+
+    // Inclure le fichier de configuration de la base de données
+    $dbConfigPath = __DIR__ . '/../../includes/db-config.php';
+    if (!file_exists($dbConfigPath)) {
+        throw new Exception('Fichier de configuration de la base de données introuvable', 500);
+    }
+    require_once $dbConfigPath;
+
+    // Vérifier la connexion à la base de données
+    if (!isset($pdo) || !($pdo instanceof PDO)) {
+        throw new Exception('Erreur de connexion à la base de données', 500);
+    }
+
+    // Récupérer les matchs en cours
+    $query = "
         SELECT 
             m.id,
             m.team_home,
@@ -55,7 +74,14 @@ try {
             END,
             m.match_date ASC, 
             m.match_time ASC
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    ";
+    
+    $stmt = $pdo->query($query);
+    if ($stmt === false) {
+        throw new Exception('Erreur lors de l\'exécution de la requête SQL', 500);
+    }
+    
+    $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Calculer le temps écoulé pour chaque match
     $currentTime = time();
@@ -127,8 +153,40 @@ try {
     }
     unset($match); // Casser la référence
 
-    echo json_encode(['success' => true, 'matches' => $matches]);
+    // Préparer et envoyer la réponse
+    $response = [
+        'success' => true,
+        'matches' => $matches,
+        'timestamp' => date('Y-m-d H:i:s')
+    ];
+    
+    echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    
 } catch (PDOException $e) {
+    // Erreur de base de données
+    error_log('Erreur PDO: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'Erreur de base de données: ' . $e->getMessage()]);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Erreur de base de données',
+        'debug' => (ENVIRONMENT === 'development') ? $e->getMessage() : null
+    ]);
+    
+} catch (Exception $e) {
+    // Autres erreurs
+    $statusCode = $e->getCode() ?: 500;
+    http_response_code($statusCode);
+    error_log('Erreur API: ' . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage(),
+        'code' => $statusCode
+    ]);
+    
+} finally {
+    // S'assurer qu'aucune sortie supplémentaire n'est envoyée
+    if (ob_get_level() > 0) {
+        ob_end_flush();
+    }
+    exit();
 }
