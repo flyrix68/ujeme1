@@ -1,40 +1,53 @@
 <?php
-// Enable error reporting for debugging
+// Enable error reporting and logging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-// Minimal health check
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/../logs/health-check.log');
 header('Content-Type: text/plain');
 
+function health_log($message) {
+    error_log("[HEALTH] " . $message);
+    echo "[LOG] $message\n";
+}
+
 try {
+    health_log("Starting health check");
+    
     // Test 1: Basic PHP execution
     echo "[OK] PHP is executing\n";
-    
-    // Test 2: Check for required PHP extensions
-    $requiredExts = ['pdo', 'pdo_mysql', 'json'];
-    $missingExts = [];
+    health_log("PHP execution verified");
+
+    // Test 2: Required PHP extensions
+    $requiredExts = ['pdo', 'pdo_mysql'];
     foreach ($requiredExts as $ext) {
         if (!extension_loaded($ext)) {
-            $missingExts[] = $ext;
+            throw new Exception("Missing required extension: $ext");
         }
     }
+    echo "[OK] Required extensions loaded\n";
+    health_log("Extensions verified");
+
+    // Test 3: Database connection
+    health_log("Loading db-config.php");
+    require __DIR__ . '/../includes/db-config.php';
     
-    if (!empty($missingExts)) {
-        throw new Exception("Missing PHP extensions: " . implode(', ', $missingExts));
+    health_log("Testing database connection");
+    $pdo = DatabaseConfig::getConnection();
+    if ($pdo->query('SELECT 1')->fetchColumn() != 1) {
+        throw new Exception("Database connection test failed");
     }
-    echo "[OK] Required PHP extensions are loaded\n";
-    
-    // Test 3: Check if we can include db-config
-    if (!@include __DIR__ . '/../includes/db-config.php') {
-        throw new Exception("Failed to include db-config.php");
-    }
-    echo "[OK] db-config.php loaded successfully\n";
-    
-    // If we got here, everything is OK
+    echo "[OK] Database connection successful\n";
+    health_log("Database connection verified");
+
+    // Success
     http_response_code(200);
-    echo "\n[SUCCESS] Health check passed\n";
-    
+    echo "\n[SUCCESS] All health checks passed\n";
+    health_log("All checks passed");
+
 } catch (Exception $e) {
     http_response_code(500);
+    health_log("ERROR: " . $e->getMessage());
     echo "\n[ERROR] " . $e->getMessage() . "\n";
-    echo "File: " . $e->getFile() . " on line " . $e->getLine() . "\n";
+    echo "Location: " . $e->getFile() . ":" . $e->getLine() . "\n";
 }

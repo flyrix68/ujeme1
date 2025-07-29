@@ -27,12 +27,22 @@ class DatabaseConfig {
                 }
                 self::$pdo = null;
                 
-                // Use Railway production credentials directly
-                $dbHost = 'yamanote.proxy.rlwy.net';
-                $dbPort = 58372;
-                $dbUser = 'root';
-                $dbPass = 'lHrCOmGSvbbiTSntPYLwjlWMuthCRxNu'; 
-                $dbName = 'railway';
+                // Parse Railway DATABASE_URL environment variable
+                $dbUrl = getenv('DATABASE_URL');
+                if ($dbUrl === false) {
+                    throw new RuntimeException('DATABASE_URL environment variable not set');
+                }
+                
+                $dbParts = parse_url($dbUrl);
+                if ($dbParts === false) {
+                    throw new RuntimeException('Failed to parse DATABASE_URL');
+                }
+
+                $dbHost = $dbParts['host'];
+                $dbPort = $dbParts['port'] ?? 3306;
+                $dbUser = $dbParts['user'] ?? 'root';
+                $dbPass = $dbParts['pass'] ?? '';
+                $dbName = ltrim($dbParts['path'], '/');
 
                 $dsn = "mysql:host=$dbHost;port=$dbPort;dbname=$dbName;charset=utf8mb4";
                 $options = [
