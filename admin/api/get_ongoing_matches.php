@@ -1,12 +1,37 @@
 <?php
 // Activer l'affichage des erreurs pour le débogage
-ini_set('display_errors', 0);
+ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../../logs/api_errors.log');
+error_reporting(E_ALL);
+
+// Fonction pour logger les erreurs
+function logError($message) {
+    $logMessage = '[' . date('Y-m-d H:i:s') . '] ' . $message . "\n";
+    file_put_contents(__DIR__ . '/../../logs/api_errors.log', $logMessage, FILE_APPEND);
+    
+    // Envoyer l'erreur à la sortie si le mode débogage est activé
+    if (isset($_GET['debug'])) {
+        echo '<!-- DEBUG: ' . htmlspecialchars($message) . ' -->';
+    }
+}
+
+// Définir les en-têtes CORS
+header('Access-Control-Allow-Origin: ' . ($_SERVER['HTTP_ORIGIN'] ?? '*'));
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Content-Type: application/json; charset=utf-8');
+
+// Répondre immédiatement aux requêtes OPTIONS (prévol)
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 try {
-    // Définir les en-têtes CORS
-    header('Access-Control-Allow-Origin: ' . ($_SERVER['HTTP_ORIGIN'] ?? '*'));
+    // Log de la requête entrante
+    logError('Début du traitement de la requête: ' . $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI']);
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -18,10 +43,13 @@ try {
         exit();
     }
 
-    // Vérifier la session
+    // Vérifier et démarrer la session si nécessaire
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
+    
+    // Log des informations de session
+    logError('Session: ' . json_encode($_SESSION ?? []));
 
     // Vérifier l'authentification de l'administrateur
     if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
@@ -42,12 +70,16 @@ try {
 
     // Obtenir une connexion PDO via DatabaseConfig
     try {
+        logError('Tentative de connexion à la base de données...');
         $pdo = DatabaseConfig::getConnection();
         if (!($pdo instanceof PDO)) {
-            throw new Exception('Échec de la connexion à la base de données', 500);
+            throw new Exception('Échec de la connexion à la base de données: pas d\'instance PDO valide', 500);
         }
+        logError('Connexion à la base de données établie avec succès');
     } catch (Exception $e) {
-        throw new Exception('Impossible de se connecter à la base de données: ' . $e->getMessage(), 500);
+        $errorMsg = 'Impossible de se connecter à la base de données: ' . $e->getMessage();
+        logError($errorMsg);
+        throw new Exception($errorMsg, 500);
     }
 
     // Récupérer les matchs en cours
@@ -86,15 +118,30 @@ try {
             m.match_time ASC
     ";
     
+    logError('Requête SQL préparée: ' . $query);
+    
     try {
+        logError('Préparation de la requête...');
         $stmt = $pdo->prepare($query);
-        if (!$stmt->execute()) {
-            throw new Exception('Erreur lors de l\'exécution de la requête SQL', 500);
+        
+        logError('Exécution de la requête...');
+        $executionResult = $stmt->execute();
+        
+        if (!$executionResult) {
+            $errorInfo = $stmt->errorInfo();
+            $errorMsg = 'Erreur lors de l\'exécution de la requête SQL: ' . ($errorInfo[2] ?? 'Erreur inconnue');
+            logError($errorMsg);
+            throw new Exception($errorMsg, 500);
         }
         
+        logError('Récupération des résultats...');
         $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        logError('Nombre de matchs trouvés: ' . count($matches));
+        
     } catch (PDOException $e) {
-        error_log('Erreur PDO: ' . $e->getMessage());
+        $errorMsg = 'Erreur PDO: ' . $e->getMessage() . ' (Code: ' . $e->getCode() . ')';
+        logError($errorMsg);
+        logError('Trace: ' . $e->getTraceAsString());
         throw new Exception('Erreur de base de données: ' . $e->getMessage(), 500);
     }
 
@@ -202,28 +249,58 @@ try {
     
     // Envoyer la réponse JSON
     header('Content-Type: application/json');
-    echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $jsonResponse = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    
+    if ($jsonResponse === false) {
+        $jsonError = json_last_error_msg();
+        logError('Erreur d\'encodage JSON: ' . $jsonError);
+        throw new Exception('Erreur lors de la génération de la réponse JSON: ' . $jsonError, 500);
+    }
+    
+    logError('Réponse JSON générée avec succès');
+    echo $jsonResponse;
     
 } catch (PDOException $e) {
     // Erreur de base de données
-    error_log('Erreur PDO: ' . $e->getMessage());
+    $errorMsg = 'Erreur PDO: ' . $e->getMessage() . ' (Code: ' . $e->getCode() . ')';
+    logError($errorMsg);
+    logError('Trace: ' . $e->getTraceAsString());
+    
     http_response_code(500);
-    echo json_encode([
+    $errorResponse = [
         'success' => false,
         'error' => 'Erreur de base de données',
-        'debug' => (ENVIRONMENT === 'development') ? $e->getMessage() : null
-    ]);
+        'debug' => (isset($_GET['debug']) ? [
+            'message' => $e->getMessage(),
+            'code' => $e->getCode(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ] : null)
+    ];
+    
+    echo json_encode($errorResponse, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     
 } catch (Exception $e) {
     // Autres erreurs
-    $statusCode = $e->getCode() ?: 500;
+    $errorMsg = 'Erreur: ' . $e->getMessage() . ' (Code: ' . $e->getCode() . ')';
+    logError($errorMsg);
+    logError('Trace: ' . $e->getTraceAsString());
+    
+    $statusCode = $e->getCode() >= 400 ? $e->getCode() : 500;
     http_response_code($statusCode);
-    error_log('Erreur API: ' . $e->getMessage());
-    echo json_encode([
+    
+    $errorResponse = [
         'success' => false,
         'error' => $e->getMessage(),
-        'code' => $statusCode
-    ]);
+        'debug' => (isset($_GET['debug']) ? [
+            'code' => $e->getCode(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ] : null)
+    ];
+    
+    echo json_encode($errorResponse, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     
 } finally {
     // S'assurer qu'aucune sortie supplémentaire n'est envoyée

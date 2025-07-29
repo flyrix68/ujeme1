@@ -41,6 +41,9 @@ try {
     $stmt = $pdo->prepare($query);
     $stmt->execute(['competition' => $competition]);
     $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    error_log("Live matches query - Competition: $competition");
+    error_log("Found matches: " . json_encode($matches));
 
     $result = ['success' => true, 'matches' => [], 'websocket_url' => 'ws://localhost:8080'];
 

@@ -414,22 +414,516 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception("Le match spécifié n'existe pas.");
                 }
                 
-                // Supprimer le match
-                $stmt = $pdo->prepare("DELETE FROM matches WHERE id = ?");
-                $result = $stmt->execute([$match_id]);
-                
-                if ($result) {
-                    // Journaliser l'action
-                    logAction(
-                        $pdo,
-                        $match_id,
-                        'DELETE_MATCH',
-                        "Match supprimé",
-                        null,
-                        null
-                    );
+            // First get match details to see if it was completed
+            $stmt = $pdo->prepare("SELECT status, competition, poule_id FROM matches WHERE id = ?");
+<?php
+// Enable error reporting for debugging
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Function to log actions in the audit log
+function logAction($pdo, $matchId, $actionType, $actionDetails = null, $previousValue = null, $newValue = null) {
+    // Validate inputs
+    if (!is_numeric($matchId) || !is_string($actionType) || !in_array($actionType, [
+        'UPDATE_SCORE', 'ADD_GOAL', 'ADD_CARD', 'START_FIRST_HALF', 'END_FIRST_HALF', 
+        'START_SECOND_HALF', 'END_MATCH', 'SET_EXTRA_TIME', 'FINALIZE_MATCH', 
+        'SET_MATCH_DURATION', 'UPDATE_STANDING', 'CREATE_STANDING', 'DELETE_MATCH'
+    ])) {
+        error_log("Invalid logAction inputs: matchId=$matchId, actionType=$actionType");
+        return;
+    }
+    
+    if (!isset($_SESSION['user_id']) || !is_numeric($_SESSION['user_id'])) {
+        error_log("Invalid user_id in logAction: " . print_r($_SESSION, true));
+        return;
+    }
+
+    // Format action_details as JSON
+    $actionDetailsJson = null;
+    if (!is_null($actionDetails)) {
+        if (function_exists('mb_convert_encoding')) {
+            $actionDetails = mb_convert_encoding((string)$actionDetails, 'UTF-8', 'auto');
+        } else {
+            $actionDetails = (string)$actionDetails;
+        }
+        $actionDetailsJson = json_encode(['details' => $actionDetails], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    // Format previous and new values as JSON
+    $previousValueJson = !is_null($previousValue) ? json_encode(['value' => $previousValue], JSON_UNESCAPED_UNICODE) : null;
+    $newValueJson = !is_null($newValue) ? json_encode(['value' => $newValue], JSON_UNESCAPED_UNICODE) : null;
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO match_logs 
+            (match_id, user_id, action_type, action_details, previous_value, new_value, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+        ");
+        
+        $result = $stmt->execute([
+            $matchId,
+            $_SESSION['user_id'],
+            $actionType,
+            $actionDetailsJson,
+            $previousValueJson,
+            $newValueJson
+        ]);
+        
+        if (!$result) {
+            $errorInfo = $stmt->errorInfo();
+            error_log("Failed to log action: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+    } catch (PDOException $e) {
+        error_log("Database error in logAction: " . $e->getMessage());
+    }
+}
+
+// Start session with consistent settings
+ini_set('session.gc_maxlifetime', 3600);
+session_set_cookie_params(3600, '/');
+session_start();
+
+// Helper function to safely output HTML
+function safe_html($value, $default = '') {
+    return htmlspecialchars($value ?? $default, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+// Log session data
+error_log("Session data in admin/manage_matches.php: " . print_r($_SESSION, true));
+
+// Verify admin authentication before anything else
+if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || ($_SESSION['role'] ?? 'membre') !== 'admin') {
+    error_log("Unauthorized access attempt to admin/manage_matches.php");
+    header('Location: ../index.php');
+    exit();
+}
+
+// Now initialize database connection safely
+try {
+    require_once '../includes/db-config.php';
+    $pdo = DatabaseConfig::getConnection();
+    
+    // Verify database connection
+    if (!isset($pdo)) {
+        throw new Exception('Database connection failed');
+    }
+} catch (Exception $e) {
+    error_log("Database connection error: " . $e->getMessage());
+    die("A database connection error occurred. Please contact the administrator.");
+}
+
+// Fetch all teams for form dropdowns
+try {
+    $teams = $pdo->query("SELECT id, team_name AS name FROM teams ORDER BY team_name")->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error fetching teams: " . $e->getMessage());
+    die("Erreur lors du chargement des équipes.");
+}
+
+// Fetch all poules (groups) for form dropdowns
+try {
+    $poules = $pdo->query("SELECT id, name, competition FROM poules ORDER BY competition, name")->fetchAll(PDO::FETCH_ASSOC);
+    
+    // If poules table doesn't exist yet, create it
+    if (empty($poules)) {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS poules (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                competition VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        
+        // Add poule_id column to matches table if it doesn't exist
+        try {
+            $columnExists = $pdo->query("SHOW COLUMNS FROM matches LIKE 'poule_id'")->rowCount() > 0;
+            if (!$columnExists) {
+                $pdo->exec("ALTER TABLE matches ADD COLUMN poule_id INT NULL");
+            }
+        } catch (PDOException $e) {
+            error_log("Error checking or adding poule_id column: " . $e->getMessage());
+        }
+    }
+} catch (PDOException $e) {
+    error_log("Error fetching poules: " . $e->getMessage());
+    // Create poules table if it doesn't exist
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS poules (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                competition VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        // Add poule_id column to matches table if it doesn't exist
+        $pdo->exec("ALTER TABLE matches ADD COLUMN poule_id INT NULL");
+        $poules = [];
+    } catch (PDOException $e2) {
+        error_log("Error creating poules table: " . $e2->getMessage());
+        die("Erreur lors de la création de la table des poules.");
+    }
+}
+
+// Handle poule form submissions
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_poule'])) {
+    try {
+        $poule_name = filter_input(INPUT_POST, 'poule_name', FILTER_SANITIZE_STRING);
+        $poule_competition = filter_input(INPUT_POST, 'poule_competition', FILTER_SANITIZE_STRING);
+        
+        if (!$poule_name || !$poule_competition) {
+            $_SESSION['error'] = "Le nom de la poule et la compétition sont requis.";
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO poules (name, competition) VALUES (?, ?)");
+            $stmt->execute([$poule_name, $poule_competition]);
+            $_SESSION['message'] = "Poule ajoutée avec succès !";
+        }
+        
+        header("Location: manage_matches.php");
+        exit();
+    } catch (PDOException $e) {
+        error_log("Error adding poule: " . $e->getMessage());
+        $_SESSION['error'] = "Erreur lors de l'ajout de la poule.";
+        header("Location: manage_matches.php");
+        exit();
+    }
+}
+
+// Handle match form submissions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        error_log("Début du traitement du formulaire de match");
+        
+        // Add or update match
+        if (isset($_POST['add_match']) || isset($_POST['update_match'])) {
+            error_log("Traitement d'ajout/mise à jour de match");
+            
+            // Récupération des données du formulaire
+            $match_id = isset($_POST['match_id']) ? filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT) : null;
+            $team_home = filter_input(INPUT_POST, 'team_home', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            $team_away = filter_input(INPUT_POST, 'team_away', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            $competition = filter_input(INPUT_POST, 'competition', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            $poule_id = filter_input(INPUT_POST, 'poule_id', FILTER_VALIDATE_INT);
+            $match_date = filter_input(INPUT_POST, 'match_date', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            $match_time = filter_input(INPUT_POST, 'match_time', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            $phase = filter_input(INPUT_POST, 'phase', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            $venue = filter_input(INPUT_POST, 'venue', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+            $score_home = filter_input(INPUT_POST, 'score_home', FILTER_VALIDATE_INT, ['options' => ['default' => null]]);
+            $score_away = filter_input(INPUT_POST, 'score_away', FILTER_VALIDATE_INT, ['options' => ['default' => null]]);
+
+            error_log("Données du formulaire:");
+            error_log(print_r([
+                'match_id' => $match_id,
+                'team_home' => $team_home,
+                'team_away' => $team_away,
+                'competition' => $competition,
+                'poule_id' => $poule_id,
+                'match_date' => $match_date,
+                'match_time' => $match_time,
+                'phase' => $phase,
+                'venue' => $venue,
+                'score_home' => $score_home,
+                'score_away' => $score_away
+            ], true));
+
+            // Validation des champs obligatoires
+            if (empty($team_home) || empty($team_away) || empty($competition) || empty($match_date) || empty($match_time) || empty($phase) || empty($venue)) {
+                $error_msg = "Tous les champs obligatoires doivent être remplis.";
+                error_log("Erreur de validation: $error_msg");
+                $_SESSION['error'] = $error_msg;
+            } elseif ($team_home === $team_away) {
+                $error_msg = "Les équipes à domicile et à l'extérieur doivent être différentes.";
+                error_log("Erreur de validation: $error_msg");
+                $_SESSION['error'] = $error_msg;
+            } else {
+                // Vérification de l'existence des équipes
+                try {
+                    $stmt = $pdo->prepare("SELECT id, team_name FROM teams WHERE team_name IN (?, ?)");
+                    $stmt->execute([$team_home, $team_away]);
+                    $existing_teams = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
                     
-                    $_SESSION['message'] = "Le match a été supprimé avec succès.";
+                    if (count($existing_teams) !== 2) {
+                        $missing_teams = [];
+                        if (!isset($existing_teams[$team_home])) $missing_teams[] = $team_home;
+                        if (!isset($existing_teams[$team_away])) $missing_teams[] = $team_away;
+                        
+                        $error_msg = "Les équipes suivantes n'existent pas : " . implode(', ', $missing_teams);
+                        error_log("Erreur: $error_msg");
+                        $_SESSION['error'] = $error_msg;
+                    } else {
+                        // Déterminer le statut en fonction de la date et des scores
+                        $match_datetime = strtotime($match_date . ' ' . $match_time);
+                        $current_datetime = time();
+                        
+                        if ($score_home !== null && $score_away !== null) {
+                            $status = 'completed';
+                        } elseif ($match_datetime > $current_datetime) {
+                            $status = 'pending';
+                        } else {
+                            $status = 'ongoing';
+                        }
+                        
+                        error_log("Statut du match déterminé: $status");
+
+                        // Ajout ou mise à jour du match
+                        if (isset($_POST['add_match'])) {
+                            try {
+                                // Validate teams are different
+                                if ($team_home === $team_away) {
+                                    throw new Exception("Les équipes à domicile et à l'extérieur doivent être différentes.");
+                                }
+
+                                // Validate mandatory fields
+                                $requiredFields = [
+                                    'competition' => $competition,
+                                    'phase' => $phase,
+                                    'match_date' => $match_date,
+                                    'match_time' => $match_time,
+                                    'venue' => $venue
+                                ];
+                                
+                                foreach ($requiredFields as $field => $value) {
+                                    if (empty($value)) {
+                                        throw new Exception("Le champ '$field' est requis pour programmer un match.");
+                                    }
+                                }
+
+            // Définir les scores à 0 s'ils ne sont pas définis
+            $score_home = isset($score_home) ? $score_home : 0;
+            $score_away = isset($score_away) ? $score_away : 0;
+            
+            $sql = "INSERT INTO matches (competition, phase, match_date, match_time, team_home, team_away, venue, score_home, score_away, status, poule_id) " . 
+                   "VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, 0), COALESCE(?, 0), ?, ?)";
+                                $stmt = $pdo->prepare($sql);
+                                $params = [
+                                    $competition, 
+                                    $phase, 
+                                    $match_date, 
+                                    $match_time, 
+                                    $team_home, 
+                                    $team_away, 
+                                    $venue, 
+                                    $score_home, 
+                                    $score_away, 
+                                    $status, 
+                                    $poule_id
+                                ];
+                                
+                                error_log("Exécution de la requête INSERT: $sql");
+                                error_log("Paramètres: " . print_r($params, true));
+                                
+                                $result = $stmt->execute($params);
+                                
+                                if (!$result) {
+                                    $errorInfo = $stmt->errorInfo();
+                                    throw new Exception("Échec de l'ajout du match: " . ($errorInfo[2] ?? 'Erreur inconnue'));
+                                }
+
+                                $match_id = $pdo->lastInsertId();
+                                $_SESSION['message'] = "Match programmé avec succès ! ID: $match_id";
+                                error_log("Match programmé avec succès, ID: $match_id");
+                                
+                                header("Location: " . $_SERVER['PHP_SELF']);
+                                exit();
+                            } catch (PDOException $e) {
+                                error_log("Erreur PDO lors de l'ajout du match: " . $e->getMessage());
+                                error_log("Code d'erreur: " . $e->getCode());
+                                $_SESSION['error'] = "Erreur lors de la programmation du match : " . $e->getMessage();
+                                header("Location: " . $_SERVER['PHP_SELF']);
+                                exit();
+                            } catch (Exception $e) {
+                                error_log("Erreur lors de la programmation du match: " . $e->getMessage());
+                                $_SESSION['error'] = $e->getMessage();
+                                header("Location: " . $_SERVER['PHP_SELF']);
+                                exit();
+                            }
+                        }
+                        // Gestion de la mise à jour du match
+                        elseif (isset($_POST['update_match']) && $match_id) {
+                            try {
+                                // First check if match exists
+                                $checkStmt = $pdo->prepare("SELECT id FROM matches WHERE id = ?");
+                                $checkStmt->execute([$match_id]);
+                                
+                                if ($checkStmt->rowCount() === 0) {
+                                    throw new Exception("Le match spécifié n'existe pas.");
+                                }
+
+                                // S'assurer que les scores ne sont pas NULL
+                                $score_home = isset($score_home) ? $score_home : 0;
+                                $score_away = isset($score_away) ? $score_away : 0;
+                                
+                                $sql = "UPDATE matches SET 
+                                    competition = ?, 
+                                    phase = ?, 
+                                    match_date = ?, 
+                                    match_time = ?, 
+                                    team_home = ?, 
+                                    team_away = ?, 
+                                    venue = ?, 
+                                    score_home = COALESCE(?, 0), 
+                                    score_away = COALESCE(?, 0), 
+                                    status = ?, 
+                                    poule_id = ? 
+                                    WHERE id = ?";
+                                
+                                $stmt = $pdo->prepare($sql);
+                                $params = [
+                                    $competition, 
+                                    $phase, 
+                                    $match_date, 
+                                    $match_time, 
+                                    $team_home, 
+                                    $team_away, 
+                                    $venue, 
+                                    $score_home, 
+                                    $score_away, 
+                                    $status, 
+                                    $poule_id,
+                                    $match_id
+                                ];
+                                
+                                error_log("Exécution de la requête UPDATE: $sql");
+                                error_log("Paramètres: " . print_r($params, true));
+                                
+                                $result = $stmt->execute($params);
+                                
+                                if ($result && $stmt->rowCount() > 0) {
+                                    $_SESSION['message'] = "Match mis à jour avec succès !";
+                                    error_log("Match mis à jour avec succès, ID: $match_id");
+                                    
+                                    // Redirection pour éviter la soumission multiple du formulaire
+                                    header("Location: " . $_SERVER['PHP_SELF']);
+                                    exit();
+                                } else {
+                                    $errorInfo = $stmt->errorInfo();
+                                    throw new Exception("Échec de la mise à jour du match: " . ($errorInfo[2] ?? 'Erreur inconnue'));
+                                }
+                            } catch (PDOException $e) {
+                                error_log("Erreur PDO lors de la mise à jour du match: " . $e->getMessage());
+                                error_log("Code d'erreur: " . $e->getCode());
+                                throw new Exception("Erreur lors de la mise à jour du match dans la base de données");
+                            }
+                        }
+                    }
+                } catch (PDOException $e) {
+                    error_log("Erreur lors de la vérification des équipes: " . $e->getMessage());
+                    $_SESSION['error'] = "Erreur lors de la vérification des équipes. Veuillez réessayer.";
+                }
+            }
+        }
+        
+        // Gestion de la suppression d'un match
+        if (isset($_POST['delete_match'])) {
+            try {
+                $match_id = filter_input(INPUT_POST, 'match_id', FILTER_VALIDATE_INT);
+                
+                if (!$match_id) {
+                    throw new Exception("ID de match invalide.");
+                }
+                
+                // Vérifier si le match existe
+                $stmt = $pdo->prepare("SELECT id FROM matches WHERE id = ?");
+                $stmt->execute([$match_id]);
+                
+                if ($stmt->rowCount() === 0) {
+                    throw new Exception("Le match spécifié n'existe pas.");
+                }
+                
+                // Récupérer les détails du match avant suppression pour mettre à jour le classement
+                $matchStmt = $pdo->prepare("SELECT m.*, p.name as poule_name, p.competition 
+                                         FROM matches m 
+                                         LEFT JOIN poules p ON m.poule_id = p.id 
+                                         WHERE m.id = ?");
+                $matchStmt->execute([$match_id]);
+                $match = $matchStmt->fetch(PDO::FETCH_ASSOC);
+                
+                // Démarrer une transaction pour garantir l'intégrité des données
+                $pdo->beginTransaction();
+                
+                try {
+                    // Si c'est un match terminé, mettre à jour le classement
+                    if ($match && $match['status'] === 'completed') {
+                        // Inverser les scores pour soustraire les statistiques
+                        $temp = $match['score_home'];
+                        $match['score_home'] = $match['score_away'];
+                        $match['score_away'] = $temp;
+                        
+                        // Mettre à jour le classement avec des valeurs négatives pour soustraire
+                        $season = date('Y') . '-' . (date('Y') + 1);
+                        
+                        // Mettre à jour les statistiques de l'équipe à domicile
+                        $points = ($match['score_away'] > $match['score_home']) ? 3 : 
+                                 ($match['score_away'] == $match['score_home'] ? 1 : 0);
+                        
+                        $stmt = $pdo->prepare("
+                            UPDATE classement 
+                            SET matchs_joues = GREATEST(0, matchs_joues - 1),
+                                matchs_gagnes = GREATEST(0, matchs_gagnes - ?),
+                                matchs_nuls = GREATEST(0, matchs_nuls - ?),
+                                matchs_perdus = GREATEST(0, matchs_perdus - ?),
+                                buts_pour = GREATEST(0, buts_pour - ?),
+                                buts_contre = GREATEST(0, buts_contre - ?),
+                                difference_buts = buts_pour - buts_contre,
+                                points = GREATEST(0, points - ?),
+                                forme = SUBSTRING(forme, 1, 4)  /* Supprimer le dernier résultat de la forme */
+                            WHERE saison = ? 
+                            AND competition = ? 
+                            AND poule_id = ? 
+                            AND nom_equipe = ?
+                        ");
+                        $stmt->execute([
+                            $points == 3 ? 1 : 0,  // matchs_gagnes
+                            $points == 1 ? 1 : 0,  // matchs_nuls
+                            $points == 0 ? 1 : 0,  // matchs_perdus
+                            $match['score_away'],  // buts_pour
+                            $match['score_home'],  // buts_contre
+                            $points,               // points
+                            $season,
+                            $match['competition'],
+                            $match['poule_id'],
+                            $match['team_away']
+                        ]);
+                        
+                        // Mettre à jour les statistiques de l'équipe à l'extérieur
+                        $points = ($match['score_home'] > $match['score_away']) ? 3 : 
+                                 ($match['score_home'] == $match['score_away'] ? 1 : 0);
+                        
+                        $stmt->execute([
+                            $points == 3 ? 1 : 0,  // matchs_gagnes
+                            $points == 1 ? 1 : 0,  // matchs_nuls
+                            $points == 0 ? 1 : 0,  // matchs_perdus
+                            $match['score_home'],  // buts_pour
+                            $match['score_away'],  // buts_contre
+                            $points,               // points
+                            $season,
+                            $match['competition'],
+                            $match['poule_id'],
+                            $match['team_home']
+                        ]);
+                    }
+                    
+                    // Maintenant supprimer le match
+                    $stmt = $pdo->prepare("DELETE FROM matches WHERE id = ?");
+                    $result = $stmt->execute([$match_id]);
+                    
+                    if ($result) {
+                        // Valider la transaction
+                        $pdo->commit();
+                        
+                        // Journaliser l'action
+                        logAction(
+                            $pdo,
+                            $match_id,
+                            'DELETE_MATCH',
+                            "Match supprimé",
+                            json_encode($match),
+                            null
+                        );
+                        
+                        $_SESSION['message'] = "Le match a été supprimé avec succès et le classement a été mis à jour.";
                 } else {
                     throw new Exception("Échec de la suppression du match.");
                 }
@@ -627,23 +1121,70 @@ function updateClassementForMatch($pdo, $match) {
 
 // Process existing completed matches on initial load
 try {
+    // Récupérer tous les matchs terminés qui n'ont pas encore été traités dans le classement
     $completedMatches = $pdo->query("
-        SELECT m.*, p.name as poule_name, p.competition 
+        SELECT DISTINCT m.*, p.name as poule_name, p.competition 
         FROM matches m
         LEFT JOIN poules p ON m.poule_id = p.id
         WHERE m.status = 'completed'
-        AND NOT EXISTS (
-            SELECT 1 FROM classement c 
-            WHERE c.nom_equipe IN (m.team_home, m.team_away)
-            AND c.saison = m.saison
-            AND c.competition = m.competition
-            AND c.poule_id = m.poule_id
+        AND (m.poule_id IS NOT NULL AND m.poule_id != '')  // S'assurer que le match a une poule
+        AND (
+            /* Vérifier si au moins une des équipes n'a pas d'entrée dans le classement */
+            NOT EXISTS (
+                SELECT 1 FROM classement c 
+                WHERE c.nom_equipe = m.team_home
+                AND c.saison = CONCAT(YEAR(m.match_date), '-', YEAR(m.match_date) + 1)
+                AND c.competition = m.competition
+                AND c.poule_id = m.poule_id
+            )
+            OR
+            NOT EXISTS (
+                SELECT 1 FROM classement c 
+                WHERE c.nom_equipe = m.team_away
+                AND c.saison = CONCAT(YEAR(m.match_date), '-', YEAR(m.match_date) + 1)
+                AND c.competition = m.competition
+                AND c.poule_id = m.poule_id
+            )
+            /* Ou si le match n'a pas encore été traité */
+            OR NOT EXISTS (
+                SELECT 1 FROM classement c 
+                WHERE c.nom_equipe IN (m.team_home, m.team_away)
+                AND c.saison = CONCAT(YEAR(m.match_date), '-', YEAR(m.match_date) + 1)
+                AND c.competition = m.competition
+                AND c.poule_id = m.poule_id
+                AND c.dernier_match_traite >= m.match_date
+            )
         )
+        ORDER BY m.match_date, m.match_time
     ")->fetchAll(PDO::FETCH_ASSOC);
 
+    // Mettre à jour le classement pour chaque match
     foreach ($completedMatches as $match) {
-        updateClassementForMatch($pdo, $match);
-    }
+        try {
+            updateClassementForMatch($pdo, $match);
+            
+            // Marquer le match comme traité dans le classement
+            $season = date('Y', strtotime($match['match_date'])) . '-' . (date('Y', strtotime($match['match_date'])) + 1);
+            $dateNow = date('Y-m-d H:i:s');
+            
+            // Pour l'équipe à domicile
+            $stmt = $pdo->prepare("
+                UPDATE classement 
+                SET dernier_match_traite = ? 
+                WHERE nom_equipe = ? 
+                AND saison = ? 
+                AND competition = ? 
+                AND poule_id = ?
+            ");
+            $stmt->execute([$dateNow, $match['team_home'], $season, $match['competition'], $match['poule_id']]);
+            
+            // Pour l'équipe à l'extérieur
+            $stmt->execute([$dateNow, $match['team_away'], $season, $match['competition'], $match['poule_id']]);
+            
+        } catch (Exception $e) {
+            error_log("Erreur lors du traitement du match ID {$match['id']}: " . $e->getMessage());
+            continue;  // Continuer avec le match suivant en cas d'erreur
+        }
 } catch (PDOException $e) {
     error_log("Error backfilling completed matches: " . $e->getMessage());
 }
@@ -680,424 +1221,6 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../styles.css">
-    <style>
-        .sidebar {
-            min-height: 100vh;
-            background: #343a40;
-        }
-        .sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.75);
-        }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active {
-            color: white;
-            background: rgba(255, 255, 255, 0.1);
-        }
-        .nav-tabs .nav-link {
-            color: #495057;
-        }
-        .nav-tabs .nav-link.active {
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <?php include '../includes/sidebar.php'; ?>   
-
-            <!-- Main Content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
-                <h2 class="h3 mb-4"><i class="fas fa-calendar-alt me-2"></i>Gestion des Matchs</h2>
-
-                <?php if (isset($_SESSION['message'])): ?>
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <?= safe_html($_SESSION['message']) ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                    <?php unset($_SESSION['message']); ?>
-                <?php endif; ?>
-
-                <?php if (isset($_SESSION['error'])): ?>
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <?= safe_html($_SESSION['error']) ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                    <?php unset($_SESSION['error']); ?>
-                <?php endif; ?>
-
-                <!-- Tabs navigation -->
-                <ul class="nav nav-tabs mb-4" id="manageTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="matches-tab" data-bs-toggle="tab" data-bs-target="#matches" type="button" role="tab" aria-controls="matches" aria-selected="true">
-                            <i class="fas fa-calendar-alt me-2"></i>Matchs
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="poules-tab" data-bs-toggle="tab" data-bs-target="#poules" type="button" role="tab" aria-controls="poules" aria-selected="false">
-                            <i class="fas fa-layer-group me-2"></i>Poules
-                        </button>
-                    </li>
-                </ul>
-
-                <!-- Tab content -->
-                <div class="tab-content" id="manageTabsContent">
-                    <!-- Matches Tab -->
-                    <div class="tab-pane fade show active" id="matches" role="tabpanel" aria-labelledby="matches-tab">
-                        <!-- Form to add/edit match -->
-                        <div class="card mb-4">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Ajouter/Modifier un Match</h5>
-                            </div>
-                            <div class="card-body">
-                                <form method="post">
-                                    <input type="hidden" name="match_id" id="match_id">
-                                    <div class="row g-3">
-                                        <div class="col-md-4">
-                                            <label for="competition" class="form-label">Compétition</label>
-                                            <input type="text" name="competition" id="competition" class="form-control" placeholder="Ex: coupe UJEM" required>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="phase" class="form-label">Phase</label>
-                                            <input type="text" name="phase" id="phase" class="form-control" placeholder="Ex: Phase de groupe" required>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="poule_id" class="form-label">Poule</label>
-                                            <select name="poule_id" id="poule_id" class="form-select">
-                                                <option value="">-- Sélectionner une poule --</option>
-                                                <?php foreach ($poules as $poule): ?>
-                                                    <option value="<?= safe_html($poule['id']) ?>">
-                                                        <?= safe_html(($poule['competition'] ?? '') . ' - ' . ($poule['name'] ?? '')) ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="team_home" class="form-label">Équipe Domicile</label>
-                                            <select name="team_home" id="team_home" class="form-select" required>
-                                                <option value="">Sélectionner une équipe</option>
-                                                <?php foreach ($teams as $team): ?>
-                                                    <option value="<?= safe_html($team['name']) ?>"><?= safe_html($team['name']) ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="team_away" class="form-label">Équipe Extérieure</label>
-                                            <select name="team_away" id="team_away" class="form-select" required>
-                                                <option value="">Sélectionner une équipe</option>
-                                                <?php foreach ($teams as $team): ?>
-                                                    <option value="<?= safe_html($team['name']) ?>"><?= safe_html($team['name']) ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="match_date" class="form-label">Date du Match</label>
-                                            <input type="date" name="match_date" id="match_date" class="form-control" required>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="match_time" class="form-label">Heure du Match</label>
-                                            <input type="time" name="match_time" id="match_time" class="form-control" required>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="venue" class="form-label">Lieu</label>
-                                            <input type="text" name="venue" id="venue" class="form-control" placeholder="Ex: champrou de melekoukro" required>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label for="score_home" class="form-label">Score Domicile</label>
-                                            <input type="number" name="score_home" id="score_home" class="form-control" min="0" placeholder="Ex: 2">
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label for="score_away" class="form-label">Score Extérieur</label>
-                                            <input type="number" name="score_away" id="score_away" class="form-control" min="0" placeholder="Ex: 1">
-                                        </div>
-                                    </div>
-                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
-                                        <button type="submit" name="add_match" id="add_match" class="btn btn-primary">Ajouter</button>
-                                        <button type="submit" name="update_match" id="update_match" class="btn btn-primary d-none">Mettre à jour</button>
-                                        <button type="submit" name="finalize_match" id="finalize_match" class="btn btn-success d-none">Finaliser</button>
-                                        <button type="button" id="reset_form" class="btn btn-secondary d-none">Annuler</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-
-                        <!-- Matches list -->
-                        <div class="card">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Liste des Matchs</h5>
-                            </div>
-                            <div class="card-body">
-                                <?php if (empty($matches)): ?>
-                                    <div class="alert alert-info">Aucun match enregistré.</div>
-                                <?php else: ?>
-                                    <!-- Filter matches by poule -->
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <label for="filter_poule" class="form-label">Filtrer par poule:</label>
-                                            <select id="filter_poule" class="form-select">
-                                                <option value="">Tous les matchs</option>
-                                                <?php foreach ($poules as $poule): ?>
-                                                    <option value="<?= safe_html($poule['id']) ?>">
-                                                        <?= safe_html(($poule['competition'] ?? '') . ' - ' . ($poule['name'] ?? '')) ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="table-responsive">
-                                        <table class="table table-hover" id="matches_table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Date</th>
-                                                    <th>Compétition</th>
-                                                    <th>Match</th>
-                                                    <th>Score</th>
-                                                    <th>Phase</th>
-                                                    <th>Poule</th>
-                                                    <th>Lieu</th>
-                                                    <th>Statut</th>
-                                                    <th>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <?php foreach ($matches as $match): ?>
-                                                <tr data-poule-id="<?= safe_html($match['poule_id'] ?? '') ?>">
-                                                    <td>
-                                                        <?= !empty($match['match_date']) ? date('d/m/Y H:i', strtotime($match['match_date'] . ' ' . ($match['match_time'] ?? '00:00'))) : 'Date non définie' ?>
-                                                    </td>
-                                                    <td><?= safe_html($match['competition']) ?></td>
-                                                    <td><?= safe_html($match['team_home']) ?> vs <?= safe_html($match['team_away']) ?></td>
-                                                    <td>
-                                                        <?php if (isset($match['score_home']) && isset($match['score_away'])): ?>
-                                                            <?= safe_html($match['score_home']) ?> - <?= safe_html($match['score_away']) ?>
-                                                        <?php else: ?>
-                                                            -
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td><?= safe_html($match['phase']) ?></td>
-                                                    <td><?= safe_html($match['poule_name'] ?? 'Non assigné') ?></td>
-                                                    <td><?= safe_html($match['venue']) ?></td>
-                                                    <td>
-                                                        <?php if (($match['status'] ?? '') === 'pending'): ?>
-                                                            En attente
-                                                        <?php elseif (($match['status'] ?? '') === 'ongoing'): ?>
-                                                            En cours
-                                                        <?php else: ?>
-                                                            Terminé
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td>
-                                                        <button class="btn btn-sm btn-outline-primary edit-match" 
-                                                                data-id="<?= safe_html($match['id']) ?>" 
-                                                                data-team-home="<?= safe_html($match['team_home']) ?>" 
-                                                                data-team-away="<?= safe_html($match['team_away']) ?>" 
-                                                                data-competition="<?= safe_html($match['competition']) ?>" 
-                                                                data-date="<?= safe_html($match['match_date']) ?>" 
-                                                                data-time="<?= safe_html($match['match_time']) ?>" 
-                                                                data-phase="<?= safe_html($match['phase']) ?>" 
-                                                                data-venue="<?= safe_html($match['venue']) ?>" 
-                                                                data-score-home="<?= safe_html($match['score_home']) ?>" 
-                                                                data-score-away="<?= safe_html($match['score_away']) ?>"
-                                                                data-status="<?= safe_html($match['status']) ?>"
-                                                                data-poule-id="<?= safe_html($match['poule_id'] ?? '') ?>">
-                                                            <i class="fas fa-edit"></i> Modifier
-                                                        </button>
-                                                        <form method="post" class="d-inline" onsubmit="return confirm('Voulez-vous vraiment supprimer ce match ?');">
-                                                            <input type="hidden" name="match_id" value="<?= safe_html($match['id']) ?>">
-                                                            <button type="submit" name="delete_match" class="btn btn-sm btn-outline-danger">
-                                                                <i class="fas fa-trash"></i> Supprimer
-                                                            </button>
-                                                        </form>
-                                                    </td>
-                                                </tr>
-                                                <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Poules Tab -->
-                    <div class="tab-pane fade" id="poules" role="tabpanel" aria-labelledby="poules-tab">
-                        <!-- Form to add poule -->
-                        <div class="card mb-4">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Ajouter une Poule</h5>
-                            </div>
-                            <div class="card-body">
-                                <form method="post">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label for="poule_name" class="form-label">Nom de la Poule</label>
-                                            <input type="text" name="poule_name" id="poule_name" class="form-control" placeholder="Ex: Poule A" required>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="poule_competition" class="form-label">Compétition</label>
-                                            <input type="text" name="poule_competition" id="poule_competition" class="form-control" placeholder="Ex: Coupe UJEM 2025" required>
-                                        </div>
-                                    </div>
-                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
-                                        <button type="submit" name="add_poule" class="btn btn-primary">Ajouter la Poule</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-
-                        <!-- Poules list -->
-                        <div class="card">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Liste des Poules</h5>
-                            </div>
-                            <div class="card-body">
-                                <?php if (empty($poules)): ?>
-                                    <div class="alert alert-info">Aucune poule enregistrée.</div>
-                                <?php else: ?>
-                                    <div class="table-responsive">
-                                        <table class="table table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th>Nom</th>
-                                                    <th>Compétition</th>
-                                                    <th>Nombre de Matchs</th>
-                                                    <th>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <?php foreach ($poules as $poule): 
-                                                    // Count matches in this poule
-                                                    $match_count = 0;
-                                                    foreach ($matches as $match) {
-                                                        if (isset($match['poule_id']) && $match['poule_id'] == $poule['id']) {
-                                                            $match_count++;
-                                                        }
-                                                    }
-                                                ?>
-                                                <tr>
-                                                    <td><?= safe_html($poule['name']) ?></td>
-                                                    <td><?= safe_html($poule['competition']) ?></td>
-                                                    <td><?= $match_count ?></td>
-                                                    <td>
-                                                        <form method="post" class="d-inline" onsubmit="return confirm('Voulez-vous vraiment supprimer cette poule ? Les matchs resteront mais ne seront plus associés à cette poule.');">
-                                                            <input type="hidden" name="poule_id" value="<?= safe_html($poule['id']) ?>">
-                                                            <button type="submit" name="delete_poule" class="btn btn-sm btn-outline-danger">
-                                                                <i class="fas fa-trash"></i> Supprimer
-                                                            </button>
-                                                        </form>
-                                                    </td>
-                                                </tr>
-                                                <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Handle edit button click
-        const editButtons = document.querySelectorAll('.edit-match');
-        if (editButtons.length > 0) {
-            editButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    document.getElementById('match_id').value = this.dataset.id;
-                    document.getElementById('team_home').value = this.dataset.teamHome;
-                    document.getElementById('team_away').value = this.dataset.teamAway;
-                    document.getElementById('competition').value = this.dataset.competition;
-                    document.getElementById('match_date').value = this.dataset.date;
-                    document.getElementById('match_time').value = this.dataset.time;
-                    document.getElementById('phase').value = this.dataset.phase;
-                    document.getElementById('venue').value = this.dataset.venue;
-                    document.getElementById('score_home').value = this.dataset.scoreHome || '';
-                    document.getElementById('score_away').value = this.dataset.scoreAway || '';
-                    document.getElementById('poule_id').value = this.dataset.pouleId || '';
-                    const isOngoing = this.dataset.status === 'ongoing';
-                    document.getElementById('add_match').classList.add('d-none');
-                    document.getElementById('update_match').classList.remove('d-none');
-                    document.getElementById('finalize_match').classList.toggle('d-none', !isOngoing);
-                    document.getElementById('reset_form').classList.remove('d-none');
-                    
-                    // Scroll to form
-                    document.querySelector('.card-header').scrollIntoView({ behavior: 'smooth' });
-                });
-            });
-        }
-
-        // Reset form button
-        const resetFormBtn = document.getElementById('reset_form');
-        if (resetFormBtn) {
-            resetFormBtn.addEventListener('click', function() {
-                document.querySelector('form').reset();
-                document.getElementById('add_match').classList.remove('d-none');
-                document.getElementById('update_match').classList.add('d-none');
-                document.getElementById('finalize_match').classList.add('d-none');
-                document.getElementById('reset_form').classList.add('d-none');
-            });
-        }
-
-        // Filter matches by poule
-        const filterPoule = document.getElementById('filter_poule');
-        if (filterPoule) {
-            filterPoule.addEventListener('change', function() {
-                const pouleId = this.value;
-                const rows = document.querySelectorAll('#matches_table tbody tr');
-                
-                rows.forEach(row => {
-                    if (!pouleId || row.dataset.pouleId === pouleId) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-            });
-        }
-
-        // Generate standings table for each poule
-        function generateStandings() {
-            const poules = <?= json_encode($poules) ?>;
-            const matches = <?= json_encode($matches) ?>;
-            
-            poules.forEach(poule => {
-                // Get matches for this poule
-                const pouleMatches = matches.filter(match => 
-                    match.poule_id == poule.id && match.status === 'finished'
-                );
-                
-                if (pouleMatches.length === 0) return;
-                
-                // Get unique teams in this poule
-                const teams = new Set();
-                pouleMatches.forEach(match => {
-                    teams.add(match.team_home);
-                    teams.add(match.team_away);
-                });
-                
-                // Calculate stats for each team
-                const teamStats = {};
-                teams.forEach(team => {
-                    teamStats[team] = {
-                        team: team,
-                        played: 0,
-                        won: 0,
-                        drawn: 0,
-                        lost: 0,
-                        goalsFor: 0,
-                        goalsAgainst: 0,
-                        points: 0
-                    };
-                });
-                
-                // Calculate stats from matches
-                pouleMatches.forEach(match => {
-                    if (match.score_home === null || match.score_away === null) return;
                     
                     const homeTeam = match.team_home;
                     const awayTeam = match.team_away;
