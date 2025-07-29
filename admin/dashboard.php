@@ -5,8 +5,46 @@ require_once __DIR__ . '/includes/match_actions/modals/score_modal.php';
 require_once __DIR__ . '/includes/match_actions/modals/goal_modal.php';
 require_once __DIR__ . '/includes/match_actions/modals/card_modal.php';
 
-// Récupérer les matchs en cours (en attente ou en cours)
+// Récupérer uniquement les matchs en cours (ongoing) et en attente (pending)
 $currentMatches = [];
+
+// Récupérer les 5 derniers matchs terminés
+$completedMatches = [];
+try {
+    // Vérifier si la table teams existe pour la jointure
+    $teamsTableExists = $pdo->query("SHOW TABLES LIKE 'teams'")->rowCount() > 0;
+    $canJoinTeams = $teamsTableExists && 
+                   $pdo->query("SHOW COLUMNS FROM teams LIKE 'team_name'")->rowCount() > 0 &&
+                   $pdo->query("SHOW COLUMNS FROM teams LIKE 'logo'")->rowCount() > 0;
+
+    if ($canJoinTeams) {
+        $query = "
+            SELECT m.*, 
+                   t1.logo as home_logo, 
+                   t2.logo as away_logo
+            FROM matches m
+            LEFT JOIN teams t1 ON m.team_home = t1.team_name
+            LEFT JOIN teams t2 ON m.team_away = t2.team_name
+            WHERE m.status = 'completed'
+            ORDER BY m.match_date DESC, m.match_time DESC
+            LIMIT 5
+        ";
+    } else {
+        $query = "
+            SELECT m.*, 
+                   '' as home_logo, 
+                   '' as away_logo
+            FROM matches m
+            WHERE m.status = 'completed'
+            ORDER BY m.match_date DESC, m.match_time DESC
+            LIMIT 5
+        ";
+    }
+    
+    $completedMatches = $pdo->query($query)->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Erreur lors de la récupération des matchs terminés: " . $e->getMessage());
+}
 try {
     // Vérifier d'abord si la table matches existe
     $tableExists = $pdo->query("SHOW TABLES LIKE 'matches'")->rowCount() > 0;
@@ -34,7 +72,7 @@ try {
                    $pdo->query("SHOW COLUMNS FROM teams LIKE 'logo'")->rowCount() > 0;
 
     if ($canJoinTeams) {
-        // Essayer avec la jointure sur teams si possible
+        // Requête avec jointure sur teams
         $query = "
             SELECT m.*, 
                    t1.logo as home_logo, 
@@ -53,7 +91,7 @@ try {
                 m.match_time ASC
         ";
     } else {
-        // Sinon, utiliser une requête simple
+        // Requête sans jointure
         $query = "
             SELECT m.*, 
                    '' as home_logo, 
@@ -1704,11 +1742,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <!-- Score et minuteur -->
                         <div class="col-2 text-center">
-                            <div class="fw-bold">
+                            <div class="fw-bold match-score">
                                 <?= $match['score_home'] ?? '0' ?> - <?= $match['score_away'] ?? '0' ?>
                             </div>
-                            <div class="small text-muted">
-                                <i class="far fa-clock"></i> 
+                            <div class="small match-timer" data-match-id="<?= $match['id'] ?>">
+                                <?php if ($matchStatus === 'ongoing'): ?>
+                                    <i class="fas fa-play-circle me-1"></i>
+                                <?php elseif ($matchStatus === 'paused'): ?>
+                                    <i class="fas fa-pause-circle me-1"></i>
+                                <?php else: ?>
+                                    <i class="far fa-clock me-1"></i>
+                                <?php endif; ?>
                                 <?= sprintf('%02d:%02d', $displayMinutes, $displaySeconds) ?>
                             </div>
                             <?php if (!empty($halfText)): ?>
@@ -1986,6 +2030,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
+    <!-- Section Matchs Terminés -->
+    <div class="card shadow-sm mb-4 mt-4">
+        <div class="card-header bg-success bg-gradient text-white d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-flag-checkered me-2"></i>
+                <h5 class="mb-0">Matchs Terminés</h5>
+            </div>
+        </div>
+        <div class="card-body">
+            <?php if (empty($completedMatches)): ?>
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i> Aucun match terminé récemment.
+                </div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Compétition</th>
+                                <th>Équipe à domicile</th>
+                                <th>Score</th>
+                                <th>Équipe à l'extérieur</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($completedMatches as $match): ?>
+                                <tr>
+                                    <td>
+                                        <?= date('d/m/Y', strtotime($match['match_date'])) ?><br>
+                                        <small class="text-muted"><?= date('H:i', strtotime($match['match_time'])) ?></small>
+                                    </td>
+                                    <td><?= htmlspecialchars($match['competition']) ?></td>
+                                    <td class="text-end">
+                                        <?php if (!empty($match['home_logo'])): ?>
+                                            <img src="<?= htmlspecialchars($match['home_logo']) ?>" alt="<?= htmlspecialchars($match['team_home']) ?>" class="team-logo-sm me-2">
+                                        <?php endif; ?>
+                                        <?= htmlspecialchars($match['team_home']) ?>
+                                    </td>
+                                    <td class="text-center fw-bold">
+                                        <?= (int)$match['score_home'] ?> - <?= (int)$match['score_away'] ?>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($match['away_logo'])): ?>
+                                            <img src="<?= htmlspecialchars($match['away_logo']) ?>" alt="<?= htmlspecialchars($match['team_away']) ?>" class="team-logo-sm me-2">
+                                        <?php endif; ?>
+                                        <?= htmlspecialchars($match['team_away']) ?>
+                                    </td>
+                                    <td>
+                                        <a href="match_details.php?id=<?= (int)$match['id'] ?>" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye me-1"></i> Détails
+                                        </a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <!-- Fin Section Matchs Terminés -->
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -2083,5 +2191,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         });
     </script>
-</body>
+        
+        <script>
+        // Fonction pour formater le temps en minutes:secondes
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}':${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        // Fonction pour mettre à jour les minuteurs des matchs
+        function updateMatchTimers() {
+            fetch('api/get_ongoing_matches.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.matches) {
+                        data.matches.forEach(match => {
+                            const matchElement = document.querySelector(`.match-card[data-match-id="${match.id}"]`);
+                            if (matchElement) {
+                                // Mettre à jour le minuteur
+                                const timerElement = matchElement.querySelector('.match-timer');
+                                if (timerElement) {
+                                    timerElement.textContent = formatTime(match.current_elapsed);
+                                    
+                                    // Mettre à jour la classe en fonction de l'état du match
+                                    if (match.status === 'ongoing') {
+                                        timerElement.classList.add('text-danger', 'fw-bold');
+                                        timerElement.innerHTML = `
+                                            <i class="fas fa-play-circle me-1"></i>
+                                            ${formatTime(match.current_elapsed)}
+                                        `;
+                                    } else if (match.status === 'paused') {
+                                        timerElement.classList.add('text-warning');
+                                        timerElement.innerHTML = `
+                                            <i class="fas fa-pause-circle me-1"></i>
+                                            ${formatTime(match.current_elapsed)}
+                                        `;
+                                    } else {
+                                        timerElement.classList.remove('text-danger', 'text-warning', 'fw-bold');
+                                        timerElement.textContent = formatTime(match.current_elapsed);
+                                    }
+                                }
+
+                                // Mettre à jour le score si nécessaire
+                                const scoreElement = matchElement.querySelector('.match-score');
+                                if (scoreElement) {
+                                    scoreElement.textContent = `${match.score_home} - ${match.score_away}`;
+                                }
+
+                                // Mettre à jour les boutons d'action en fonction de l'état du match
+                                const startBtn = matchElement.querySelector('.btn-start-match');
+                                const pauseBtn = matchElement.querySelector('.btn-pause-match');
+                                const resumeBtn = matchElement.querySelector('.btn-resume-match');
+                                const finalizeBtn = matchElement.querySelector('.btn-finalize-match');
+
+                                if (match.status === 'ongoing') {
+                                    if (startBtn) startBtn.style.display = 'none';
+                                    if (pauseBtn) pauseBtn.style.display = 'inline-block';
+                                    if (resumeBtn) resumeBtn.style.display = 'none';
+                                    if (finalizeBtn) finalizeBtn.style.display = 'inline-block';
+                                } else if (match.status === 'paused') {
+                                    if (startBtn) startBtn.style.display = 'none';
+                                    if (pauseBtn) pauseBtn.style.display = 'none';
+                                    if (resumeBtn) resumeBtn.style.display = 'inline-block';
+                                    if (finalizeBtn) finalizeBtn.style.display = 'inline-block';
+                                } else {
+                                    if (startBtn) startBtn.style.display = 'inline-block';
+                                    if (pauseBtn) pauseBtn.style.display = 'none';
+                                    if (resumeBtn) resumeBtn.style.display = 'none';
+                                    if (finalizeBtn) finalizeBtn.style.display = 'inline-block';
+                                }
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la mise à jour des minuteurs:', error);
+                });
+        }
+
+        // Mettre à jour les minuteurs toutes les secondes
+        setInterval(updateMatchTimers, 1000);
+
+        // Mettre à jour immédiatement au chargement de la page
+        document.addEventListener('DOMContentLoaded', updateMatchTimers);
+        </script>
+    </body>
 </html>
