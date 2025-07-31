@@ -108,7 +108,7 @@ if (file_exists($db_config_path)) {
                 // Test database connection
                 debug_message("Testing database connection...");
                 try {
-                    $pdo = DatabaseConfig::getConnection();
+                    $pdo = DatabaseSSL::getInstance()->getConnection();
                     debug_message("Successfully connected to the database");
                     
                     // Get database version

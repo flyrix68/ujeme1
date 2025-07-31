@@ -86,8 +86,8 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || ($_SESSION['r
 
 // Now initialize database connection safely
 try {
-    require_once '../includes/db-config.php';
-    $pdo = DatabaseConfig::getConnection();
+    require_once __DIR__ . '/includes/db-ssl.php';
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     // Verify database connection
     if (!isset($pdo)) {
@@ -474,8 +474,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Now initialize database connection safely
 try {
-    require_once '../includes/db-config.php';
-    $pdo = DatabaseConfig::getConnection();
+    require_once __DIR__ . '/includes/db-ssl.php';
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     // Verify database connection
     if (!isset($pdo)) {

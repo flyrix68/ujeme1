@@ -33,7 +33,7 @@ try {
 
 // Test 4: Database connection
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     echo "[TEST 4] Database connection established - SUCCESS\n";
 } catch (Exception $e) {
     die("[TEST 4] Database connection FAILED: " . $e->getMessage() . "\n");

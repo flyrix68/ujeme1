@@ -16,8 +16,8 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || ($_SESSION['r
 
 // Initialize database connection
 try {
-    require_once '../includes/db-config.php';
-    $pdo = DatabaseConfig::getConnection();
+    require_once __DIR__ . '/includes/db-ssl.php';
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     // Get all tables
     $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);

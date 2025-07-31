@@ -1,8 +1,8 @@
 &lt;?php
-require 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     $stmt = $pdo->prepare('SELECT * FROM matches WHERE id = 26');
     $stmt->execute();
     $match = $stmt->fetch(PDO::FETCH_ASSOC);

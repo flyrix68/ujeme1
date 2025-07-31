@@ -46,7 +46,7 @@ if ($matchId === false || $scoreHome === false || $scoreAway === false ||
 }
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     $pdo->beginTransaction();
     
     // Vérifier que le match existe et est en cours

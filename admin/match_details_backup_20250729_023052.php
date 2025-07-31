@@ -20,7 +20,7 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || ($_SESSION['r
 }
 
 // Database connection
-require_once '../includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 // Verify database connection
 if (!isset($pdo) || $pdo === null) {
@@ -478,7 +478,7 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || ($_SESSION['r
 }
 
 // Database connection
-require_once '../includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 // Verify database connection
 if (!isset($pdo) || $pdo === null) {

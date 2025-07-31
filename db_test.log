@@ -1,6 +1,85 @@
-[31-Jul-2025 15:11:45 Europe/Berlin] PHP Warning:  syntax error, unexpected '(' in C:\Users\hp\OneDrive\Desktop\ujem/.env on line 1
- in C:\Users\hp\OneDrive\Desktop\ujem\test_db_connection.php on line 11
-[31-Jul-2025 15:13:50 Europe/Berlin] PHP Warning:  syntax error, unexpected '(' in C:\Users\hp\OneDrive\Desktop\ujem/.env on line 1
- in C:\Users\hp\OneDrive\Desktop\ujem\test_db_connection.php on line 11
-[31-Jul-2025 15:15:12 Europe/Berlin] PHP Warning:  syntax error, unexpected '(' in C:\Users\hp\OneDrive\Desktop\ujem/.env on line 1
- in C:\Users\hp\OneDrive\Desktop\ujem\test_db_connection.php on line 11
+[2025-07-31 19:18:23] === Starting Database Connection Test ===
+[2025-07-31 19:18:23] Host: yamanote.proxy.rlwy.net:58372
+[2025-07-31 19:18:23] Database: railway
+[2025-07-31 19:18:23] User: root
+[2025-07-31 19:18:23] Attempting to connect to database...
+[2025-07-31 19:18:25] ✅ Connected to database in 2066.89ms
+[2025-07-31 19:18:26] - MySQL Version: 9.3.0
+[2025-07-31 19:18:26] - SSL: Disabled
+[2025-07-31 19:18:26] 
+=== Tables in database ===
+[2025-07-31 19:18:27] - attendance (0 rows)
+[2025-07-31 19:18:27]   Columns: id, enrollment_id, course_date... (3 more)
+[2025-07-31 19:18:28] - beauty_contests (0 rows)
+[2025-07-31 19:18:28]   Columns: id, title, description... (5 more)
+[2025-07-31 19:18:28] - candidate_photos (0 rows)
+[2025-07-31 19:18:29]   Columns: id, candidate_id, photo_url... (2 more)
+[2025-07-31 19:18:29] - candidates (0 rows)
+[2025-07-31 19:18:30]   Columns: id, user_id, contest_id... (8 more)
+[2025-07-31 19:18:31] - cards (0 rows)
+[2025-07-31 19:18:31]   Columns: id, match_id, team... (3 more)
+[2025-07-31 19:18:31] - classement (5 rows)
+[2025-07-31 19:18:31]   Columns: id, saison, competition... (12 more)
+[2025-07-31 19:18:32] - codes_membres (0 rows)
+[2025-07-31 19:18:32]   Columns: id, code, utilise... (4 more)
+[2025-07-31 19:18:32] - comments (0 rows)
+[2025-07-31 19:18:32]   Columns: id, news_id, user_id... (2 more)
+[2025-07-31 19:18:33] - contest_events (0 rows)
+[2025-07-31 19:18:33]   Columns: id, contest_id, name... (5 more)
+[2025-07-31 19:18:33] - course_enrollments (0 rows)
+[2025-07-31 19:18:34]   Columns: id, course_id, student_id... (3 more)
+[2025-07-31 19:18:35] - donations (0 rows)
+[2025-07-31 19:18:36]   Columns: id, donor_name, donor_email... (7 more)
+[2025-07-31 19:18:36] - evenements (2 rows)
+[2025-07-31 19:18:37]   Columns: id, titre, description... (7 more)
+[2025-07-31 19:18:38] - event_registrations (0 rows)
+[2025-07-31 19:18:38]   Columns: id, event_id, name... (4 more)
+[2025-07-31 19:18:39] - facilities (0 rows)
+[2025-07-31 19:18:39]   Columns: id, name, type... (3 more)
+[2025-07-31 19:18:39] - facility_bookings (0 rows)
+[2025-07-31 19:18:40]   Columns: id, facility_id, user_id... (6 more)
+[2025-07-31 19:18:40] - goals (0 rows)
+[2025-07-31 19:18:40]   Columns: id, match_id, team... (2 more)
+[2025-07-31 19:18:40] - match_logs (4 rows)
+[2025-07-31 19:18:41]   Columns: id, match_id, user_id... (5 more)
+[2025-07-31 19:18:41] - match_processed (0 rows)
+[2025-07-31 19:18:41]   Columns: id, match_id, processed_at
+[2025-07-31 19:18:41] - matches (9 rows)
+[2025-07-31 19:18:42]   Columns: id, competition, phase... (23 more)
+[2025-07-31 19:18:42] - medias_actualites (0 rows)
+[2025-07-31 19:18:42]   Columns: id, titre, description... (7 more)
+[2025-07-31 19:18:43] - messages (0 rows)
+[2025-07-31 19:18:43]   Columns: id, sender_id, receiver_id... (3 more)
+[2025-07-31 19:18:44] - news (0 rows)
+[2025-07-31 19:18:44]   Columns: id, title, content... (5 more)
+[2025-07-31 19:18:44] - notifications (0 rows)
+[2025-07-31 19:18:45]   Columns: id, user_id, title... (5 more)
+[2025-07-31 19:18:45] - player_absences (0 rows)
+[2025-07-31 19:18:45]   Columns: id, player_id, start_date... (3 more)
+[2025-07-31 19:18:46] - players (1 rows)
+[2025-07-31 19:18:46]   Columns: id, user_id, team_id... (9 more)
+[2025-07-31 19:18:46] - poules (2 rows)
+[2025-07-31 19:18:46]   Columns: id, name, category... (2 more)
+[2025-07-31 19:18:47] - registration_periods (0 rows)
+[2025-07-31 19:18:47]   Columns: id, start_date, end_date... (5 more)
+[2025-07-31 19:18:48] - resources (0 rows)
+[2025-07-31 19:18:48]   Columns: id, course_id, title... (4 more)
+[2025-07-31 19:18:48] - standings (0 rows)
+[2025-07-31 19:18:48]   Columns: id, competition, team_name... (9 more)
+[2025-07-31 19:18:49] - subjects (0 rows)
+[2025-07-31 19:18:49]   Columns: id, name, description... (2 more)
+[2025-07-31 19:18:49] - teachers (0 rows)
+[2025-07-31 19:18:49]   Columns: id, user_id, bio... (2 more)
+[2025-07-31 19:18:50] - teams (8 rows)
+[2025-07-31 19:18:50]   Columns: id, team_name, category... (9 more)
+[2025-07-31 19:18:50] - ticket_purchases (0 rows)
+[2025-07-31 19:18:51]   Columns: id, ticket_id, buyer_name... (7 more)
+[2025-07-31 19:18:51] - tickets (0 rows)
+[2025-07-31 19:18:51]   Columns: id, event_id, ticket_type... (4 more)
+[2025-07-31 19:18:51] - users (3 rows)
+[2025-07-31 19:18:52]   Columns: id, email, password... (10 more)
+[2025-07-31 19:18:52] - votes (0 rows)
+[2025-07-31 19:18:52]   Columns: id, candidate_id, voter_ip... (2 more)
+[2025-07-31 19:18:52] 
+=== Test Complete ===
+

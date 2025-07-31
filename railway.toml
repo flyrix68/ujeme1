@@ -5,7 +5,7 @@
 
 [deploy]
   autoRollback = true
-  healthcheckPath = "/api/health.php"
+  healthcheckPath = "/"
   healthcheckTimeout = 30
   startTimeout = "300s"
   restartPolicy = "on-failure"
@@ -14,8 +14,36 @@
 
 [environments]
   [environments.production]
-  PUBLIC_URL = "https://ujem-web-production-3421.up.railway.app"
-  PORT = "8080"  # Railway will override this with their own port
+  # Application Settings
+  APP_ENV = "production"
+  APP_DEBUG = "false"
+  APP_KEY = "base64:your_application_key_here"  # Generate with: `php -r "echo 'base64:'.base64_encode(random_bytes(32));"`
+  
+  # Database Settings
+  DB_CONNECTION = "mysql"
+  DB_HOST = "yamanote.proxy.rlwy.net"
+  DB_PORT = "58372"
+  DB_DATABASE = "railway"
+  DB_USERNAME = "root"
+  DB_PASSWORD = "lHrCOmGSvbbiTSntPYLwjlWMuthCRxNu"
+  
+  # SSL Configuration
+  DB_SSL_CA = "/var/www/html/includes/cacert.pem"
+  DB_SSL_VERIFY = "true"
+  
+  # Session Configuration
+  SESSION_DRIVER = "file"
+  SESSION_LIFETIME = "120"
+  
+  # Application URL (will be set by Railway)
+  APP_URL = "https://ujem-web-production-3421.up.railway.app"
+  
+  # Port configuration (Railway will provide this)
+  PORT = "8080"  # Will be overridden by Railway
+  
+  # Logging
+  LOG_CHANNEL = "stderr"
+  LOG_LEVEL = "error"
 
 [services.web]
   startCommand = "/docker-entrypoint.sh"

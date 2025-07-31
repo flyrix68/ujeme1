@@ -1,12 +1,12 @@
 <?php
 // Vérifier si le formulaire est soumis
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require 'includes/db-config.php';
+    require_once __DIR__ . '/includes/db-ssl.php';
     require 'includes/team_function.php';
     
     try {
         // Initialiser la connexion PDO
-        $pdo = DatabaseConfig::getConnection();
+        $pdo = DatabaseSSL::getInstance()->getConnection();
         // Démarrer une transaction
         $pdo->beginTransaction();
         

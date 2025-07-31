@@ -1,5 +1,5 @@
 <?php
-require 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 function checkTable($pdo, $tableName) {
     echo "\n=== Vérification de la table '$tableName' ===\n";
@@ -45,7 +45,7 @@ function checkTable($pdo, $tableName) {
 }
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     echo "=== DIAGNOSTIC DE LA BASE DE DONNÉES ===\n";
     

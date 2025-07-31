@@ -17,7 +17,7 @@ if (!file_exists($dbConfigPath)) {
 require $dbConfigPath;
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
 
     if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
         header('Location: teams.php');

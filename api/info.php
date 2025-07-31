@@ -41,7 +41,7 @@ try {
             echo "DatabaseConfig class exists. Testing connection...\n";
             
             try {
-                $pdo = DatabaseConfig::getConnection();
+                $pdo = DatabaseSSL::getInstance()->getConnection();
                 echo "[SUCCESS] Connected to database!\n";
                 echo "Database Server: " . $pdo->getAttribute(PDO::ATTR_SERVER_VERSION) . "\n";
                 

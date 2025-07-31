@@ -4,7 +4,7 @@ require_once __DIR__ . '/../includes/db-config.php';
 
 // Initialize database connection
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     if (!$pdo) {
         throw new Exception('Failed to connect to database');
     }

@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 
 // Start session and check auth
 session_start();
-require_once '../includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 // require_once '../includes/check-auth.php';
 
 // Récupérer l'ID du contenu à éditer

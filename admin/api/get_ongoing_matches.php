@@ -71,7 +71,7 @@ try {
     // Obtenir une connexion PDO via DatabaseConfig
     try {
         logError('Tentative de connexion à la base de données...');
-        $pdo = DatabaseConfig::getConnection();
+        $pdo = DatabaseSSL::getInstance()->getConnection();
         if (!($pdo instanceof PDO)) {
             throw new Exception('Échec de la connexion à la base de données: pas d\'instance PDO valide', 500);
         }

@@ -39,10 +39,10 @@ if (!$match_id || !in_array($team, ['home', 'away']) || empty($player) ||
 }
 
 // Connexion à la base de données
-require_once '../includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     // Vérifier que le match existe et est en cours
     $stmt = $pdo->prepare("SELECT id, status FROM matches WHERE id = ?");

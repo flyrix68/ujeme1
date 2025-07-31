@@ -1,8 +1,8 @@
 <?php
-require 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     echo "Connected to database successfully\n";
     echo "Listing all tables:\n\n";

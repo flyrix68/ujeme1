@@ -4,11 +4,11 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // Inclure la configuration de la base de données
-require 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 try {
     // Obtenir la connexion à la base de données
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     // Activer les exceptions PDO
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);

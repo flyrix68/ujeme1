@@ -1,5 +1,5 @@
 <?php
-require_once 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 if (!isset($_GET['id'])) {
     header('Location: events.php');

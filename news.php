@@ -8,7 +8,7 @@ error_reporting(E_ALL);
 session_start();
 
 // Database connection
-require_once 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 // Verify database connection
 if (!isset($pdo) || $pdo === null) {

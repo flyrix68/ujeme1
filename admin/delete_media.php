@@ -1,5 +1,5 @@
 <?php
-require_once '../includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 // require_once '../includes/check-auth.php';
 
 $content_id = $_GET['id'] ?? 0;

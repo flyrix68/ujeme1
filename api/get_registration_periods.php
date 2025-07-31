@@ -1,10 +1,10 @@
 &lt;?php
 header('Content-Type: application/json');
-require_once '../includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 try {
     // Initialize database connection
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     error_log("Registration periods API - DB connection established");
 
     // Fetch active periods using prepared statement

@@ -253,7 +253,7 @@ try {
     
     // Test 4: Test database connection
     try {
-        $pdo = DatabaseConfig::getConnection();
+        $pdo = DatabaseSSL::getInstance()->getConnection();
         health_log("Successfully obtained database connection");
         
         $version = $pdo->query('SELECT VERSION()')->fetchColumn();

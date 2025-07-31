@@ -51,7 +51,7 @@ try {
     require_once __DIR__ . '/../includes/db-config.php';
     
     // Get database connection
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     $pdo->setAttribute(PDO::ATTR_TIMEOUT, 5);
     $pdo->query('SELECT 1')->fetchColumn(); // Test connection
 

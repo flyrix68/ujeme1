@@ -8,7 +8,7 @@ require_once 'db-config.php';
 
 try {
     // Obtenir la connexion à la base de données
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     // Activer les exceptions PDO
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);

@@ -1,5 +1,5 @@
 <?php
-require_once 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 $errors = [];
 $success = false;

@@ -1,0 +1,848 @@
+=== DATABASE SCHEMA DUMP ===
+Generated: 2025-07-31 19:06:30
+Database: railway@yamanote.proxy.rlwy.net:58372
+
+
+================================================================================
+TABLE: attendance
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+enrollment_id        int                  NO         MUL      NULL                 
+course_date          date                 NO                  NULL                 
+status               enum('present','absent','late') NO                  NULL                 
+notes                text                 YES                 NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- enrollment_id (Unique: NO, Type: BTREE): enrollment_id
+
+================================================================================
+TABLE: beauty_contests
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+title                varchar(255)         NO                  NULL                 
+description          text                 YES                 NULL                 
+start_date           date                 NO                  NULL                 
+end_date             date                 NO                  NULL                 
+location             varchar(255)         NO                  NULL                 
+status               enum('upcoming','ongoing','completed') YES                 upcoming             
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+
+================================================================================
+TABLE: candidate_photos
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+candidate_id         int                  NO         MUL      NULL                 
+photo_url            varchar(255)         NO                  NULL                 
+is_primary           tinyint(1)           YES                 0                    
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- candidate_id (Unique: NO, Type: BTREE): candidate_id
+
+================================================================================
+TABLE: candidates
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+user_id              int                  NO         MUL      NULL                 
+contest_id           int                  NO         MUL      NULL                 
+bio                  text                 YES                 NULL                 
+measurements         varchar(50)          YES                 NULL                 
+talents              text                 YES                 NULL                 
+candidate_number     int                  YES                 NULL                 
+total_votes          int                  YES                 0                    
+jury_score           float                YES                 0                    
+final_rank           int                  YES                 NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- user_id (Unique: NO, Type: BTREE): user_id
+- contest_id (Unique: NO, Type: BTREE): contest_id
+
+================================================================================
+TABLE: cards
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+match_id             int                  NO         MUL      NULL                 
+team                 enum('home','away')  NO                  NULL                 
+player               varchar(255)         NO                  NULL                 
+card_type            enum('yellow','red','blue') NO                  NULL                 
+minute               int                  NO                  NULL                 
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- match_id (Unique: NO, Type: BTREE): match_id
+
+================================================================================
+TABLE: classement
+================================================================================
+
+ROWS: 5
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+saison               varchar(9)           NO         MUL      NULL                 
+competition          varchar(50)          NO                  NULL                 
+poule_id             int                  NO         MUL      NULL                 
+nom_equipe           varchar(50)          NO                  NULL                 
+logo                 varchar(255)         YES                 NULL                 
+matchs_joues         int                  NO                  NULL                 
+matchs_gagnes        int                  NO                  NULL                 
+matchs_nuls          int                  NO                  NULL                 
+matchs_perdus        int                  NO                  NULL                 
+buts_pour            int                  NO                  NULL                 
+buts_contre          int                  NO                  NULL                 
+difference_buts      int                  NO                  NULL                 
+points               int                  NO                  NULL                 
+forme                varchar(50)          NO                  NULL                 
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- saison (Unique: YES, Type: BTREE): saison, competition, nom_equipe
+- unique_team (Unique: YES, Type: BTREE): saison, competition, poule_id, nom_equipe
+- fk_classement_poule (Unique: NO, Type: BTREE): poule_id
+
+================================================================================
+TABLE: codes_membres
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+code                 varchar(50)          NO         UNI      NULL                 
+utilise              tinyint(1)           YES                 0                    
+date_creation        datetime             YES                 CURRENT_TIMESTAMP DEFAULT_GENERATED
+date_utilisation     datetime             YES                 NULL                 
+created_by           int                  YES                 NULL                 
+used_by              int                  YES                 NULL                 
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- code (Unique: YES, Type: BTREE): code
+
+================================================================================
+TABLE: comments
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+news_id              int                  NO         MUL      NULL                 
+user_id              int                  NO         MUL      NULL                 
+content              text                 NO                  NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- news_id (Unique: NO, Type: BTREE): news_id
+- user_id (Unique: NO, Type: BTREE): user_id
+
+================================================================================
+TABLE: contest_events
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+contest_id           int                  NO         MUL      NULL                 
+name                 varchar(255)         NO                  NULL                 
+event_date           datetime             NO                  NULL                 
+location             varchar(255)         NO                  NULL                 
+description          text                 YES                 NULL                 
+event_type           enum('rehearsal','photoshoot','final') NO                  NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- contest_id (Unique: NO, Type: BTREE): contest_id
+
+================================================================================
+TABLE: course_enrollments
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+course_id            int                  NO         MUL      NULL                 
+student_id           int                  NO         MUL      NULL                 
+enrollment_date      timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+payment_status       enum('pending','completed','waived') YES                 pending              
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- course_id (Unique: NO, Type: BTREE): course_id
+- student_id (Unique: NO, Type: BTREE): student_id
+
+================================================================================
+TABLE: donations
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+donor_name           varchar(100)         YES                 NULL                 
+donor_email          varchar(100)         YES                 NULL                 
+donor_phone          varchar(20)          YES                 NULL                 
+amount               decimal(10,2)        NO                  NULL                 
+payment_method       enum('paypal','mobile_money','bank_transfer','cash') NO                  NULL                 
+payment_status       enum('pending','completed','failed') YES                 pending              
+is_anonymous         tinyint(1)           YES                 0                    
+message              text                 YES                 NULL                 
+donation_date        timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+
+================================================================================
+TABLE: evenements
+================================================================================
+
+ROWS: 2
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+titre                varchar(100)         NO                  NULL                 
+description          text                 YES                 NULL                 
+date_debut           datetime             NO                  NULL                 
+date_fin             datetime             YES                 NULL                 
+lieu                 varchar(100)         YES                 NULL                 
+image                varchar(255)         YES                 NULL                 
+categorie            enum('sport','culture','education') NO                  NULL                 
+statut               enum('actif','annulé','complet') YES                 actif                
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+
+================================================================================
+TABLE: event_registrations
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+event_id             int                  NO         MUL      NULL                 
+name                 varchar(100)         NO                  NULL                 
+email                varchar(100)         NO                  NULL                 
+phone                varchar(20)          YES                 NULL                 
+comments             text                 YES                 NULL                 
+registration_date    datetime             NO                  NULL                 
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- event_id (Unique: NO, Type: BTREE): event_id
+
+================================================================================
+TABLE: facilities
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+name                 varchar(100)         NO                  NULL                 
+type                 enum('field','room','gym') NO                  NULL                 
+capacity             int                  YES                 NULL                 
+description          text                 YES                 NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+
+================================================================================
+TABLE: facility_bookings
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+facility_id          int                  NO         MUL      NULL                 
+user_id              int                  NO         MUL      NULL                 
+booking_date         date                 NO                  NULL                 
+start_time           time                 NO                  NULL                 
+end_time             time                 NO                  NULL                 
+purpose              text                 YES                 NULL                 
+status               enum('pending','approved','rejected') YES                 pending              
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- facility_id (Unique: NO, Type: BTREE): facility_id
+- user_id (Unique: NO, Type: BTREE): user_id
+
+================================================================================
+TABLE: goals
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+match_id             int                  NO         MUL      NULL                 
+team                 enum('home','away')  NO                  NULL                 
+player               varchar(255)         NO                  NULL                 
+minute               int                  NO                  NULL                 
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- match_id (Unique: NO, Type: BTREE): match_id
+
+================================================================================
+TABLE: match_logs
+================================================================================
+
+ROWS: 4
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+match_id             int                  NO         MUL      NULL                 
+user_id              int                  YES                 NULL                 
+action_type          enum('UPDATE_SCORE','ADD_GOAL','ADD_CARD','START_FIRST_HALF','END_FIRST_HALF','START_SECOND_HALF','END_MATCH','SET_EXTRA_TIME','FINALIZE_MATCH','SET_MATCH_DURATION','UPDATE_STANDING','CREATE_STANDING') NO                  NULL                 
+action_details       longtext             YES                 NULL                 
+created_at           datetime             NO         MUL      CURRENT_TIMESTAMP DEFAULT_GENERATED
+previous_value       text                 YES                 NULL                 
+new_value            text                 YES                 NULL                 
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- match_id (Unique: NO, Type: BTREE): match_id
+- created_at (Unique: NO, Type: BTREE): created_at
+
+================================================================================
+TABLE: match_processed
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+match_id             int                  NO         UNI      NULL                 
+processed_at         timestamp            YES                 CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- match_id (Unique: YES, Type: BTREE): match_id
+
+================================================================================
+TABLE: matches
+================================================================================
+
+ROWS: 9
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+competition          varchar(20)          NO                  NULL                 
+phase                varchar(50)          NO                  NULL                 
+match_date           date                 NO                  NULL                 
+match_time           time                 NO                  NULL                 
+team_home            varchar(50)          NO                  NULL                 
+team_away            varchar(50)          NO                  NULL                 
+score_home           int                  YES                 0                    
+score_away           int                  YES                 0                    
+venue                varchar(50)          NO                  NULL                 
+status               enum('pending','ongoing','completed','finished') YES                 pending              
+timer_duration       int                  YES                 5400                 
+timer_start          datetime             YES                 NULL                 
+timer_elapsed        int                  YES                 0                    
+first_half_elapsed   int                  YES                 0                    
+second_half_elapsed  int                  YES                 0                    
+poule_id             int                  YES                 NULL                 
+timer_status         enum('not_started','first_half','half_time','second_half','ended') YES                 not_started           
+timer_paused         tinyint(1)           YES                 0                    
+first_half_end       datetime             YES                 NULL                 
+second_half_start    datetime             YES                 NULL                 
+half_time_pause_start datetime             YES                 NULL                 
+first_half_extra     int                  YES                 0                    
+second_half_extra    int                  YES                 0                    
+first_half_duration  int                  YES                 0                    
+saison               varchar(20)          NO                  2024-2025            
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+
+================================================================================
+TABLE: medias_actualites
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+titre                varchar(255)         NO                  NULL                 
+description          text                 YES                 NULL                 
+media_url            varchar(255)         NO                  NULL                 
+media_type           enum('image','video','document') NO                  NULL                 
+categorie            enum('match','concours','cours','general') NO                  NULL                 
+reference_id         int                  YES                 NULL                 
+statut               enum('brouillon','publie','archive') YES                 publie               
+auteur_id            int                  NO         MUL      NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- auteur_id (Unique: NO, Type: BTREE): auteur_id
+
+================================================================================
+TABLE: messages
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+sender_id            int                  NO         MUL      NULL                 
+receiver_id          int                  YES        MUL      NULL                 
+content              text                 NO                  NULL                 
+is_read              tinyint(1)           YES                 0                    
+sent_at              timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- sender_id (Unique: NO, Type: BTREE): sender_id
+- receiver_id (Unique: NO, Type: BTREE): receiver_id
+
+================================================================================
+TABLE: news
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+title                varchar(255)         NO                  NULL                 
+content              text                 NO                  NULL                 
+author_id            int                  NO         MUL      NULL                 
+image_url            varchar(255)         YES                 NULL                 
+category             enum('sport','culture','education','general') NO                  NULL                 
+published_at         timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- author_id (Unique: NO, Type: BTREE): author_id
+
+================================================================================
+TABLE: notifications
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+user_id              int                  NO         MUL      NULL                 
+title                varchar(255)         NO                  NULL                 
+content              text                 NO                  NULL                 
+is_read              tinyint(1)           YES                 0                    
+notification_type    enum('system','event','message') NO                  NULL                 
+related_id           int                  YES                 NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- user_id (Unique: NO, Type: BTREE): user_id
+
+================================================================================
+TABLE: player_absences
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+player_id            int                  NO         MUL      NULL                 
+start_date           date                 NO                  NULL                 
+end_date             date                 NO                  NULL                 
+reason               text                 YES                 NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- player_id (Unique: NO, Type: BTREE): player_id
+
+================================================================================
+TABLE: players
+================================================================================
+
+ROWS: 1
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+user_id              int                  YES        MUL      NULL                 
+team_id              int                  YES        MUL      NULL                 
+position             enum('gardien','defenseur','milieu','attaquant') NO                  NULL                 
+jersey_number        int                  YES                 NULL                 
+height               float                YES                 NULL                 
+weight               float                YES                 NULL                 
+stats_goals          int                  YES                 0                    
+stats_assists        int                  YES                 0                    
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+name                 varchar(100)         NO                  NULL                 
+photo                varchar(255)         YES                 NULL                 
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- user_id (Unique: NO, Type: BTREE): user_id
+- team_id (Unique: NO, Type: BTREE): team_id
+
+================================================================================
+TABLE: poules
+================================================================================
+
+ROWS: 2
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+name                 varchar(50)          NO                  NULL                 
+category             varchar(50)          NO                  NULL                 
+competition          varchar(50)          YES                 NULL                 
+saison               varchar(9)           NO                  NULL                 
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+
+================================================================================
+TABLE: registration_periods
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+start_date           datetime             NO                  NULL                 
+end_date             datetime             NO                  NULL                 
+category             varchar(50)          NO         MUL      NULL                 
+closed_message       text                 YES                 NULL                 
+is_active            tinyint(1)           YES        MUL      0                    
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+updated_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- idx_category (Unique: NO, Type: BTREE): category
+- idx_active (Unique: NO, Type: BTREE): is_active
+
+================================================================================
+TABLE: resources
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+course_id            int                  NO         MUL      NULL                 
+title                varchar(255)         NO                  NULL                 
+description          text                 YES                 NULL                 
+file_url             varchar(255)         YES                 NULL                 
+resource_type        enum('document','video','link') NO                  NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- course_id (Unique: NO, Type: BTREE): course_id
+
+================================================================================
+TABLE: standings
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+competition          varchar(20)          NO         MUL      NULL                 
+team_name            varchar(50)          NO                  NULL                 
+played               int                  NO                  NULL                 
+won                  int                  NO                  NULL                 
+drawn                int                  NO                  NULL                 
+lost                 int                  NO                  NULL                 
+goals_for            int                  NO                  NULL                 
+goals_against        int                  NO                  NULL                 
+goal_difference      int                  NO                  NULL                 
+points               int                  NO                  NULL                 
+form                 varchar(5)           NO                  NULL                 
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- competition (Unique: YES, Type: BTREE): competition, team_name
+
+================================================================================
+TABLE: subjects
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+name                 varchar(100)         NO                  NULL                 
+description          text                 YES                 NULL                 
+level                enum('primary','secondary','tertiary') NO                  NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+
+================================================================================
+TABLE: teachers
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+user_id              int                  NO         MUL      NULL                 
+bio                  text                 YES                 NULL                 
+specialization       text                 YES                 NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- user_id (Unique: NO, Type: BTREE): user_id
+
+================================================================================
+TABLE: teams
+================================================================================
+
+ROWS: 8
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+team_name            varchar(100)         NO                  NULL                 
+category             enum('senior','junior','feminine') NO                  NULL                 
+location             varchar(100)         NO                  NULL                 
+description          text                 YES                 NULL                 
+coach_id             int                  YES        MUL      NULL                 
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+logo_path            varchar(255)         YES                 NULL                 
+manager_name         varchar(100)         NO                  NULL                 
+manager_email        varchar(100)         NO                  NULL                 
+manager_phone        varchar(20)          NO                  NULL                 
+poule_id             int                  YES                 NULL                 
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- coach_id (Unique: NO, Type: BTREE): coach_id
+
+================================================================================
+TABLE: ticket_purchases
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+ticket_id            int                  NO         MUL      NULL                 
+buyer_name           varchar(100)         NO                  NULL                 
+buyer_email          varchar(100)         NO                  NULL                 
+buyer_phone          varchar(20)          YES                 NULL                 
+quantity             int                  NO                  NULL                 
+total_amount         decimal(10,2)        NO                  NULL                 
+payment_method       enum('paypal','mobile_money','cash') NO                  NULL                 
+payment_status       enum('pending','completed','failed') YES                 pending              
+purchase_date        timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- ticket_id (Unique: NO, Type: BTREE): ticket_id
+
+================================================================================
+TABLE: tickets
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+event_id             int                  NO         MUL      NULL                 
+ticket_type          enum('standard','vip','backstage') NO                  NULL                 
+price                decimal(10,2)        NO                  NULL                 
+quantity_available   int                  NO                  NULL                 
+quantity_sold        int                  YES                 0                    
+created_at           timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- event_id (Unique: NO, Type: BTREE): event_id
+
+================================================================================
+TABLE: users
+================================================================================
+
+ROWS: 3
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+email                varchar(100)         NO         UNI      NULL                 
+password             varchar(255)         NO                  NULL                 
+nom                  varchar(50)          NO                  NULL                 
+prenom               varchar(50)          NO                  NULL                 
+telephone            varchar(20)          YES                 NULL                 
+photo_profil         varchar(255)         YES                 NULL                 
+role                 enum('admin','utilisateur','membre') YES                 utilisateur           
+date_inscription     datetime             NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+derniere_connexion   datetime             NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+adresse              text                 YES                 NULL                 
+date_naissance       date                 YES                 NULL                 
+centres_interet      text                 YES                 NULL                 
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- email (Unique: YES, Type: BTREE): email
+
+================================================================================
+TABLE: votes
+================================================================================
+
+ROWS: 0
+
+COLUMNS:
+------------------------------------------------------------------------------------------------------------------------
+Field                Type                 Null       Key      Default    Extra     
+------------------------------------------------------------------------------------------------------------------------
+id                   int                  NO         PRI      NULL       auto_increment
+candidate_id         int                  NO         MUL      NULL                 
+voter_ip             varchar(45)          YES                 NULL                 
+voter_id             int                  YES        MUL      NULL                 
+vote_date            timestamp            NO                  CURRENT_TIMESTAMP DEFAULT_GENERATED
+
+INDEXES:
+- PRIMARY (Unique: YES, Type: BTREE): id
+- candidate_id (Unique: NO, Type: BTREE): candidate_id
+- voter_id (Unique: NO, Type: BTREE): voter_id

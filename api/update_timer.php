@@ -4,7 +4,7 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-require_once '../includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 // Récupérer l'ID du match depuis les paramètres GET ou POST
 $matchId = filter_input(INPUT_GET, 'match_id', FILTER_VALIDATE_INT) ?: 

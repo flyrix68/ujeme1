@@ -49,7 +49,7 @@ if ($matchId === false || !in_array($team, ['home', 'away']) || empty($player) |
 }
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     $pdo->beginTransaction();
     
     // Vérifier que le match existe et est en cours

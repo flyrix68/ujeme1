@@ -7,7 +7,7 @@ ini_set('display_errors', 1);
 require __DIR__.'/includes/db-config.php';
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     // Execute the migration SQL files
     $sqlFiles = [

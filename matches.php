@@ -5,8 +5,8 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Connexion à la base de données
-require_once 'includes/db-config.php';
-$pdo = DatabaseConfig::getConnection();
+require_once __DIR__ . '/includes/db-ssl.php';
+$pdo = DatabaseSSL::getInstance()->getConnection();
 
 // Mise à jour automatique des statuts des matchs
 try {
@@ -328,7 +328,7 @@ function formatMatchDate($date) {
                                         
                                         <div class="row g-2 mb-2 align-items-center">
                                             <div class="col-5 d-flex align-items-center">
-                                                <img src="<?= DatabaseConfig::getTeamLogo($match['team_home']) ?>" 
+                                                <img src="<?= DatabaseSSL::getInstance()->getTeamLogo($match['team_home']) ?>" 
                                                      class="team-logo-sm me-2"
                                                      alt="<?= htmlspecialchars($match['team_home']) ?>" 
                                                      onerror="this.src='assets/img/teams/default.png'">
@@ -341,7 +341,7 @@ function formatMatchDate($date) {
                                             </div>
                                             <div class="col-5 d-flex align-items-center justify-content-end">
                                                 <span class="fw-bold text-truncate me-2"><?= htmlspecialchars($match['team_away']) ?></span>
-                                                <img src="<?= DatabaseConfig::getTeamLogo($match['team_away']) ?>" 
+                                                <img src="<?= DatabaseSSL::getInstance()->getTeamLogo($match['team_away']) ?>" 
                                                      class="team-logo-sm"
                                                      alt="<?= htmlspecialchars($match['team_away']) ?>"
                                                      onerror="this.src='assets/img/teams/default.png'">
@@ -432,7 +432,7 @@ function formatMatchDate($date) {
                                         <td><?= htmlspecialchars($match['phase']) ?></td>
                                         <td <?= $match['score_home'] > $match['score_away'] ? 'class="fw-bold"' : '' ?>>
                                             <div class="d-flex align-items-center">
-                                                <img src="<?= DatabaseConfig::getTeamLogo($match['team_home']) ?>" 
+                                                <img src="<?= DatabaseSSL::getInstance()->getTeamLogo($match['team_home']) ?>" 
                                                      class="team-logo-sm me-2"
                                                      alt="<?= htmlspecialchars($match['team_home']) ?>"
                                                      onerror="this.src='assets/img/teams/default.png'">
@@ -457,7 +457,7 @@ function formatMatchDate($date) {
                                         </td>
                                         <td <?= (isset($match['score_away']) && isset($match['score_home']) && intval($match['score_away']) > intval($match['score_home'])) ? 'class="fw-bold"' : '' ?>>
                                             <div class="d-flex align-items-center">
-                                                <img src="<?= DatabaseConfig::getTeamLogo($match['team_away']) ?>" 
+                                                <img src="<?= DatabaseSSL::getInstance()->getTeamLogo($match['team_away']) ?>" 
                                                      class="team-logo-sm me-2"
                                                      alt="<?= htmlspecialchars($match['team_away']) ?>"
                                                      onerror="this.src='assets/img/teams/default.png'">

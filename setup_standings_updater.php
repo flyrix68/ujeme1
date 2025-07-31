@@ -1,9 +1,9 @@
 &lt;?php
-require 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 // Create table if doesn't exist
 $sql = file_get_contents(__DIR__.'/sql/create_match_processed_table.sql');
-$pdo = DatabaseConfig::getConnection();
+$pdo = DatabaseSSL::getInstance()->getConnection();
 $pdo->exec($sql);
 
 // Run standings updater

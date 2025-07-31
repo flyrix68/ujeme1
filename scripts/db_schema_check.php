@@ -4,7 +4,7 @@ require_once __DIR__ . '/../includes/db-config.php';
 header('Content-Type: application/json');
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     // Get matches table status column info
     $statusColumn = $pdo->query("SHOW COLUMNS FROM matches LIKE 'status'")->fetch();

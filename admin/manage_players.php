@@ -21,10 +21,10 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-require_once '../includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     // Handle form submissions with CSRF check
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {

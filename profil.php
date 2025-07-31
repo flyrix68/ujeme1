@@ -18,7 +18,7 @@ if (!isset($_SESSION['csrf_token'])) {
 }
 
 // Database connection
-require_once 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 // Redirect if user is not logged in
 if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {

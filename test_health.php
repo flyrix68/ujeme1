@@ -39,7 +39,7 @@ require __DIR__ . '/includes/db-config.php';
 
 try {
     log_message("Attempting to get database connection");
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     log_message("✅ Successfully connected to database!");
     
     // Test a simple query

@@ -10,10 +10,10 @@ session_set_cookie_params(3600, '/');
 session_start();
 
 // Database connection with enhanced validation
-require_once 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     if (!$pdo) {
         throw new RuntimeException('Failed to get database connection');

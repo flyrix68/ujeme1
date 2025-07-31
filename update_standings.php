@@ -1,9 +1,9 @@
 &lt;?php
-require 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 require 'includes/team_function.php';
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     // Start transaction
     $pdo->beginTransaction();

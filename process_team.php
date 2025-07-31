@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 require_once 'includes/team_function.php';
 
 // Activer l'affichage des erreurs pour le débogage

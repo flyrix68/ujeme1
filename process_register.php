@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     // Si la méthode n'est pas POST, rediriger vers register.php

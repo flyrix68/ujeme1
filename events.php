@@ -2,10 +2,10 @@
 // Définir le fuseau horaire dès le début
 date_default_timezone_set('Africa/Abidjan'); // Adaptez à votre fuseau
 
-require_once 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     // Configuration du debug
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (RuntimeException $e) {

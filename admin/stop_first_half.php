@@ -1,5 +1,5 @@
 <?php
-require_once '../includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['match_id'])) {
     $matchId = (int)$_POST['match_id'];
     // Calcule le temps écoulé

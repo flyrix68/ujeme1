@@ -37,10 +37,10 @@ if ($match_id === false || $score_home === false || $score_away === false ||
 }
 
 // Connexion à la base de données
-require_once '../includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     
     // Vérifier que le match existe
     $stmt = $pdo->prepare("SELECT id, status FROM matches WHERE id = ?");

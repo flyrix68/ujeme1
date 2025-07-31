@@ -44,7 +44,7 @@ $attempt = 0;
 
 while ($attempt < $maxAttempts) {
     try {
-        $pdo = DatabaseConfig::getConnection();
+        $pdo = DatabaseSSL::getInstance()->getConnection();
         
         // Set longer timeout for admin operations
         $pdo->setAttribute(PDO::ATTR_TIMEOUT, 30);

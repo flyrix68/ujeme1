@@ -12,7 +12,7 @@ try {
     echo "[1/3] Including db-config.php... OK\n";
     
     // Get database connection
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     echo "[2/3] Database connection established... OK\n";
     
     // Test a simple query

@@ -1,9 +1,9 @@
 <?php
 // Connexion à la base de données
-require_once 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
 } catch (Exception $e) {
     error_log("Database connection failed in classement.php: " . $e->getMessage());
     die("Erreur de connexion à la base de données. Veuillez réessayer plus tard.");

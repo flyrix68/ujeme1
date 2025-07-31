@@ -37,7 +37,7 @@ require __DIR__ . '/includes/db-config.php';
 // 5. Test database connection
 try {
     log_message("5. Attempting to get database connection");
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     log_message("   ✅ Successfully connected to database!");
     
     // Test a simple query

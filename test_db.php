@@ -95,7 +95,7 @@ log_message("DatabaseConfig class found, attempting to get connection...");
 
 // Test 4: Test database connection
 try {
-    $pdo = DatabaseConfig::getConnection();
+    $pdo = DatabaseSSL::getInstance()->getConnection();
     log_message("Successfully obtained database connection");
     
     $version = $pdo->query('SELECT VERSION()')->fetchColumn();

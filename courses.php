@@ -1,5 +1,5 @@
 <?php
-require 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 try {
     // Récupérer les cours avec le nombre d'inscriptions

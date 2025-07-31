@@ -5,7 +5,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // Database connection
-require_once 'includes/db-config.php';
+require_once __DIR__ . '/includes/db-ssl.php';
 
 // Start session with consistent settings
 ini_set('session.gc_maxlifetime', 3600);
@@ -181,7 +181,7 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
                                 $home_logo = 'assets/img/teams/default.png';
                             }
                             ?>
-                            <img src="<?= DatabaseConfig::getTeamLogo($match['team_home']) ?>" 
+                            <img src="<?= DatabaseSSL::getInstance()->getTeamLogo($match['team_home']) ?>" 
                                  alt="<?= htmlspecialchars($match['team_home']) ?>">
                             <div class="team-display__name"><?= htmlspecialchars($match['team_home']) ?></div>
                         </div>
@@ -225,7 +225,7 @@ $secondHalfCards = array_filter($cards, function($card) use ($firstHalfEndMinute
                                 $away_logo = 'assets/img/teams/default.png';
                             }
                             ?>
-                            <img src="<?= DatabaseConfig::getTeamLogo($match['team_away']) ?>" 
+                            <img src="<?= DatabaseSSL::getInstance()->getTeamLogo($match['team_away']) ?>" 
                                  alt="<?= htmlspecialchars($match['team_away']) ?>">
                             <div class="team-display__name"><?= htmlspecialchars($match['team_away']) ?></div>
                         </div>
