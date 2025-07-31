@@ -11,6 +11,7 @@ node_modules
 *.swp
 *~
 # Local env files
-.env
-.env.*
+# .env is included for build but should be managed securely in production
+#.env
+#.env.*
 !.env.example
