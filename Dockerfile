@@ -40,6 +40,10 @@ RUN a2ensite 000-default
 # Set working directory
 WORKDIR /var/www/html
 
+# Copy .env file
+COPY .env /var/www/html/.env
+RUN chown www-data:www-data /var/www/html/.env
+
 # PHP configuration
 RUN mkdir -p /etc/php/8.2/apache2/conf.d
 
@@ -73,9 +77,12 @@ RUN mkdir -p /var/lib/php/sessions \
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www/html
 
-
-# Enable debug logging and copy files
+# Enable debug logging and copy files (exclude .env car déjà copié)
 COPY --chown=www-data:www-data . .
+
+# S'assurer que le .env a les bonnes permissions après la copie
+RUN chmod 640 /var/www/html/.env
+RUN chown www-data:www-data /var/www/html/.env
 
 # Copy and set execute permission for entrypoint
 COPY docker-entrypoint.sh /
