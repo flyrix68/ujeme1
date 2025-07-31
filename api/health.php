@@ -1,15 +1,99 @@
 <?php
-// Enable error reporting and logging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/../logs/health-check.log');
+// Set error reporting to maximum
+error_reporting(-1);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
+
+// Create logs directory if it doesn't exist
+$logDir = __DIR__ . '/../logs';
+if (!is_dir($logDir)) {
+    @mkdir($logDir, 0777, true);
+    @chmod($logDir, 0777);
+}
+
+// Set a custom error handler
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    $message = sprintf(
+        '[%s] PHP %s: %s in %s on line %d',
+        date('Y-m-d H:i:s'),
+        $errno,
+        $errstr,
+        $errfile,
+        $errline
+    );
+    error_log($message);
+    @file_put_contents(__DIR__ . '/../logs/health-check-errors.log', $message . PHP_EOL, FILE_APPEND);
+    return true; // Don't execute PHP internal error handler
+});
+
+// Set exception handler
+set_exception_handler(function($e) {
+    $message = sprintf(
+        '[%s] Uncaught Exception: %s in %s on line %d\nStack trace:\n%s',
+        date('Y-m-d H:i:s'),
+        $e->getMessage(),
+        $e->getFile(),
+        $e->getLine(),
+        $e->getTraceAsString()
+    );
+    error_log($message);
+    @file_put_contents(__DIR__ . '/../logs/health-check-errors.log', $message . PHP_EOL, FILE_APPEND);
+    
+    // Send a proper error response
+    if (!headers_sent()) {
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Internal Server Error',
+            'error' => 'An unexpected error occurred',
+            'timestamp' => date('c')
+        ]);
+    }
+    exit(1);
+});
+
+// Set shutdown function to catch fatal errors
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR])) {
+        $message = sprintf(
+            '[%s] Fatal error: %s in %s on line %d',
+            date('Y-m-d H:i:s'),
+            $error['message'],
+            $error['file'],
+            $error['line']
+        );
+        error_log($message);
+        @file_put_contents(__DIR__ . '/../logs/health-check-errors.log', $message . PHP_EOL, FILE_APPEND);
+    }
+});
 
 // Set content type to JSON
 header('Content-Type: application/json');
 
 // Function to send JSON response and exit
 function send_json_response($status, $message, $data = []) {
+    // Ensure we can still send headers
+    if (headers_sent()) {
+        error_log('Headers already sent when trying to send JSON response');
+        // Try to output a minimal error response
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Headers already sent',
+            'timestamp' => date('c')
+        ]);
+        exit(1);
+    }
+
+    // Set JSON content type
+    header('Content-Type: application/json');
+    
+    // Set HTTP status code
+    $statusCode = $status === 'success' ? 200 : 500;
+    http_response_code($statusCode);
+    
     $response = [
         'status' => $status,
         'message' => $message,
@@ -20,16 +104,33 @@ function send_json_response($status, $message, $data = []) {
         $response['data'] = $data;
     }
     
-    // Add debug info if not in production
-    if (getenv('APP_ENV') !== 'production') {
+    // Always include debug info in development, or if there's an error
+    $isDev = (getenv('APP_ENV') !== 'production' || $status !== 'success');
+    if ($isDev) {
         $response['debug'] = [
             'php_version' => phpversion(),
             'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'Not set',
             'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'Not set',
             'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'Not set',
             'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Not set',
-            'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'Not set'
+            'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'Not set',
+            'request_uri' => $_SERVER['REQUEST_URI'] ?? 'Not set',
+            'script_filename' => $_SERVER['SCRIPT_FILENAME'] ?? 'Not set',
+            'php_ini_loaded_file' => php_ini_loaded_file() ?: 'Not set',
+            'include_path' => get_include_path(),
+            'extensions' => get_loaded_extensions(),
+            'memory_usage' => memory_get_usage(true),
+            'memory_peak_usage' => memory_get_peak_usage(true)
         ];
+        
+        // Add database connection info if available
+        if (function_exists('mysqli_connect')) {
+            $response['debug']['mysql_extension'] = 'mysqli is loaded';
+        } elseif (function_exists('mysql_connect')) {
+            $response['debug']['mysql_extension'] = 'mysql is loaded';
+        } else {
+            $response['debug']['mysql_extension'] = 'No MySQL extension found';
+        }
     }
     
     http_response_code($status === 'success' ? 200 : 500);
