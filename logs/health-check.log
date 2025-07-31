@@ -56,3 +56,69 @@
 [31-Jul-2025 16:05:47 Europe/Berlin] Successfully connected to Railway database
 [31-Jul-2025 16:05:47 Europe/Berlin] [HEALTH] Database version: 9.3.0
 [31-Jul-2025 16:05:47 Europe/Berlin] [HEALTH] All checks passed
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] === Starting Health Check ===
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] PHP Version: 8.2.12
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] Current Directory: C:\Users\hp\OneDrive\Desktop\ujem\api
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] Document Root: C:\Users\hp\OneDrive\Desktop\ujem
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] Request Method: GET
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] Environment Variables: {
+    "DATABASE_URL": "Not set",
+    "APP_ENV": "Not set",
+    "RAILWAY_ENVIRONMENT": "Not set",
+    "PATH": "C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\java8path;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\;C:\\WINDOWS\\System32\\OpenSSH\\;C:\\Program Files\\MySQL\\MySQL Server 5.1\\bin;C:\\Programmes\\MySQL\\MySQL Server 5.1\\bin;C:\\Program Files\\Kathara;C:\\Program Files\\dotnet\\;C:\\Program Files\\Git\\cmd;C:\\ProgramData\\chocolatey\\bin;C:\\Program Files\\Docker\\Docker\\resources\\bin;C:\\tools\\php84;C:\\Program Files\\nodejs\\;%USERPROFILE%\\AppData\\Local\\Muse Hub\\lib;C:\\Program Files\\Tailscale\\;C:\\Program Files\\Microsoft SQL Server\\150\\Tools\\Binn\\;C:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\;C:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Python313\\;C:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Launcher\\;C:\\xampp\\php;C:\\Users\\hp\\AppData\\Local\\Muse Hub\\lib;C:\\Users\\hp\\AppData\\Local\\Programs\\Microsoft VS Code\\bin;C:\\Users\\hp\\AppData\\Roaming\\Composer\\vendor\\bin;C:\\xampp\\php;C:\\Users\\hp\\AppData\\Local\\Muse Hub\\lib;C:\\Program Files (x86)\\Nmap;C:\\Users\\hp\\AppData\\Roaming\\npm;C:\\Users\\hp\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin;C:\\Users\\hp\\AppData\\Local\\Programs\\Windsurf\\bin",
+    "HOSTNAME": "Not set",
+    "PWD": "Not set"
+}
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] set_env.php found and readable at: C:\Users\hp\OneDrive\Desktop\ujem\api/../set_env.php
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] Including set_env.php from: C:\Users\hp\OneDrive\Desktop\ujem\api/../set_env.php
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [SET_ENV] Starting environment variable loading
+[31-Jul-2025 17:33:23 Europe/Berlin] [SET_ENV] Loading .env file from: C:\Users\hp\OneDrive\Desktop\ujem/.env
+[31-Jul-2025 17:33:23 Europe/Berlin] [SET_ENV] Set: DATABASE_URL
+[31-Jul-2025 17:33:23 Europe/Berlin] [SET_ENV] Explicitly set DATABASE_URL: mysql://root:lHrCOmGSvbbiTSntPYLwjlWMuthCRxNu@yamanote.proxy.rlwy.net:58372/railway
+[31-Jul-2025 17:33:23 Europe/Berlin] [SET_ENV] All environment variables: Array
+(
+    [DATABASE_URL] => mysql://root:lHrCOmGSvbbiTSntPYLwjlWMuthCRxNu@yamanote.proxy.rlwy.net:58372/railway
+)
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [SET_ENV] Loading DATABASE_URL from system env: mysql://root:lHrCOmG...
+[31-Jul-2025 17:33:23 Europe/Berlin] [SET_ENV] DATABASE_URL is set
+[31-Jul-2025 17:33:23 Europe/Berlin] [SET_ENV] Completed environment variable loading
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] Successfully included set_env.php
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] DATABASE_URL is set in environment: mysql://root:*****@yamanote.proxy.rlwy.net:58372/railway
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] db-config.php found and readable at: C:\Users\hp\OneDrive\Desktop\ujem\api/../includes/db-config.php
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] Including db-config.php from: C:\Users\hp\OneDrive\Desktop\ujem\api/../includes/db-config.php
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] Successfully included db-config.php
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [HEALTH][2025-07-31 17:33:23][info] DatabaseConfig class found, attempting to get connection...
+
+[31-Jul-2025 17:33:23 Europe/Berlin] [DB-CONFIG] ==============================================
+[31-Jul-2025 17:33:23 Europe/Berlin] [DB-CONFIG] Checking for DATABASE_URL in environment
+[31-Jul-2025 17:33:23 Europe/Berlin] [DB-CONFIG] Checking _ENV: FOUND (value exists)
+[31-Jul-2025 17:33:23 Europe/Berlin] [DB-CONFIG] Using DATABASE_URL from _ENV
+[31-Jul-2025 17:33:23 Europe/Berlin] [DB-CONFIG] Using DATABASE_URL: mysql://root:lHrCOmGSvbbiTSntP...
+[31-Jul-2025 17:33:23 Europe/Berlin] Using SSL with certificate: C:\Users\hp\OneDrive\Desktop\ujem\includes/cacert.pem
+[31-Jul-2025 17:33:23 Europe/Berlin] Attempting Railway connection to yamanote.proxy.rlwy.net:58372
+[31-Jul-2025 17:33:26 Europe/Berlin] Successfully connected to Railway database
+[31-Jul-2025 17:33:26 Europe/Berlin] [HEALTH][2025-07-31 17:33:26][info] Successfully obtained database connection
+
+[31-Jul-2025 17:33:28 Europe/Berlin] [HEALTH][2025-07-31 17:33:28][info] Database version: 9.3.0
+
+[31-Jul-2025 17:33:33 Europe/Berlin] [HEALTH][2025-07-31 17:33:33][info] Found 36 tables in the database
+
+[31-Jul-2025 17:33:33 Europe/Berlin] PHP Fatal error:  Uncaught Error: Undefined constant "JSON_PRETTY_UNESCAPED_SLASHES" in C:\Users\hp\OneDrive\Desktop\ujem\api\health.php:36
+Stack trace:
+#0 C:\Users\hp\OneDrive\Desktop\ujem\api\health.php(154): send_json_response('success', 'All health chec...', Array)
+#1 {main}
+  thrown in C:\Users\hp\OneDrive\Desktop\ujem\api\health.php on line 36

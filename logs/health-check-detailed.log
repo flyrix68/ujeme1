@@ -1,0 +1,24 @@
+[HEALTH][2025-07-31 17:33:23][info] === Starting Health Check ===
+[HEALTH][2025-07-31 17:33:23][info] PHP Version: 8.2.12
+[HEALTH][2025-07-31 17:33:23][info] Current Directory: C:\Users\hp\OneDrive\Desktop\ujem\api
+[HEALTH][2025-07-31 17:33:23][info] Document Root: C:\Users\hp\OneDrive\Desktop\ujem
+[HEALTH][2025-07-31 17:33:23][info] Request Method: GET
+[HEALTH][2025-07-31 17:33:23][info] Environment Variables: {
+    "DATABASE_URL": "Not set",
+    "APP_ENV": "Not set",
+    "RAILWAY_ENVIRONMENT": "Not set",
+    "PATH": "C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\java8path;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\;C:\\WINDOWS\\System32\\OpenSSH\\;C:\\Program Files\\MySQL\\MySQL Server 5.1\\bin;C:\\Programmes\\MySQL\\MySQL Server 5.1\\bin;C:\\Program Files\\Kathara;C:\\Program Files\\dotnet\\;C:\\Program Files\\Git\\cmd;C:\\ProgramData\\chocolatey\\bin;C:\\Program Files\\Docker\\Docker\\resources\\bin;C:\\tools\\php84;C:\\Program Files\\nodejs\\;%USERPROFILE%\\AppData\\Local\\Muse Hub\\lib;C:\\Program Files\\Tailscale\\;C:\\Program Files\\Microsoft SQL Server\\150\\Tools\\Binn\\;C:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\;C:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Python313\\;C:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Launcher\\;C:\\xampp\\php;C:\\Users\\hp\\AppData\\Local\\Muse Hub\\lib;C:\\Users\\hp\\AppData\\Local\\Programs\\Microsoft VS Code\\bin;C:\\Users\\hp\\AppData\\Roaming\\Composer\\vendor\\bin;C:\\xampp\\php;C:\\Users\\hp\\AppData\\Local\\Muse Hub\\lib;C:\\Program Files (x86)\\Nmap;C:\\Users\\hp\\AppData\\Roaming\\npm;C:\\Users\\hp\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin;C:\\Users\\hp\\AppData\\Local\\Programs\\Windsurf\\bin",
+    "HOSTNAME": "Not set",
+    "PWD": "Not set"
+}
+[HEALTH][2025-07-31 17:33:23][info] set_env.php found and readable at: C:\Users\hp\OneDrive\Desktop\ujem\api/../set_env.php
+[HEALTH][2025-07-31 17:33:23][info] Including set_env.php from: C:\Users\hp\OneDrive\Desktop\ujem\api/../set_env.php
+[HEALTH][2025-07-31 17:33:23][info] Successfully included set_env.php
+[HEALTH][2025-07-31 17:33:23][info] DATABASE_URL is set in environment: mysql://root:*****@yamanote.proxy.rlwy.net:58372/railway
+[HEALTH][2025-07-31 17:33:23][info] db-config.php found and readable at: C:\Users\hp\OneDrive\Desktop\ujem\api/../includes/db-config.php
+[HEALTH][2025-07-31 17:33:23][info] Including db-config.php from: C:\Users\hp\OneDrive\Desktop\ujem\api/../includes/db-config.php
+[HEALTH][2025-07-31 17:33:23][info] Successfully included db-config.php
+[HEALTH][2025-07-31 17:33:23][info] DatabaseConfig class found, attempting to get connection...
+[HEALTH][2025-07-31 17:33:26][info] Successfully obtained database connection
+[HEALTH][2025-07-31 17:33:28][info] Database version: 9.3.0
+[HEALTH][2025-07-31 17:33:33][info] Found 36 tables in the database

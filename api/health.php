@@ -33,7 +33,20 @@ function send_json_response($status, $message, $data = []) {
     }
     
     http_response_code($status === 'success' ? 200 : 500);
-    echo json_encode($response, JSON_PRETTY_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    $options = 0;
+    // Add pretty print if available (PHP 5.4+)
+    if (defined('JSON_PRETTY_PRINT')) {
+        $options |= JSON_PRETTY_PRINT;
+    }
+    // Add unescaped slashes if available (PHP 5.4+)
+    if (defined('JSON_UNESCAPED_SLASHES')) {
+        $options |= JSON_UNESCAPED_SLASHES;
+    }
+    // Add unescaped unicode if available (PHP 5.4+)
+    if (defined('JSON_UNESCAPED_UNICODE')) {
+        $options |= JSON_UNESCAPED_UNICODE;
+    }
+    echo json_encode($response, $options);
     exit;
 }
 
