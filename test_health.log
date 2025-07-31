@@ -1,0 +1,19 @@
+=== Starting Test Health Check ===
+[2025-07-31 15:45:15] Starting test_health.php
+[2025-07-31 15:45:15] Environment variables before set_env.php:
+[2025-07-31 15:45:15] getenv('DATABASE_URL'): NOT SET
+[2025-07-31 15:45:15] _ENV['DATABASE_URL']: NOT SET
+[2025-07-31 15:45:15] _SERVER['DATABASE_URL']: NOT SET
+[2025-07-31 15:45:15] Including set_env.php
+[2025-07-31 15:45:15] 
+Environment variables after set_env.php:
+[2025-07-31 15:45:15] getenv('DATABASE_URL'): SET
+[2025-07-31 15:45:15] _ENV['DATABASE_URL']: SET
+[2025-07-31 15:45:15] _SERVER['DATABASE_URL']: SET
+[2025-07-31 15:45:15] 
+Including db-config.php
+[2025-07-31 15:45:15] Attempting to get database connection
+[2025-07-31 15:45:17] ✅ Successfully connected to database!
+[2025-07-31 15:45:18] Database version: 9.3.0
+[2025-07-31 15:45:18] Test completed
+

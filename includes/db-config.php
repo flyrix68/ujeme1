@@ -28,10 +28,64 @@ class DatabaseConfig {
                 self::$pdo = null;
                 
                 // Parse Railway DATABASE_URL environment variable
-                $dbUrl = getenv('DATABASE_URL');
-                if ($dbUrl === false) {
-                    throw new RuntimeException('DATABASE_URL environment variable not set');
+                error_log('[DB-CONFIG] ==============================================');
+                error_log('[DB-CONFIG] Checking for DATABASE_URL in environment');
+                
+                // Check all possible places where the DATABASE_URL might be set
+                $dbUrl = null;
+                $sources = [
+                    '_ENV' => $_ENV['DATABASE_URL'] ?? null,
+                    'getenv' => getenv('DATABASE_URL'),
+                    '_SERVER' => $_SERVER['DATABASE_URL'] ?? null
+                ];
+                
+                // Log each source check
+                foreach ($sources as $source => $value) {
+                    $status = !empty($value) ? 'FOUND' : 'NOT FOUND';
+                    $logValue = !empty($value) ? '(value exists)' : '(empty or not set)';
+                    error_log("[DB-CONFIG] Checking $source: $status $logValue");
+                    
+                    if (!empty($value)) {
+                        $dbUrl = $value;
+                        error_log("[DB-CONFIG] Using DATABASE_URL from $source");
+                        break;
+                    }
                 }
+                
+                // If DATABASE_URL not found in environment, try reading directly from .env file
+                if (empty($dbUrl)) {
+                    error_log('[DB-CONFIG] DATABASE_URL not found in environment, checking .env file directly');
+                    $envFile = __DIR__ . '/../.env';
+                    
+                    if (file_exists($envFile)) {
+                        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                        foreach ($lines as $line) {
+                            // Skip comments and empty lines
+                            if (strpos(trim($line), '#') === 0 || strpos($line, '=') === false) {
+                                continue;
+                            }
+                            
+                            list($name, $value) = explode('=', $line, 2);
+                            $name = trim($name);
+                            $value = trim($value, "'\" \t\n\r\0\x0B");
+                            
+                            if ($name === 'DATABASE_URL') {
+                                $dbUrl = $value;
+                                error_log('[DB-CONFIG] Found DATABASE_URL in .env file');
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (empty($dbUrl)) {
+                        error_log('[DB-CONFIG] ERROR: DATABASE_URL not found in environment or .env file');
+                        error_log('[DB-CONFIG] Checked _ENV, getenv(), _SERVER, and .env file');
+                        error_log('[DB-CONFIG] ==============================================');
+                        throw new RuntimeException('DATABASE_URL not found in environment or .env file');
+                    }
+                }
+                
+                error_log('[DB-CONFIG] Using DATABASE_URL: ' . substr($dbUrl, 0, 30) . '...');
                 
                 $dbParts = parse_url($dbUrl);
                 if ($dbParts === false) {

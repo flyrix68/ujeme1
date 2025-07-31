@@ -1,0 +1,18 @@
+=== Direct Database Connection Test ===
+[2025-07-31 16:00:30] Starting direct database connection test
+[2025-07-31 16:00:30] 1. Loading .env file
+[2025-07-31 16:00:30] 2. DATABASE_URL from .env: FOUND
+[2025-07-31 16:00:30] 3. Database connection details:
+[2025-07-31 16:00:30]    - Driver: mysql
+[2025-07-31 16:00:30]    - Host: yamanote.proxy.rlwy.net
+[2025-07-31 16:00:30]    - Port: 58372
+[2025-07-31 16:00:30]    - Database: railway
+[2025-07-31 16:00:30]    - Username: root
+[2025-07-31 16:00:30]    - Password: ***
+[2025-07-31 16:00:30] 4. Attempting to connect to database...
+[2025-07-31 16:00:30]    - No SSL certificate found, connecting without SSL
+[2025-07-31 16:00:32]    ✅ Successfully connected to database!
+[2025-07-31 16:00:32]    - Database version: 9.3.0
+[2025-07-31 16:00:32]    - Found 36 tables in the database
+[2025-07-31 16:00:32] Test completed
+

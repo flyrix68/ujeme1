@@ -1,0 +1,17 @@
+=== Starting Simple Health Check ===
+[2025-07-31 15:48:42] Starting simple_health_check.php
+[2025-07-31 15:48:42] 1. PHP is executing
+[2025-07-31 15:48:42] 2. Including set_env.php
+[2025-07-31 15:48:42] 
+3. Checking DATABASE_URL in different contexts:
+[2025-07-31 15:48:42]    getenv('DATABASE_URL'): SET
+[2025-07-31 15:48:42]    _ENV['DATABASE_URL']: SET
+[2025-07-31 15:48:42]    _SERVER['DATABASE_URL']: SET
+[2025-07-31 15:48:42] 
+4. Including db-config.php
+[2025-07-31 15:48:42] 5. Attempting to get database connection
+[2025-07-31 15:48:44]    ✅ Successfully connected to database!
+[2025-07-31 15:48:44]    Database version: 9.3.0
+[2025-07-31 15:48:44] 
+Test completed
+

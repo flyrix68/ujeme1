@@ -4,3 +4,55 @@
 [29-Jul-2025 18:50:16 Europe/Berlin] [HEALTH] Loading db-config.php
 [29-Jul-2025 18:50:16 Europe/Berlin] [HEALTH] Testing database connection
 [29-Jul-2025 18:50:16 Europe/Berlin] [HEALTH] ERROR: DATABASE_URL environment variable not set
+[31-Jul-2025 15:24:12 Europe/Berlin] [HEALTH] Starting health check
+[31-Jul-2025 15:24:12 Europe/Berlin] [HEALTH] PHP execution verified
+[31-Jul-2025 15:24:12 Europe/Berlin] [HEALTH] Extensions verified
+[31-Jul-2025 15:24:12 Europe/Berlin] [HEALTH] Loading db-config.php
+[31-Jul-2025 15:24:12 Europe/Berlin] [HEALTH] Testing database connection
+[31-Jul-2025 15:24:12 Europe/Berlin] [HEALTH] ERROR: DATABASE_URL environment variable not set
+[31-Jul-2025 15:26:00 Europe/Berlin] [HEALTH] Starting health check
+[31-Jul-2025 15:26:00 Europe/Berlin] [HEALTH] PHP execution verified
+[31-Jul-2025 15:26:00 Europe/Berlin] [HEALTH] Extensions verified
+[31-Jul-2025 15:26:00 Europe/Berlin] [HEALTH] Loading db-config.php
+[31-Jul-2025 15:26:00 Europe/Berlin] [HEALTH] Testing database connection
+[31-Jul-2025 15:26:00 Europe/Berlin] [HEALTH] ERROR: DATABASE_URL environment variable not set in $_ENV
+[31-Jul-2025 15:26:35 Europe/Berlin] [HEALTH] Starting health check
+[31-Jul-2025 15:26:35 Europe/Berlin] [HEALTH] PHP execution verified
+[31-Jul-2025 15:26:35 Europe/Berlin] [HEALTH] Extensions verified
+[31-Jul-2025 15:26:35 Europe/Berlin] [HEALTH] Loading db-config.php
+[31-Jul-2025 15:26:35 Europe/Berlin] [HEALTH] Testing database connection
+[31-Jul-2025 15:26:35 Europe/Berlin] [HEALTH] ERROR: DATABASE_URL environment variable not set in $_ENV
+[31-Jul-2025 15:30:44 Europe/Berlin] [HEALTH] Starting health check
+[31-Jul-2025 15:30:44 Europe/Berlin] [HEALTH] PHP execution verified
+[31-Jul-2025 15:30:44 Europe/Berlin] [HEALTH] Extensions verified
+[31-Jul-2025 15:30:44 Europe/Berlin] [HEALTH] Loading db-config.php
+[31-Jul-2025 15:30:44 Europe/Berlin] [HEALTH] Testing database connection
+[31-Jul-2025 15:30:44 Europe/Berlin] [HEALTH] ERROR: DATABASE_URL environment variable not set in $_ENV
+[31-Jul-2025 16:05:43 Europe/Berlin] [HEALTH] Starting health check
+[31-Jul-2025 16:05:43 Europe/Berlin] [HEALTH] PHP execution verified
+[31-Jul-2025 16:05:43 Europe/Berlin] [HEALTH] Extensions verified
+[31-Jul-2025 16:05:43 Europe/Berlin] [HEALTH] Including set_env.php
+[31-Jul-2025 16:05:43 Europe/Berlin] [SET_ENV] Starting environment variable loading
+[31-Jul-2025 16:05:43 Europe/Berlin] [SET_ENV] Loading .env file from: C:\Users\hp\OneDrive\Desktop\ujem/.env
+[31-Jul-2025 16:05:43 Europe/Berlin] [SET_ENV] Set: DATABASE_URL
+[31-Jul-2025 16:05:43 Europe/Berlin] [SET_ENV] Explicitly set DATABASE_URL: mysql://root:lHrCOmGSvbbiTSntPYLwjlWMuthCRxNu@yamanote.proxy.rlwy.net:58372/railway
+[31-Jul-2025 16:05:43 Europe/Berlin] [SET_ENV] All environment variables: Array
+(
+    [DATABASE_URL] => mysql://root:lHrCOmGSvbbiTSntPYLwjlWMuthCRxNu@yamanote.proxy.rlwy.net:58372/railway
+)
+
+[31-Jul-2025 16:05:43 Europe/Berlin] [SET_ENV] Loading DATABASE_URL from system env: mysql://root:lHrCOmG...
+[31-Jul-2025 16:05:43 Europe/Berlin] [SET_ENV] DATABASE_URL is set
+[31-Jul-2025 16:05:43 Europe/Berlin] [SET_ENV] Completed environment variable loading
+[31-Jul-2025 16:05:43 Europe/Berlin] [HEALTH] Loading db-config.php
+[31-Jul-2025 16:05:43 Europe/Berlin] [HEALTH] Testing database connection
+[31-Jul-2025 16:05:43 Europe/Berlin] [DB-CONFIG] ==============================================
+[31-Jul-2025 16:05:43 Europe/Berlin] [DB-CONFIG] Checking for DATABASE_URL in environment
+[31-Jul-2025 16:05:43 Europe/Berlin] [DB-CONFIG] Checking _ENV: FOUND (value exists)
+[31-Jul-2025 16:05:43 Europe/Berlin] [DB-CONFIG] Using DATABASE_URL from _ENV
+[31-Jul-2025 16:05:43 Europe/Berlin] [DB-CONFIG] Using DATABASE_URL: mysql://root:lHrCOmGSvbbiTSntP...
+[31-Jul-2025 16:05:43 Europe/Berlin] Using SSL with certificate: C:\Users\hp\OneDrive\Desktop\ujem\includes/cacert.pem
+[31-Jul-2025 16:05:43 Europe/Berlin] Attempting Railway connection to yamanote.proxy.rlwy.net:58372
+[31-Jul-2025 16:05:47 Europe/Berlin] Successfully connected to Railway database
+[31-Jul-2025 16:05:47 Europe/Berlin] [HEALTH] Database version: 9.3.0
+[31-Jul-2025 16:05:47 Europe/Berlin] [HEALTH] All checks passed
