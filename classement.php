@@ -30,14 +30,20 @@ $poules = $poulesStmt->fetchAll(PDO::FETCH_KEY_PAIR); // id => name
 $teamsByPoule = [];
 foreach (array_keys($poules) as $pouleId) {
     $query = "
-        SELECT c.*, t.logo_path 
+        SELECT 
+            c.id, c.saison, c.competition, c.poule_id, c.nom_equipe,
+            c.matchs_joues, c.matchs_gagnes, c.matchs_nuls, c.matchs_perdus,
+            c.buts_pour, c.buts_contre, c.difference_buts, c.points, c.forme,
+            t.logo_path 
         FROM classement c
         LEFT JOIN teams t ON c.nom_equipe = t.team_name
-        WHERE c.saison = :season AND c.competition = :competition AND c.poule_id = :poule_id";
+        WHERE c.saison = :season 
+          AND c.competition = :competition 
+          AND c.poule_id = :poule_id";
     if (!empty($searchTeam)) {
         $query .= " AND c.nom_equipe LIKE :searchTeam";
     }
-    $query .= " ORDER BY c.points DESC, c.difference_buts DESC";
+    $query .= " ORDER BY c.points DESC, c.difference_buts DESC, c.buts_pour DESC";
 
     $stmt = $pdo->prepare($query);
     $stmt->bindValue(':season', $season);

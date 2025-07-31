@@ -1075,54 +1075,127 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Function to update classement for a completed match
 function updateClassementForMatch($pdo, $match) {
-    $season = date('Y') . '-' . (date('Y') + 1);
+    // S'assurer que la saison est au bon format (ex: '2024-2025')
+    $season = $match['saison'] ?? date('Y') . '-' . (date('Y') + 1);
     
-    // Update home team stats
-    $points = ($match['score_home'] > $match['score_away']) ? 3 : 
-             ($match['score_home'] == $match['score_away'] ? 1 : 0);
-    $form = ($points == 3) ? 'V' : ($points == 1 ? 'N' : 'D');
+    // Vérifier que les scores sont des entiers
+    $score_home = (int)($match['score_home'] ?? 0);
+    $score_away = (int)($match['score_away'] ?? 0);
     
-    $stmt = $pdo->prepare("
-        INSERT INTO classement (
-            saison, competition, poule_id, nom_equipe, 
-            matchs_joues, matchs_gagnes, matchs_nuls, matchs_perdus, 
-            buts_pour, buts_contre, difference_buts, points, forme
-        ) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-            matchs_joues = matchs_joues + 1,
-            matchs_gagnes = matchs_gagnes + ?,
-            matchs_nuls = matchs_nuls + ?,
-            matchs_perdus = matchs_perdus + ?,
-            buts_pour = buts_pour + ?,
-            buts_contre = buts_contre + ?,
-            difference_buts = difference_buts + ?,
-            points = points + ?,
-            forme = CONCAT(SUBSTRING(forme, 2, 4), ?)
+    // Vérifier que le poule_id est défini
+    if (!isset($match['poule_id']) || empty($match['poule_id'])) {
+        throw new Exception("Le poule_id est requis pour mettre à jour le classement");
+    }
+    
+    // Vérifier que la compétition est définie
+    if (!isset($match['competition']) || empty($match['competition'])) {
+        throw new Exception("La compétition est requise pour mettre à jour le classement");
+    }
+    
+    // Mise à jour de l'équipe à domicile
+    updateTeamStats($pdo, [
+        'saison' => $season,
+        'competition' => $match['competition'],
+        'poule_id' => $match['poule_id'],
+        'team' => $match['team_home'],
+        'goals_for' => $score_home,
+        'goals_against' => $score_away
+    ]);
+    
+    // Mise à jour de l'équipe à l'extérieur
+    updateTeamStats($pdo, [
+        'saison' => $season,
+        'competition' => $match['competition'],
+        'poule_id' => $match['poule_id'],
+        'team' => $match['team_away'],
+        'goals_for' => $score_away,
+        'goals_against' => $score_home
+    ]);
+}
+
+// Fonction utilitaire pour mettre à jour les statistiques d'une équipe
+function updateTeamStats($pdo, $data) {
+    // Calculer les points et la forme
+    $points = ($data['goals_for'] > $data['goals_against']) ? 3 : 
+             (($data['goals_for'] == $data['goals_against']) ? 1 : 0);
+    $form = ($points == 3) ? 'V' : (($points == 1) ? 'N' : 'D');
+    
+    // Calculer la différence de buts
+    $goal_difference = $data['goals_for'] - $data['goals_against'];
+    
+    // Vérifier si l'équipe existe déjà dans le classement
+    $checkStmt = $pdo->prepare("
+        SELECT id FROM classement 
+        WHERE saison = ? 
+        AND competition = ? 
+        AND poule_id = ? 
+        AND nom_equipe = ?
     ");
-    $stmt->execute([
-        $season, $match['competition'], $match['poule_id'], $match['team_home'],
-        ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
-        $match['score_home'], $match['score_away'], 
-        ($match['score_home'] - $match['score_away']), $points, $form,
-        ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
-        $match['score_home'], $match['score_away'], 
-        ($match['score_home'] - $match['score_away']), $points, $form
+    $checkStmt->execute([
+        $data['saison'],
+        $data['competition'],
+        $data['poule_id'],
+        $data['team']
     ]);
     
-    // Update away team stats
-    $points = ($match['score_away'] > $match['score_home']) ? 3 : 
-             ($match['score_away'] == $match['score_home'] ? 1 : 0);
-    $form = ($points == 3) ? 'V' : ($points == 1 ? 'N' : 'D');
-    
-    $stmt->execute([
-        $season, $match['competition'], $match['poule_id'], $match['team_away'],
-        ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
-        $match['score_away'], $match['score_home'], 
-        ($match['score_away'] - $match['score_home']), $points, $form,
-        ($points == 3 ? 1 : 0), ($points == 1 ? 1 : 0), ($points == 0 ? 1 : 0),
-        $match['score_away'], $match['score_home'], 
-        ($match['score_away'] - $match['score_home']), $points, $form
-    ]);
+    if ($checkStmt->rowCount() > 0) {
+        // Mise à jour de l'entrée existante
+        $stmt = $pdo->prepare("
+            UPDATE classement SET
+                matchs_joues = matchs_joues + 1,
+                matchs_gagnes = matchs_gagnes + ?,
+                matchs_nuls = matchs_nuls + ?,
+                matchs_perdus = matchs_perdus + ?,
+                buts_pour = buts_pour + ?,
+                buts_contre = buts_contre + ?,
+                difference_buts = difference_buts + ?,
+                points = points + ?,
+                forme = CONCAT(IFNULL(SUBSTRING(forme, 2, 4), ''), ?)
+            WHERE saison = ?
+            AND competition = ?
+            AND poule_id = ?
+            AND nom_equipe = ?
+        ");
+        
+        $stmt->execute([
+            ($points == 3 ? 1 : 0), // matchs_gagnes
+            ($points == 1 ? 1 : 0), // matchs_nuls
+            ($points == 0 ? 1 : 0), // matchs_perdus
+            $data['goals_for'],     // buts_pour
+            $data['goals_against'], // buts_contre
+            $goal_difference,       // difference_buts
+            $points,                // points
+            $form,                  // forme (V, N ou D)
+            $data['saison'],
+            $data['competition'],
+            $data['poule_id'],
+            $data['team']
+        ]);
+    } else {
+        // Création d'une nouvelle entrée
+        $stmt = $pdo->prepare("
+            INSERT INTO classement (
+                saison, competition, poule_id, nom_equipe,
+                matchs_joues, matchs_gagnes, matchs_nuls, matchs_perdus,
+                buts_pour, buts_contre, difference_buts, points, forme
+            ) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        
+        $stmt->execute([
+            $data['saison'],
+            $data['competition'],
+            $data['poule_id'],
+            $data['team'],
+            ($points == 3 ? 1 : 0), // matchs_gagnes
+            ($points == 1 ? 1 : 0), // matchs_nuls
+            ($points == 0 ? 1 : 0), // matchs_perdus
+            $data['goals_for'],     // buts_pour
+            $data['goals_against'], // buts_contre
+            $goal_difference,       // difference_buts
+            $points,                // points
+            $form                   // forme (V, N ou D)
+        ]);
+    }
 }
 
 // Process existing completed matches on initial load

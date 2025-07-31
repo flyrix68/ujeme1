@@ -57,7 +57,13 @@ RUN { \
     echo 'max_execution_time = 300'; \
     echo 'session.save_handler = files'; \
     echo 'session.save_path = "/var/lib/php/sessions"'; \
+    echo 'variables_order = "EGPCS"'; \
+    echo 'auto_prepend_file = /var/www/html/set_env.php'; \
 } > /etc/php/8.2/apache2/conf.d/99-custom.ini
+
+# Create a script to load environment variables
+COPY set_env.php /var/www/html/
+RUN chown www-data:www-data /var/www/html/set_env.php
 
 # Ensure the sessions directory exists and has correct permissions
 RUN mkdir -p /var/lib/php/sessions \

@@ -1,0 +1,6 @@
+[29-Jul-2025 18:50:16 Europe/Berlin] [HEALTH] Starting health check
+[29-Jul-2025 18:50:16 Europe/Berlin] [HEALTH] PHP execution verified
+[29-Jul-2025 18:50:16 Europe/Berlin] [HEALTH] Extensions verified
+[29-Jul-2025 18:50:16 Europe/Berlin] [HEALTH] Loading db-config.php
+[29-Jul-2025 18:50:16 Europe/Berlin] [HEALTH] Testing database connection
+[29-Jul-2025 18:50:16 Europe/Berlin] [HEALTH] ERROR: DATABASE_URL environment variable not set
