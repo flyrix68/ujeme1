@@ -33,9 +33,12 @@ RUN apt-get update && apt-get install -y \
 RUN a2enmod rewrite
 RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
-# Copy Apache configuration
+# Copy Apache configurations
 COPY apache-config-new.conf /etc/apache2/sites-available/000-default.conf
-RUN a2ensite 000-default
+COPY apache-debug.conf /etc/apache2/conf-available/debug.conf
+RUN a2enconf debug && \
+    a2enmod headers && \
+    a2ensite 000-default
 
 # Set working directory
 WORKDIR /var/www/html
@@ -92,9 +95,13 @@ RUN chmod +x /docker-entrypoint.sh
 RUN mkdir -p /var/log/apache2 && \
     touch /var/log/apache2/error.log && \
     touch /var/log/apache2/access.log && \
+    touch /var/log/apache2/access-debug.log && \
+    touch /var/log/apache2/error-debug.log && \
+    chmod 666 /var/log/apache2/*.log && \
     chown -R www-data:www-data /var/log/apache2 && \
     mkdir -p /var/www/html/uploads/{events,logos,medias,players,profiles} && \
-    chown -R www-data:www-data /var/www/html
+    chown -R www-data:www-data /var/www/html && \
+    chmod -R 755 /var/log/apache2
 
 # Create apache2-foreground script
 RUN echo '#!/bin/bash\nset -e\n\n# Apache gets grumpy about PID files pre-existing\nrm -f /var/run/apache2/apache2*.pid\n\n# Start Apache in the background\n/usr/sbin/apache2ctl -D FOREGROUND &\n\n# Wait for Apache to be ready\nwhile ! pgrep -f "apache2 -D FOREGROUND" > /dev/null; do\n  sleep 1\ndone\n\n# Keep the container running\nwhile pgrep -f "apache2 -D FOREGROUND" > /dev/null; do\n  sleep 1\ndone' > /usr/local/bin/apache2-foreground && \
