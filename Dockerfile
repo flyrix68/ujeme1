@@ -97,9 +97,12 @@ WORKDIR ${APACHE_DOCUMENT_ROOT}
 COPY --chown=www-data:www-data . .
 
 # Set directory and file permissions
-RUN find ${APACHE_DOCUMENT_ROOT} -type d -exec chmod 755 {} \; && \
-    find ${APACHE_DOCUMENT_ROOT} -type f -exec chmod 644 {} \; && \
-    chmod -R 777 ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
+RUN find /var/www/html -type d -exec chmod 755 {} \; && \
+    find /var/www/html -type f -exec chmod 644 {} \; && \
+    chmod -R 777 /var/www/html/logs /var/www/html/uploads && \
+    a2enmod rewrite && \
+    a2dissite 000-default && \
+    a2ensite apache-config
 
 # Copy and set execute permission for entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/
