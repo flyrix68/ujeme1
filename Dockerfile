@@ -1,5 +1,45 @@
-# Use official PHP 8.2 with Apache
-FROM php:8.2-apache
+# Use official PHP 8.2 with Apache and FPM
+FROM php:8.2-fpm
+
+# Install Apache and required extensions
+RUN apt-get update && apt-get install -y \
+    apache2 \
+    libicu-dev \
+    libonig-dev \
+    libzip-dev \
+    unzip \
+    zip \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libwebp-dev \
+    libjpeg62-turbo-dev \
+    libpq-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j$(nproc) \
+        intl \
+        mbstring \
+        pdo \
+        pdo_pgsql \
+        pgsql \
+        zip \
+        gd \
+        opcache \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure Apache to work with PHP-FPM
+RUN a2enmod proxy_fcgi setenvif rewrite headers
+RUN a2enconf php8.2-fpm
+
+# Set environment variables
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+ENV APACHE_RUN_USER www-data
+ENV APACHE_RUN_GROUP www-data
+ENV APACHE_LOG_DIR /var/log/apache2
+ENV APACHE_RUN_DIR /var/run/apache2
+ENV APACHE_LOCK_DIR /var/lock/apache2
+ENV APACHE_PID_FILE /var/run/apache2/apache2.pid
 
 # Set environment variables
 ENV APACHE_DOCUMENT_ROOT /var/www/html
