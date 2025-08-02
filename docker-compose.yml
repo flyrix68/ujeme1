@@ -1,14 +1,41 @@
+version: '3.8'
+
 services:
-  web:
-    build: .
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "8080:80"
+      - "8080:10000"
     environment:
-      - APACHE_DOMAIN=localhost
-      - APACHE_PORT=80
-      - DATABASE_URL=mysql://root:rootpassword@db:3306/app_db
-      - DISABLE_SSL=true
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_URL=http://localhost:8080
+      - DB_CONNECTION=pgsql
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_DATABASE=ujem_db
+      - DB_USERNAME=ujem_user
+      - DB_PASSWORD=ujem_password
+    depends_on:
+      - db
     volumes:
       - .:/var/www/html
-      - /tmp:/tmp
-      - /var/log:/var/log
+      - ./storage/logs:/var/www/html/storage/logs
+      - ./bootstrap/cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=ujem_db
+      - POSTGRES_USER=ujem_user
+      - POSTGRES_PASSWORD=ujem_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
