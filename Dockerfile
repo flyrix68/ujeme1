@@ -6,6 +6,13 @@ ENV APACHE_DOCUMENT_ROOT /var/www/html
 ENV APACHE_RUN_USER www-data
 ENV APACHE_RUN_GROUP www-data
 ENV APACHE_LOG_DIR /var/log/apache2
+ENV APACHE_RUN_DIR /var/run/apache2
+ENV APACHE_LOCK_DIR /var/lock/apache2
+ENV APACHE_PID_FILE /var/run/apache2/apache2.pid
+
+# Create necessary directories
+RUN mkdir -p ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} && \
+    chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR}
 
 # Install system dependencies and PHP extensions
 RUN set -eux; \
@@ -31,24 +38,33 @@ RUN set -eux; \
         opcache; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
-    a2enmod rewrite headers ssl
+    a2enmod rewrite headers
 
-# Configure Apache virtual host
-RUN { \
-    echo '<VirtualHost *:80>'; \
-    echo '    ServerAdmin webmaster@localhost'; \
-    echo '    DocumentRoot ${APACHE_DOCUMENT_ROOT}'; \
-    echo ''; \
-    echo '    ErrorLog ${APACHE_LOG_DIR}/error.log'; \
-    echo '    CustomLog ${APACHE_LOG_DIR}/access.log combined'; \
-    echo ''; \
-    echo '    <Directory ${APACHE_DOCUMENT_ROOT}>'; \
-    echo '        Options Indexes FollowSymLinks'; \
-    echo '        AllowOverride All'; \
-    echo '        Require all granted'; \
-    echo '    </Directory>'; \
-    echo '</VirtualHost>'; \
-} > /etc/apache2/sites-available/000-default.conf
+# Copy custom Apache configuration
+COPY apache-ports.conf /etc/apache2/ports.conf
+COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
+
+# Configure Apache and SSL
+RUN echo 'ServerName localhost' >> /etc/apache2/apache2.conf && \
+    a2enmod ssl headers rewrite && \
+    mkdir -p /etc/ssl/certs /etc/ssl/private && \
+    # Generate self-signed certificate
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/ssl/private/ssl-cert-snakeoil.key \
+        -out /etc/ssl/certs/ssl-cert-snakeoil.pem \
+        -subj "/C=US/ST=State/L=City/O=Company/CN=localhost" && \
+    # Set proper permissions
+    chmod 600 /etc/ssl/private/ssl-cert-snakeoil.key && \
+    chmod 644 /etc/ssl/certs/ssl-cert-snakeoil.pem && \
+    # Enable default site
+    a2ensite 000-default && \
+    # Create SSL configuration
+    echo '<IfModule mod_ssl.c>\n\
+    <VirtualHost _default_:443>\n        ServerAdmin webmaster@localhost\n        DocumentRoot ${APACHE_DOCUMENT_ROOT}\n        \n        ErrorLog ${APACHE_LOG_DIR}/error-ssl.log\n        CustomLog ${APACHE_LOG_DIR}/access-ssl.log combined\n        \n        SSLEngine on\n        SSLCertificateFile /etc/ssl/certs/ssl-cert-snakeoil.pem\n        SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key\n        \n        <FilesMatch "\\.(cgi|s?html?|jpe?g|png|gif|ico)$">\n            SSLOptions +StdEnvVars\n        </FilesMatch>\n        \n        <Directory ${APACHE_DOCUMENT_ROOT}>\n            Options Indexes FollowSymLinks\n            AllowOverride All\n            Require all granted\n        </Directory>\n    </VirtualHost>\n</IfModule>' > /etc/apache2/sites-available/default-ssl.conf && \
+    a2ensite default-ssl
+
+# Expose ports
+EXPOSE 8080 8443
 
 # Configure PHP
 RUN { \
@@ -64,36 +80,31 @@ RUN { \
     echo 'session.use_strict_mode = 1'; \
 } > /usr/local/etc/php/conf.d/uploads.ini
 
-# Create required directories before copying files
+# Create required directories and set proper permissions before copying files
 RUN mkdir -p ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads && \
-    chown -R www-data:www-data ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
+    mkdir -p ${APACHE_DOCUMENT_ROOT}/uploads/{events,logos,medias,players,profiles} && \
+    mkdir -p /var/log/apache2 && \
+    touch /var/log/apache2/error.log && \
+    touch /var/log/apache2/access.log && \
+    chown -R www-data:www-data ${APACHE_DOCUMENT_ROOT} /var/log/apache2
 
 # Set working directory
 WORKDIR ${APACHE_DOCUMENT_ROOT}
 
-# Copy application files
+# Copy application files with correct ownership
 COPY --chown=www-data:www-data . .
 
-# Set proper permissions
-RUN chown -R www-data:www-data ${APACHE_DOCUMENT_ROOT} && \
-    find ${APACHE_DOCUMENT_ROOT} -type d -exec chmod 755 {} \; && \
+# Set directory and file permissions
+RUN find ${APACHE_DOCUMENT_ROOT} -type d -exec chmod 755 {} \; && \
     find ${APACHE_DOCUMENT_ROOT} -type f -exec chmod 644 {} \; && \
     chmod -R 777 ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
-
-# Create upload subdirectories
-RUN mkdir -p ${APACHE_DOCUMENT_ROOT}/uploads/{events,logos,medias,players,profiles} && \
-    chown -R www-data:www-data ${APACHE_DOCUMENT_ROOT}/uploads && \
-    mkdir -p /var/log/apache2 && \
-    touch /var/log/apache2/error.log && \
-    touch /var/log/apache2/access.log && \
-    chown -R www-data:www-data /var/log/apache2
 
 # Copy and set execute permission for entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Expose port 80 for HTTP and 443 for HTTPS
-EXPOSE 80 443
+# Expose port 80 for HTTP
+EXPOSE 80
 
 # Use the entrypoint script
 ENTRYPOINT ["docker-entrypoint.sh"]

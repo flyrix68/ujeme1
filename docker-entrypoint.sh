@@ -1,8 +1,39 @@
 #!/bin/bash
 set -e
 
-# Enable debugging
-set -x
+# Log important startup information
+echo "===== STARTING CONTAINER ====="
+echo "Environment: ${RAILWAY_ENVIRONMENT:-Not Railway}"
+echo "Using PORT: ${PORT:-80}"
+date
+
+# Set proper permissions
+echo "Setting file permissions..."
+chown -R www-data:www-data ${APACHE_DOCUMENT_ROOT}
+find ${APACHE_DOCUMENT_ROOT} -type d -exec chmod 755 {} \;
+find ${APACHE_DOCUMENT_ROOT} -type f -exec chmod 644 {} \;
+chmod -R 777 ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
+
+# Ensure required directories exist
+mkdir -p ${APACHE_DOCUMENT_ROOT}/logs
+chown -R www-data:www-data ${APACHE_DOCUMENT_ROOT}/logs
+chmod -R 755 ${APACHE_DOCUMENT_ROOT}/logs
+
+# Create upload directories if they don't exist
+mkdir -p ${APACHE_DOCUMENT_ROOT}/uploads/{events,logos,medias,players,profiles}
+chown -R www-data:www-data ${APACHE_DOCUMENT_ROOT}/uploads
+
+# Configure Apache
+echo 'ServerName localhost' >> /etc/apache2/apache2.conf
+
+# Enable required modules
+a2enmod rewrite headers ssl
+
+# Configure PHP to log errors
+echo 'error_log = /var/log/php_errors.log' > /usr/local/etc/php/conf.d/error-logging.ini
+
+# Start Apache in the foreground
+echo "Starting Apache..."
 
 # Log all commands for debugging
 exec > >(tee -a /var/log/startup.log) 2>&1
@@ -82,7 +113,8 @@ a2ensite default-ssl
 
 # Configure PHP to log errors
 echo "Configuring PHP error logging..."
-cat > /etc/php/8.2/apache2/conf.d/99-custom.ini << 'EOL'
+mkdir -p /usr/local/etc/php/conf.d
+cat > /usr/local/etc/php/conf.d/99-custom.ini << 'EOL'
 error_reporting = E_ALL
 display_errors = Off
 display_startup_errors = Off
