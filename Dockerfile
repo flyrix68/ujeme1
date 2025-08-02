@@ -42,8 +42,8 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*; \
     a2enmod rewrite headers
 
-    # Copy custom Apache configuration
-    COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
+# Copy custom Apache configuration
+COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
 
 # Configure Apache and SSL
 RUN echo 'ServerName localhost' >> /etc/apache2/apache2.conf && \
