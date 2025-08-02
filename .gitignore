@@ -10,6 +10,7 @@ composer.lock
 # Logs
 /logs/*
 *.log
+storage/logs/*.log
 
 # IDE specific files
 .idea/
@@ -29,6 +30,28 @@ Thumbs.db
 # Cache and temporary files
 /tmp/
 /cache/
+/storage/framework/views/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/bootstrap/cache/*
 
 # Uploads directory
 /uploads/
+
+# Render specific
+.render/
+
+# Local configuration
+config/database.php
+
+# Build artifacts
+public/build/
+public/hot
+public/storage
+
+# Testing
+/coverage
+.phpunit.result.cache
+
+# Debug
+.php_cs.cache

@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: ujem-app
+    env: php
+    buildCommand: "chmod +x build.sh && ./build.sh"
+    startCommand: "php -S 0.0.0.0:\$PORT -t public"
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: ujem-db
+          property: hostname
+      - key: DB_PORT
+        fromDatabase:
+          name: ujem-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: ujem-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: ujem-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ujem-db
+          property: password

@@ -27,12 +27,14 @@ RUN set -eux; \
         libjpeg-dev \
         libfreetype6-dev \
         libwebp-dev \
-        libjpeg62-turbo-dev; \
+        libjpeg62-turbo-dev \
+        libpq-dev; \
     docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp; \
     docker-php-ext-install -j$(nproc) \
         intl \
         mbstring \
-        pdo_mysql \
+        pdo_pgsql \
+        pgsql \
         zip \
         gd \
         opcache; \
