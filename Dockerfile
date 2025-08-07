@@ -95,11 +95,19 @@ RUN a2enmod rewrite headers ssl && \
     a2dissite 000-default && \
     a2ensite 000-default.conf
 
-# Copy .env.example to .env (will be overridden by Render's environment variables)
-RUN cp /var/www/html/.env.example /var/www/html/.env
-
-# Generate a random application key
-RUN sed -i "s|APP_KEY=your_application_key|APP_KEY=base64:$(openssl rand -base64 32)|" /var/www/html/.env
+# Create a basic .env file with required settings
+RUN { \
+    echo 'APP_ENV=production'; \
+    echo 'APP_DEBUG=false'; \
+    echo 'APP_KEY=base64:'$(openssl rand -base64 32); \
+    echo 'APP_URL=http://localhost'; \
+    echo 'DB_CONNECTION=mysql'; \
+    echo 'DB_HOST=localhost'; \
+    echo 'DB_PORT=3306'; \
+    echo 'DB_DATABASE=laravel'; \
+    echo 'DB_USERNAME=root'; \
+    echo 'DB_PASSWORD='; \
+} > /var/www/html/.env
 
 # Copy and configure entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/
