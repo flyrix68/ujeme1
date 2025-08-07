@@ -6,14 +6,25 @@ PORT=${PORT:-10000}
 
 echo "===== STARTING CONTAINER ====="
 
-# Disable any default SSL configuration
-a2dismod ssl
+# Completely remove default SSL configuration
+if [ -f /etc/apache2/sites-enabled/default-ssl.conf ]; then
+    rm /etc/apache2/sites-enabled/default-ssl.conf
+fi
+if [ -f /etc/apache2/sites-available/default-ssl.conf ]; then
+    rm /etc/apache2/sites-available/default-ssl.conf
+fi
+
+# Disable SSL module
+a2dismod -f ssl
 
 # Disable default sites
-a2dissite 000-default default-ssl 2>/dev/null || true
+a2dissite -f 000-default default-ssl 2>/dev/null || true
 
 # Enable necessary Apache modules
 a2enmod rewrite headers
+
+# Remove any Listen directives for port 443
+sed -i '/Listen 443/d' /etc/apache2/ports.conf
 
 # Update Apache configuration to use the specified port
 echo "Configuring Apache to use port ${PORT}..."
@@ -36,4 +47,5 @@ echo "Starting Apache on port ${PORT}..."
 echo "Environment:"
 printenv | sort
 
-exec apache2-foreground
+# Start Apache in the foreground
+exec apache2-foreground -DNO_DETACH
