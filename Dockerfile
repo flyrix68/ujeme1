@@ -34,21 +34,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gd \
     && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /etc/apache2/conf-enabled/ \
-    && rm -rf /etc/apache2/mods-enabled/ \
-    && rm -rf /etc/apache2/sites-enabled/
+    && rm -rf /var/lib/apt/lists/*
+
+# Create necessary directories first
+RUN mkdir -p ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
+    && mkdir -p /etc/apache2/conf-available /etc/apache2/conf-enabled \
+    && mkdir -p /etc/apache2/mods-available /etc/apache2/mods-enabled \
+    && mkdir -p /etc/apache2/sites-available /etc/apache2/sites-enabled \
+    && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR}
 
 # Configure Apache with minimal configuration
 RUN a2enmod rewrite headers \
-    && mkdir -p ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
-    && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
     && echo "ServerName localhost" > /etc/apache2/apache2.conf \
     && echo "Listen 80" > /etc/apache2/ports.conf \
     && echo "Mutex file:${APACHE_LOCK_DIR} default" > /etc/apache2/conf-available/mutex.conf \
     && echo "PidFile ${APACHE_PID_FILE}" >> /etc/apache2/apache2.conf \
     && echo "ErrorLog ${APACHE_LOG_DIR}/error.log" >> /etc/apache2/apache2.conf \
-    && echo "CustomLog ${APACHE_LOG_DIR}/access.log combined" >> /etc/apache2/apache2.conf
+    && echo "CustomLog ${APACHE_LOG_DIR}/access.log combined" >> /etc/apache2/apache2.conf \
+    && a2enconf mutex \
+    && ln -sf /dev/stdout ${APACHE_LOG_DIR}/access.log \
+    && ln -sf /dev/stderr ${APACHE_LOG_DIR}/error.log
 
 # Copy custom Apache configuration
 COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
