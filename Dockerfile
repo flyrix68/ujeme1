@@ -10,7 +10,7 @@ ENV APACHE_RUN_DIR=/var/run/apache2
 ENV APACHE_LOCK_DIR=/var/lock/apache2
 ENV APACHE_PID_FILE=/var/run/apache2/apache2.pid
 
-# Install system dependencies
+# Install system dependencies (without SSL)
 RUN apt-get update && apt-get install -y \
     libicu-dev \
     libonig-dev \
@@ -36,10 +36,15 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure Apache
-RUN a2enmod rewrite headers ssl \
+# Configure Apache (without SSL)
+RUN a2dismod -f ssl \
+    && a2enmod rewrite headers \
     && mkdir -p ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
-    && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR}
+    && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
+    && rm -f /etc/apache2/sites-enabled/default-ssl.conf \
+    && rm -f /etc/apache2/sites-available/default-ssl.conf \
+    && sed -i '/Listen 443/d' /etc/apache2/ports.conf \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 # Copy custom Apache configuration
 COPY apache-config.conf /etc/apache2/sites-available/000-default.conf

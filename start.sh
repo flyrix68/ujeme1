@@ -6,29 +6,27 @@ PORT=${PORT:-10000}
 
 echo "===== STARTING CONTAINER ====="
 
-# Completely remove default SSL configuration
-if [ -f /etc/apache2/sites-enabled/default-ssl.conf ]; then
-    rm /etc/apache2/sites-enabled/default-ssl.conf
-fi
-if [ -f /etc/apache2/sites-available/default-ssl.conf ]; then
-    rm /etc/apache2/sites-available/default-ssl.conf
-fi
+echo "Configuring Apache to use port ${PORT}..."
 
-# Disable SSL module
-a2dismod -f ssl
+# Update Apache configuration to use the specified port
+cat > /etc/apache2/ports.conf <<EOL
+Listen ${PORT}
+<IfModule ssl_module>
+    Listen 443
+</IfModule>
+<IfModule mod_gnutls.c>
+    Listen 443
+</IfModule>
+EOL
+
+# Disable SSL module if it exists
+a2dismod -f ssl 2>/dev/null || true
+
+# Enable necessary modules
+a2enmod rewrite headers
 
 # Disable default sites
 a2dissite -f 000-default default-ssl 2>/dev/null || true
-
-# Enable necessary Apache modules
-a2enmod rewrite headers
-
-# Remove any Listen directives for port 443
-sed -i '/Listen 443/d' /etc/apache2/ports.conf
-
-# Update Apache configuration to use the specified port
-echo "Configuring Apache to use port ${PORT}..."
-sed -i "s/Listen 80/Listen ${PORT}/g" /etc/apache2/ports.conf
 
 # Ensure proper permissions
 echo "Setting file permissions..."
