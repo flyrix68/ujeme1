@@ -10,8 +10,8 @@ ENV APACHE_RUN_DIR=/var/run/apache2
 ENV APACHE_LOCK_DIR=/var/lock/apache2
 ENV APACHE_PID_FILE=/var/run/apache2/apache2.pid
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies (minimal set without SSL)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libicu-dev \
     libonig-dev \
     libzip-dev \
@@ -32,20 +32,23 @@ RUN apt-get update && apt-get install -y \
         pgsql \
         zip \
         gd \
-        opcache \
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /etc/apache2/conf-enabled/ \
+    && rm -rf /etc/apache2/mods-enabled/ \
+    && rm -rf /etc/apache2/sites-enabled/
 
 # Configure Apache with minimal configuration
-RUN a2dismod -f ssl \
-    && find /etc/apache2/mods-available -name "*ssl*" -delete \
-    && find /etc/apache2/conf-available -name "*ssl*" -delete \
-    && find /etc/apache2/sites-available -name "*ssl*" -delete \
-    && a2enmod rewrite headers \
+RUN a2enmod rewrite headers \
     && mkdir -p ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
     && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
-    && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
-    && echo "Listen 80" > /etc/apache2/ports.conf
+    && echo "ServerName localhost" > /etc/apache2/apache2.conf \
+    && echo "Listen 80" > /etc/apache2/ports.conf \
+    && echo "Mutex file:${APACHE_LOCK_DIR} default" > /etc/apache2/conf-available/mutex.conf \
+    && echo "PidFile ${APACHE_PID_FILE}" >> /etc/apache2/apache2.conf \
+    && echo "ErrorLog ${APACHE_LOG_DIR}/error.log" >> /etc/apache2/apache2.conf \
+    && echo "CustomLog ${APACHE_LOG_DIR}/access.log combined" >> /etc/apache2/apache2.conf
 
 # Copy custom Apache configuration
 COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
