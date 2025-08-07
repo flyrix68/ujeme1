@@ -38,6 +38,10 @@ RUN apt-get update && apt-get install -y \
 
 # Configure Apache
 RUN a2dismod -f ssl \
+    && rm -f /etc/apache2/mods-enabled/ssl.load \
+    && rm -f /etc/apache2/mods-enabled/ssl.conf \
+    && rm -f /etc/apache2/sites-enabled/default-ssl.conf \
+    && rm -f /etc/apache2/sites-available/default-ssl.conf \
     && a2enmod rewrite headers \
     && mkdir -p ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
     && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
