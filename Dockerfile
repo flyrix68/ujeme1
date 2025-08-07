@@ -80,13 +80,20 @@ RUN mkdir -p ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads && \
 WORKDIR ${APACHE_DOCUMENT_ROOT}
 COPY --chown=www-data:www-data . .
 
-# Set permissions and configure Apache
+# Create necessary directories if they don't exist
+RUN mkdir -p ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
+
+# Set permissions
 RUN find ${APACHE_DOCUMENT_ROOT} -type d -exec chmod 755 {} \; && \
-    find ${APACHE_DOCUMENT_ROOT} -type f -exec chmod 644 {} \; && \
-    chmod -R 777 ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads && \
-    a2enmod rewrite && \
+    find ${APACHE_DOCUMENT_ROOT} -type f -exec chmod 644 {} \;
+
+# Set special permissions for logs and uploads
+RUN chmod -R 777 ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
+
+# Configure Apache
+RUN a2enmod rewrite headers ssl && \
     a2dissite 000-default && \
-    a2ensite apache-config
+    a2ensite 000-default.conf
 
 # Copy and configure entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/
