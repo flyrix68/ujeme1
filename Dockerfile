@@ -95,6 +95,13 @@ RUN a2enmod rewrite headers ssl && \
     a2dissite 000-default && \
     a2ensite 000-default.conf
 
+# Create .env from example if it doesn't exist
+RUN if [ ! -f /var/www/html/.env ]; then \
+        cp /var/www/html/.env.example /var/www/html/.env && \
+        # Generate a random application key
+        php -r "file_put_contents('/var/www/html/.env', str_replace('APP_KEY=your_application_key', 'APP_KEY=' . base64_encode(random_bytes(32)), file_get_contents('/var/www/html/.env')));" \
+    ;fi
+
 # Copy and configure entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
