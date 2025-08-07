@@ -36,21 +36,16 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure Apache
+# Configure Apache with minimal configuration
 RUN a2dismod -f ssl \
-    && rm -f /etc/apache2/mods-enabled/ssl.load \
-    && rm -f /etc/apache2/mods-enabled/ssl.conf \
-    && rm -f /etc/apache2/sites-enabled/default-ssl.conf \
-    && rm -f /etc/apache2/sites-available/default-ssl.conf \
+    && find /etc/apache2/mods-available -name "*ssl*" -delete \
+    && find /etc/apache2/conf-available -name "*ssl*" -delete \
+    && find /etc/apache2/sites-available -name "*ssl*" -delete \
     && a2enmod rewrite headers \
     && mkdir -p ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
     && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
-    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
-
-# Configure ports to only listen on port 80 (Render will handle HTTPS)
-RUN echo "Listen 80" > /etc/apache2/ports.conf \
-    && echo "<IfModule ssl_module>\n    Listen 443\n</IfModule>" >> /etc/apache2/ports.conf \
-    && echo "<IfModule mod_gnutls.c>\n    Listen 443\n</IfModule>" >> /etc/apache2/ports.conf
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
+    && echo "Listen 80" > /etc/apache2/ports.conf
 
 # Copy custom Apache configuration
 COPY apache-config.conf /etc/apache2/sites-available/000-default.conf

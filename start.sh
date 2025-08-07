@@ -5,28 +5,17 @@ set -e
 PORT=${PORT:-10000}
 
 echo "===== STARTING CONTAINER ====="
-
 echo "Configuring Apache to use port ${PORT}..."
 
-# Update Apache configuration to use the specified port
-cat > /etc/apache2/ports.conf <<EOL
-Listen ${PORT}
-<IfModule ssl_module>
-    Listen 443
-</IfModule>
-<IfModule mod_gnutls.c>
-    Listen 443
-</IfModule>
-EOL
+# Ensure we have a clean configuration
+rm -f /etc/apache2/ports.conf
+rm -f /etc/apache2/sites-enabled/*.conf
 
-# Disable SSL module if it exists
-a2dismod -f ssl 2>/dev/null || true
+# Create minimal ports configuration
+echo "Listen ${PORT}" > /etc/apache2/ports.conf
 
-# Enable necessary modules
+# Enable only necessary modules
 a2enmod rewrite headers
-
-# Disable default sites
-a2dissite -f 000-default default-ssl 2>/dev/null || true
 
 # Ensure proper permissions
 echo "Setting file permissions..."
@@ -45,5 +34,4 @@ echo "Starting Apache on port ${PORT}..."
 echo "Environment:"
 printenv | sort
 
-# Start Apache in the foreground
 exec apache2-foreground -DNO_DETACH
