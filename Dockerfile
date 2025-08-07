@@ -10,7 +10,7 @@ ENV APACHE_RUN_DIR=/var/run/apache2
 ENV APACHE_LOCK_DIR=/var/lock/apache2
 ENV APACHE_PID_FILE=/var/run/apache2/apache2.pid
 
-# Install system dependencies (without SSL)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     libicu-dev \
     libonig-dev \
@@ -36,29 +36,23 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure Apache (without SSL)
+# Configure Apache
 RUN a2dismod -f ssl \
     && a2enmod rewrite headers \
     && mkdir -p ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
     && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
-    && rm -f /etc/apache2/sites-enabled/default-ssl.conf \
-    && rm -f /etc/apache2/sites-available/default-ssl.conf \
-    && sed -i '/Listen 443/d' /etc/apache2/ports.conf \
     && echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
+# Configure ports to only listen on port 80 (Render will handle HTTPS)
+RUN echo "Listen 80" > /etc/apache2/ports.conf \
+    && echo "<IfModule ssl_module>\n    Listen 443\n</IfModule>" >> /etc/apache2/ports.conf \
+    && echo "<IfModule mod_gnutls.c>\n    Listen 443\n</IfModule>" >> /etc/apache2/ports.conf
 
 # Copy custom Apache configuration
 COPY apache-config.conf /etc/apache2/sites-available/000-default.conf
 
-# Configure SSL
-RUN mkdir -p /etc/ssl/certs /etc/ssl/private && \
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout /etc/ssl/private/ssl-cert-snakeoil.key \
-        -out /etc/ssl/certs/ssl-cert-snakeoil.pem \
-        -subj "/C=US/ST=State/L=City/O=Company/CN=localhost" && \
-    chmod 600 /etc/ssl/private/ssl-cert-snakeoil.key && \
-    chmod 644 /etc/ssl/certs/ssl-cert-snakeoil.pem && \
-    a2ensite 000-default && \
-    a2ensite default-ssl
+# Enable the default site
+RUN a2ensite 000-default
 
 # Configure PHP
 RUN { \
