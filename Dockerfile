@@ -61,7 +61,8 @@ RUN a2enmod mpm_prefork rewrite headers \
 
 
 # Configure Apache with MPM prefork (default for PHP)
-RUN a2dismod mpm_event mpm_worker \
+RUN a2dismod mpm_event mpm_worker ssl \
+    && a2dissite default-ssl.conf \
     && a2enmod mpm_prefork rewrite headers \
     && echo "ServerName localhost" > /etc/apache2/apache2.conf \
     && echo "IncludeOptional mods-enabled/*.load" >> /etc/apache2/apache2.conf \
