@@ -10,7 +10,7 @@ ENV APACHE_RUN_DIR=/var/run/apache2
 ENV APACHE_LOCK_DIR=/var/lock/apache2
 ENV APACHE_PID_FILE=/var/run/apache2/apache2.pid
 
-# Install system dependencies (minimal set without SSL)
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libicu-dev \
     libonig-dev \
@@ -36,58 +36,43 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create necessary directories first
+# Create necessary directories
 RUN mkdir -p ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
-    && mkdir -p /etc/apache2/conf-available /etc/apache2/conf-enabled \
-    && mkdir -p /etc/apache2/mods-available /etc/apache2/mods-enabled \
-    && mkdir -p /etc/apache2/sites-available /etc/apache2/sites-enabled \
     && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR}
 
-# Configure Apache with proper MPM module
-RUN a2enmod mpm_prefork rewrite headers \
-    && echo "IncludeOptional mods-enabled/*.load" >> /etc/apache2/apache2.conf \
-    && echo "IncludeOptional mods-enabled/*.conf" >> /etc/apache2/apache2.conf \
-    && echo "IncludeOptional conf-enabled/*.conf" >> /etc/apache2/apache2.conf \
-    && echo "IncludeOptional sites-enabled/*.conf" >> /etc/apache2/apache2.conf \
-    && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
-    && echo "Listen 80" > /etc/apache2/ports.conf \
-    && echo "Mutex file:${APACHE_LOCK_DIR} default" > /etc/apache2/conf-available/mutex.conf \
-    && echo "PidFile ${APACHE_PID_FILE}" >> /etc/apache2/apache2.conf \
-    && echo "ErrorLog ${APACHE_LOG_DIR}/error.log" >> /etc/apache2/apache2.conf \
-    && echo "CustomLog ${APACHE_LOG_DIR}/access.log combined" >> /etc/apache2/apache2.conf \
-    && a2enconf mutex \
-    && ln -sf /dev/stdout ${APACHE_LOG_DIR}/access.log \
-    && ln -sf /dev/stderr ${APACHE_LOG_DIR}/error.log
-
-
-# Completely disable SSL and related configurations
-# Désactiver complètement SSL et nettoyer la configuration
+# Configure Apache with proper MPM module and disable SSL completely
 RUN set -e \
-    # Désactiver les modules inutiles
+    # Disable unwanted modules
     && a2dismod -f mpm_event mpm_worker ssl 2>/dev/null || true \
-    # Supprimer les configurations SSL
-    && rm -f /etc/apache2/mods-enabled/ssl.load 2>/dev/null || true \
-    && rm -f /etc/apache2/mods-enabled/ssl.conf 2>/dev/null || true \
-    && rm -f /etc/apache2/conf-enabled/ssl-params.conf 2>/dev/null || true \
+    # Remove any existing SSL configurations
+    && rm -f /etc/apache2/mods-enabled/ssl.* 2>/dev/null || true \
+    && rm -f /etc/apache2/conf-enabled/ssl-* 2>/dev/null || true \
     && rm -f /etc/apache2/sites-enabled/default-ssl.conf 2>/dev/null || true \
-    # Créer un module ssl factice pour éviter les erreurs
-    && mkdir -p /etc/apache2/mods-available/ \
-    && echo "# Module SSL désactivé" > /etc/apache2/mods-available/ssl.load \
-    && echo "# Module SSL désactivé" > /etc/apache2/mods-available/ssl.conf \
-    # Activer les modules nécessaires
+    # Create a dummy SSL module to prevent auto-enabling
+    && echo "# SSL module disabled" > /etc/apache2/mods-available/ssl.load \
+    && echo "# SSL module disabled" > /etc/apache2/mods-available/ssl.conf \
+    # Enable required modules
     && a2enmod mpm_prefork rewrite headers \
-    && a2enmod mpm_prefork rewrite headers \
+    # Configure Apache
     && echo "ServerName localhost" > /etc/apache2/apache2.conf \
     && echo "IncludeOptional mods-enabled/*.load" >> /etc/apache2/apache2.conf \
     && echo "IncludeOptional mods-enabled/*.conf" >> /etc/apache2/apache2.conf \
     && echo "IncludeOptional conf-enabled/*.conf" >> /etc/apache2/apache2.conf \
     && echo "IncludeOptional sites-enabled/*.conf" >> /etc/apache2/apache2.conf \
-    && echo "<IfModule mpm_prefork_module>\n    StartServers            2\n    MinSpareServers         5\n    MaxSpareServers        10\n    MaxRequestWorkers      150\n    MaxConnectionsPerChild   0\n</IfModule>" >> /etc/apache2/apache2.conf \
+    && echo "<IfModule mpm_prefork_module>" >> /etc/apache2/apache2.conf \
+    && echo "    StartServers            2" >> /etc/apache2/apache2.conf \
+    && echo "    MinSpareServers         5" >> /etc/apache2/apache2.conf \
+    && echo "    MaxSpareServers        10" >> /etc/apache2/apache2.conf \
+    && echo "    MaxRequestWorkers      150" >> /etc/apache2/apache2.conf \
+    && echo "    MaxConnectionsPerChild   0" >> /etc/apache2/apache2.conf \
+    && echo "</IfModule>" >> /etc/apache2/apache2.conf \
+    # Configure ports and logging
     && echo "Listen 80" > /etc/apache2/ports.conf \
     && echo "Mutex file:${APACHE_LOCK_DIR} default" > /etc/apache2/conf-available/mutex.conf \
     && echo "PidFile ${APACHE_PID_FILE}" >> /etc/apache2/apache2.conf \
     && echo "ErrorLog ${APACHE_LOG_DIR}/error.log" >> /etc/apache2/apache2.conf \
     && echo "CustomLog ${APACHE_LOG_DIR}/access.log combined" >> /etc/apache2/apache2.conf \
+    # Enable configurations and set up logging
     && a2enconf mutex \
     && ln -sf /dev/stdout ${APACHE_LOG_DIR}/access.log \
     && ln -sf /dev/stderr ${APACHE_LOG_DIR}/error.log
@@ -108,60 +93,26 @@ RUN { \
     echo 'date.timezone = UTC'; \
     echo 'session.save_path = "/tmp"'; \
     echo 'session.cookie_httponly = 1'; \
-    echo 'session.cookie_secure = 1'; \
+    echo 'session.cookie_secure = 0'; \
     echo 'session.use_strict_mode = 1'; \
 } > /usr/local/etc/php/conf.d/uploads.ini
 
 # Create directories and set permissions
-RUN mkdir -p ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads && \
-    mkdir -p ${APACHE_DOCUMENT_ROOT}/uploads/{events,logos,medias,players,profiles} && \
-    mkdir -p /var/log/apache2 && \
-    touch /var/log/apache2/{error,access}.log && \
-    chown -R www-data:www-data ${APACHE_DOCUMENT_ROOT} /var/log/apache2
+RUN mkdir -p ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads \
+    && mkdir -p ${APACHE_DOCUMENT_ROOT}/uploads/{events,logos,medias,players,profiles} \
+    && touch /var/log/apache2/{error,access}.log \
+    && chown -R www-data:www-data ${APACHE_DOCUMENT_ROOT} /var/log/apache2
 
 # Set working directory and copy files
 WORKDIR ${APACHE_DOCUMENT_ROOT}
 COPY --chown=www-data:www-data . .
 
-# Create necessary directories if they don't exist
-RUN mkdir -p ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
-
 # Set permissions
-RUN find ${APACHE_DOCUMENT_ROOT} -type d -exec chmod 755 {} \; && \
-    find ${APACHE_DOCUMENT_ROOT} -type f -exec chmod 644 {} \;
+RUN find ${APACHE_DOCUMENT_ROOT} -type d -exec chmod 755 {} \; \
+    && find ${APACHE_DOCUMENT_ROOT} -type f -exec chmod 644 {} \; \
+    && chmod -R 777 ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
 
-# Set special permissions for logs and uploads
-RUN chmod -R 777 ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
-
-# Configure Apache
-RUN set -e \
-    # Désactiver les sites par défaut inutiles
-    && a2dissite -f 000-default default-ssl 2> /dev/null || true \
-    # Activer la configuration du site
-    && a2ensite 000-default.conf \
-    # Vérifier que le module SSL n'est pas chargé
-    && if ls /etc/apache2/mods-enabled/ssl.* 1> /dev/null 2>&1; then \
-         echo "ERREUR: Le module SSL est toujours activé!" >&2; \
-         ls -la /etc/apache2/mods-enabled/ \
-         exit 1; \
-       fi \
-    # Vérifier qu'aucun module ne charge SSL
-    && if grep -r 'ssl_module' /etc/apache2/mods-enabled/ 2>/dev/null; then \
-         echo "ERREUR: Un module charge toujours SSL!" >&2; \
-         exit 1; \
-       fi \
-    # Vérifier que le port 443 n'est pas écouté
-    && if grep -r 'Listen 443' /etc/apache2/ 2>/dev/null; then \
-         echo "ERREUR: Le port 443 est toujours configuré!" >&2; \
-         exit 1; \
-       fi \
-    # Nettoyer les fichiers de verrouillage et les fichiers temporaires
-    && rm -f /var/run/apache2/apache2.pid 2>/dev/null || true \
-    && rm -f /var/run/apache2/.sock 2>/dev/null || true \
-    # Vérifier la configuration Apache
-    && apache2ctl configtest
-
-# Create a basic .env file with required settings
+# Create basic .env file
 RUN { \
     echo 'APP_ENV=production'; \
     echo 'APP_DEBUG=false'; \
@@ -175,11 +126,27 @@ RUN { \
     echo 'DB_PASSWORD='; \
 } > /var/www/html/.env
 
-# Copy and configure entrypoint
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh 
+# Final cleanup and verification
+RUN set -e \
+    # Ensure SSL is disabled and not loaded
+    && a2dismod -f ssl 2>/dev/null || true \
+    # Remove any remaining SSL configurations
+    && find /etc/apache2 -name "*ssl*" -type f -delete 2>/dev/null || true \
+    # Disable default SSL site if it exists
+    && a2dissite -f default-ssl 2>/dev/null || true \
+    # Clean up any lock files
+    && rm -f /var/run/apache2/apache2.pid 2>/dev/null || true \
+    && rm -f /var/run/apache2/.sock 2>/dev/null || true
 
-EXPOSE 80 443 8080 8443
+# Configure entrypoint
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
+
+EXPOSE 80
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["apache2-foreground"]
