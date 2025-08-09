@@ -60,9 +60,10 @@ RUN a2enmod mpm_prefork rewrite headers \
     && ln -sf /dev/stderr ${APACHE_LOG_DIR}/error.log
 
 
-# Configure Apache with MPM prefork (default for PHP)
+# Configure Apache with MPM prefork (default for PHP) and disable SSL
 RUN a2dismod mpm_event mpm_worker ssl \
-    && a2dissite default-ssl.conf \
+    && a2dissite default-ssl 000-default-ssl 2> /dev/null || true \
+    && rm -f /etc/apache2/sites-enabled/default-ssl.conf /etc/apache2/sites-available/default-ssl.conf \
     && a2enmod mpm_prefork rewrite headers \
     && echo "ServerName localhost" > /etc/apache2/apache2.conf \
     && echo "IncludeOptional mods-enabled/*.load" >> /etc/apache2/apache2.conf \
