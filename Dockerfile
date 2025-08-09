@@ -60,14 +60,15 @@ RUN a2enmod mpm_prefork rewrite headers \
     && ln -sf /dev/stderr ${APACHE_LOG_DIR}/error.log
 
 
-# Install and configure MPM event
-RUN apt-get update && apt-get install -y apache2-mpm-event \
-    && a2dismod mpm_prefork mpm_worker \
-    && a2enmod mpm_event \
-    && a2enmod rewrite headers \
+# Configure Apache with MPM prefork (default for PHP)
+RUN a2dismod mpm_event mpm_worker \
+    && a2enmod mpm_prefork rewrite headers \
     && echo "ServerName localhost" > /etc/apache2/apache2.conf \
-    && echo "LoadModule mpm_event_module /usr/lib/apache2/modules/mod_mpm_event.so" >> /etc/apache2/apache2.conf \
-    && echo "<IfModule mpm_event_module>\n    StartServers             2\n    MinSpareThreads         25\n    MaxSpareThreads         75\n    ThreadLimit             64\n    ThreadsPerChild         25\n    MaxRequestWorkers      150\n    MaxConnectionsPerChild   0\n</IfModule>" >> /etc/apache2/apache2.conf \
+    && echo "IncludeOptional mods-enabled/*.load" >> /etc/apache2/apache2.conf \
+    && echo "IncludeOptional mods-enabled/*.conf" >> /etc/apache2/apache2.conf \
+    && echo "IncludeOptional conf-enabled/*.conf" >> /etc/apache2/apache2.conf \
+    && echo "IncludeOptional sites-enabled/*.conf" >> /etc/apache2/apache2.conf \
+    && echo "<IfModule mpm_prefork_module>\n    StartServers            2\n    MinSpareServers         5\n    MaxSpareServers        10\n    MaxRequestWorkers      150\n    MaxConnectionsPerChild   0\n</IfModule>" >> /etc/apache2/apache2.conf \
     && echo "Listen 80" > /etc/apache2/ports.conf \
     && echo "Mutex file:${APACHE_LOCK_DIR} default" > /etc/apache2/conf-available/mutex.conf \
     && echo "PidFile ${APACHE_PID_FILE}" >> /etc/apache2/apache2.conf \
