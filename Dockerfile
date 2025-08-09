@@ -63,7 +63,8 @@ RUN a2enmod mpm_prefork rewrite headers \
 # Configure Apache with MPM prefork (default for PHP) and disable SSL
 RUN a2dismod mpm_event mpm_worker ssl \
     && a2dissite default-ssl 000-default-ssl 2> /dev/null || true \
-    && rm -f /etc/apache2/sites-enabled/default-ssl.conf /etc/apache2/sites-available/default-ssl.conf \
+    && rm -f /etc/apache2/sites-enabled/*ssl* /etc/apache2/sites-available/*ssl* \
+    && rm -f /etc/apache2/conf-enabled/other-vhosts-access-log.conf \
     && a2enmod mpm_prefork rewrite headers \
     && echo "ServerName localhost" > /etc/apache2/apache2.conf \
     && echo "IncludeOptional mods-enabled/*.load" >> /etc/apache2/apache2.conf \
@@ -122,8 +123,8 @@ RUN find ${APACHE_DOCUMENT_ROOT} -type d -exec chmod 755 {} \; && \
 RUN chmod -R 777 ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
 
 # Configure Apache
-RUN a2enmod rewrite headers ssl && \
-    a2dissite 000-default && \
+RUN a2enmod rewrite headers && \
+    a2dissite 000-default 2> /dev/null || true && \
     a2ensite 000-default.conf
 
 # Create a basic .env file with required settings
