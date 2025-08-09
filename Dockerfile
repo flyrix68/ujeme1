@@ -61,18 +61,19 @@ RUN a2enmod mpm_prefork rewrite headers \
 
 
 # Completely disable SSL and related configurations
-# First, clean up any existing SSL configurations
+# Clean up any existing configurations and disable SSL completely
 RUN set -e \
-    && a2dismod -f mpm_event mpm_worker 2> /dev/null || true \
-    && a2dismod -f ssl 2> /dev/null || true \
-    && a2dissite -f default-ssl 000-default-ssl 2> /dev/null || true \
-    && rm -f /etc/apache2/sites-enabled/*ssl* \
-    && rm -f /etc/apache2/sites-available/*ssl* \
-    && rm -f /etc/apache2/conf-enabled/other-vhosts-access-log.conf \
-    && rm -f /etc/apache2/conf-enabled/ssl-params.conf \
-    && rm -f /etc/apache2/conf-available/ssl-params.conf \
-    && rm -f /etc/apache2/mods-enabled/ssl.* 2> /dev/null || true \
-    && rm -f /etc/apache2/mods-available/ssl.* 2> /dev/null || true \
+    # Remove all SSL-related files and configurations
+    && find /etc/apache2 -name '*ssl*' -exec rm -rf {} + 2>/dev/null || true \
+    && rm -rf /etc/apache2/conf-enabled/other-vhosts-access-log.conf \
+    && rm -rf /etc/apache2/conf-enabled/ssl-* \
+    && rm -rf /etc/apache2/conf-available/ssl-* \
+    && rm -rf /etc/apache2/mods-enabled/ssl.* \
+    && rm -rf /etc/apache2/mods-available/ssl.* \
+    && echo "# Disable SSL module" > /etc/apache2/mods-available/ssl.conf \
+    && echo "# Disable SSL module" > /etc/apache2/mods-available/ssl.load \
+    # Disable MPM modules we don't need
+    && a2dismod -f mpm_event mpm_worker 2>/dev/null || true \
     && a2enmod mpm_prefork rewrite headers \
     && echo "ServerName localhost" > /etc/apache2/apache2.conf \
     && echo "IncludeOptional mods-enabled/*.load" >> /etc/apache2/apache2.conf \
@@ -132,10 +133,14 @@ RUN chmod -R 777 ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
 
 # Configure Apache
 RUN set -e \
-    && a2dismod -f ssl 2> /dev/null || true \
+    # Ensure SSL is disabled and not loaded
+    && { ! grep -r 'LoadModule.*ssl' /etc/apache2/ 2>/dev/null || { echo "SSL module still loaded!" && exit 1; } } \
     && a2enmod rewrite headers \
     && a2dissite -f 000-default default-ssl 2> /dev/null || true \
-    && a2ensite 000-default.conf
+    && a2ensite 000-default.conf \
+    # Create a dummy SSL config to prevent loading
+    && echo "# SSL module disabled" > /etc/apache2/mods-available/ssl.conf \
+    && echo "# SSL module disabled" > /etc/apache2/mods-available/ssl.load
 
 # Create a basic .env file with required settings
 RUN { \
