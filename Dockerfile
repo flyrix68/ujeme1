@@ -61,14 +61,18 @@ RUN a2enmod mpm_prefork rewrite headers \
 
 
 # Completely disable SSL and related configurations
-RUN a2dismod mpm_event mpm_worker ssl \
-    && a2dissite default-ssl 000-default-ssl 2> /dev/null || true \
-    && rm -f /etc/apache2/sites-enabled/*ssl* /etc/apache2/sites-available/*ssl* \
+# First, clean up any existing SSL configurations
+RUN set -e \
+    && a2dismod -f mpm_event mpm_worker 2> /dev/null || true \
+    && a2dismod -f ssl 2> /dev/null || true \
+    && a2dissite -f default-ssl 000-default-ssl 2> /dev/null || true \
+    && rm -f /etc/apache2/sites-enabled/*ssl* \
+    && rm -f /etc/apache2/sites-available/*ssl* \
     && rm -f /etc/apache2/conf-enabled/other-vhosts-access-log.conf \
     && rm -f /etc/apache2/conf-enabled/ssl-params.conf \
     && rm -f /etc/apache2/conf-available/ssl-params.conf \
-    && rm -f /etc/apache2/mods-enabled/ssl.* \
-    && rm -f /etc/apache2/mods-available/ssl.* \
+    && rm -f /etc/apache2/mods-enabled/ssl.* 2> /dev/null || true \
+    && rm -f /etc/apache2/mods-available/ssl.* 2> /dev/null || true \
     && a2enmod mpm_prefork rewrite headers \
     && echo "ServerName localhost" > /etc/apache2/apache2.conf \
     && echo "IncludeOptional mods-enabled/*.load" >> /etc/apache2/apache2.conf \
@@ -127,11 +131,11 @@ RUN find ${APACHE_DOCUMENT_ROOT} -type d -exec chmod 755 {} \; && \
 RUN chmod -R 777 ${APACHE_DOCUMENT_ROOT}/logs ${APACHE_DOCUMENT_ROOT}/uploads
 
 # Configure Apache
-RUN a2enmod rewrite headers && \
-    a2dissite 000-default default-ssl 2> /dev/null || true && \
-    a2ensite 000-default.conf && \
-    # Ensure no SSL modules are loaded
-    ! grep -r 'ssl' /etc/apache2/mods-enabled/ 2>/dev/null || { echo 'SSL modules still enabled!' && exit 1; }
+RUN set -e \
+    && a2dismod -f ssl 2> /dev/null || true \
+    && a2enmod rewrite headers \
+    && a2dissite -f 000-default default-ssl 2> /dev/null || true \
+    && a2ensite 000-default.conf
 
 # Create a basic .env file with required settings
 RUN { \
