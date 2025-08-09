@@ -43,9 +43,31 @@ RUN mkdir -p ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
     && mkdir -p /etc/apache2/sites-available /etc/apache2/sites-enabled \
     && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR}
 
-# Configure Apache with minimal configuration
-RUN a2enmod rewrite headers \
+# Configure Apache with proper MPM module
+RUN a2enmod mpm_prefork rewrite headers \
+    && echo "IncludeOptional mods-enabled/*.load" >> /etc/apache2/apache2.conf \
+    && echo "IncludeOptional mods-enabled/*.conf" >> /etc/apache2/apache2.conf \
+    && echo "IncludeOptional conf-enabled/*.conf" >> /etc/apache2/apache2.conf \
+    && echo "IncludeOptional sites-enabled/*.conf" >> /etc/apache2/apache2.conf \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
+    && echo "Listen 80" > /etc/apache2/ports.conf \
+    && echo "Mutex file:${APACHE_LOCK_DIR} default" > /etc/apache2/conf-available/mutex.conf \
+    && echo "PidFile ${APACHE_PID_FILE}" >> /etc/apache2/apache2.conf \
+    && echo "ErrorLog ${APACHE_LOG_DIR}/error.log" >> /etc/apache2/apache2.conf \
+    && echo "CustomLog ${APACHE_LOG_DIR}/access.log combined" >> /etc/apache2/apache2.conf \
+    && a2enconf mutex \
+    && ln -sf /dev/stdout ${APACHE_LOG_DIR}/access.log \
+    && ln -sf /dev/stderr ${APACHE_LOG_DIR}/error.log
+
+
+# Install and configure MPM event
+RUN apt-get update && apt-get install -y apache2-mpm-event \
+    && a2dismod mpm_prefork mpm_worker \
+    && a2enmod mpm_event \
+    && a2enmod rewrite headers \
     && echo "ServerName localhost" > /etc/apache2/apache2.conf \
+    && echo "LoadModule mpm_event_module /usr/lib/apache2/modules/mod_mpm_event.so" >> /etc/apache2/apache2.conf \
+    && echo "<IfModule mpm_event_module>\n    StartServers             2\n    MinSpareThreads         25\n    MaxSpareThreads         75\n    ThreadLimit             64\n    ThreadsPerChild         25\n    MaxRequestWorkers      150\n    MaxConnectionsPerChild   0\n</IfModule>" >> /etc/apache2/apache2.conf \
     && echo "Listen 80" > /etc/apache2/ports.conf \
     && echo "Mutex file:${APACHE_LOCK_DIR} default" > /etc/apache2/conf-available/mutex.conf \
     && echo "PidFile ${APACHE_PID_FILE}" >> /etc/apache2/apache2.conf \
@@ -117,7 +139,7 @@ RUN { \
 
 # Copy and configure entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh 
 
 EXPOSE 80 443 8080 8443
 
