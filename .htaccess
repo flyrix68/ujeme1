@@ -31,7 +31,7 @@ Options -Indexes
 Options +FollowSymLinks
 
 # Définir le fuseau horaire par défaut
-date.timezone = Europe/Paris
+# Configuration du fuseau horaire gérée dans bootstrap.php
 
 # Activer l'affichage des erreurs PHP
 php_flag display_errors on
