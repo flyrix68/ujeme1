@@ -1,0 +1,13 @@
+# Fichiers Docker inutiles pour le déploiement PHP natif
+Dockerfile
+Dockerfile.minimal
+docker-compose.yml
+docker-entrypoint.sh
+start.sh
+
+# Fichiers de développement
+.git
+.gitignore
+.vscode
+.idea
+*.md

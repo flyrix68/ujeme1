@@ -2,8 +2,16 @@ services:
   - type: web
     name: ujem-php
     env: php
-    buildCommand: "composer install --no-dev"
-    startCommand: "php -S 0.0.0.0:10000"
+    envSpecificDetails:
+      phpVersion: "8.1"
+    buildCommand: |
+      # Installer les dépendances
+      composer install --no-dev
+      
+      # Rendre le script de démarrage exécutable
+      chmod +x start-php.sh
+      
+    startCommand: "./start-php.sh"
     envVars:
       - key: APP_ENV
         value: production
