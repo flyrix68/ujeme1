@@ -1,42 +1,35 @@
 services:
   - type: web
-    name: ujem-app
-    env: docker
-    dockerfile: Dockerfile
-    buildCommand: ""
-    startCommand: "/usr/local/bin/start.sh"
-    plan: free
-    numInstances: 1
+    name: ujem-php
+    env: php
+    buildCommand: "composer install --no-dev"
+    startCommand: "php -S 0.0.0.0:10000"
     envVars:
-      - key: PORT
-        value: 10000
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
         value: "false"
       - key: APP_URL
-        value: https://ujem-app.onrender.com
-      - key: LOG_CHANNEL
-        value: stderr
+        value: https://votre-nom-app.onrender.com
       - key: DB_CONNECTION
-        value: pgsql
+        value: mysql
       - key: DB_HOST
         fromDatabase:
           name: ujem-db
-          property: hostname
+          property: connection.host
       - key: DB_PORT
-        fromDatabase:
-          name: ujem-db
-          property: port
+        value: "3306"
       - key: DB_DATABASE
         fromDatabase:
           name: ujem-db
-          property: database
+          property: connection.database
       - key: DB_USERNAME
         fromDatabase:
           name: ujem-db
-          property: user
+          property: connection.username
       - key: DB_PASSWORD
         fromDatabase:
           name: ujem-db
-          property: password
+          property: connection.password
+    plan: free
+    numInstances: 1

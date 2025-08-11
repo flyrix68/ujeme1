@@ -1,0 +1,22 @@
+FROM php:8.2-apache
+
+# Configuration de base d'Apache
+RUN echo 'ServerName localhost' >> /etc/apache2/apache2.conf
+
+# Activation des modules nécessaires
+RUN a2enmod rewrite
+
+# Configuration du répertoire de travail
+WORKDIR /var/www/html
+
+# Copie des fichiers de l'application
+COPY . .
+
+# Configuration des permissions
+RUN chown -R www-data:www-data /var/www/html
+
+# Exposition du port 80
+EXPOSE 80
+
+# Commande de démarrage
+CMD ["apache2-foreground"]

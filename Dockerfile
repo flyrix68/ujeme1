@@ -10,8 +10,32 @@ ENV APACHE_RUN_DIR=/var/run/apache2
 ENV APACHE_LOCK_DIR=/var/lock/apache2
 ENV APACHE_PID_FILE=/var/run/apache2/apache2.pid
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Configure APT with retry and timeout settings
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    echo 'Acquire::http::Timeout "120";' >> /etc/apt/apt.conf.d/80-retries && \
+    echo 'Acquire::https::Timeout "120";' >> /etc/apt/apt.conf.d/80-retries
+
+# Create and configure sources.list with a reliable mirror
+RUN echo 'deb http://deb.debian.org/debian bookworm main contrib non-free' > /etc/apt/sources.list && \
+    echo 'deb http://deb.debian.org/debian bookworm-updates main contrib non-free' >> /etc/apt/sources.list && \
+    echo 'deb http://security.debian.org/debian-security bookworm-security main contrib non-free' >> /etc/apt/sources.list
+
+# Update package lists with retry mechanism
+RUN echo "Updating package lists..." && \
+    for i in 1 2 3; do \
+        if apt-get update; then \
+            echo "Package lists updated successfully"; \
+            break; \
+        else \
+            echo "Attempt $i/3 failed, retrying in 5 seconds..."; \
+            sleep 5; \
+        fi; \
+    done && \
+    echo "Sources list:" && \
+    cat /etc/apt/sources.list
+
+# Install system dependencies (minimal set without SSL)
+RUN apt-get install -y --no-install-recommends \
     libicu-dev \
     libonig-dev \
     libzip-dev \
@@ -23,6 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libwebp-dev \
     libjpeg62-turbo-dev \
     libpq-dev \
+    ca-certificates \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j$(nproc) \
         intl \
@@ -32,13 +57,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pgsql \
         zip \
         gd \
+    # Remove SSL related packages to prevent any SSL module loading
     && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+        openssl \
+        ssl-cert \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Create necessary directories
+# Create necessary directories with proper permissions
 RUN mkdir -p ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
-    && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR}
+    && chown -R www-data:www-data ${APACHE_RUN_DIR} ${APACHE_LOCK_DIR} ${APACHE_LOG_DIR} \
+    && chmod -R 775 ${APACHE_LOG_DIR} \
+    && touch ${APACHE_LOG_DIR}/error.log ${APACHE_LOG_DIR}/access.log \
+    && chown www-data:www-data ${APACHE_LOG_DIR}/*.log
 
 # Configure Apache with proper MPM module and disable SSL completely
 RUN set -e \
@@ -128,15 +159,26 @@ RUN { \
 
 # Final cleanup and verification
 RUN set -e \
-    # Ensure SSL is disabled and not loaded
+    # Create a dummy ssl module to prevent errors
+    && mkdir -p /etc/apache2/mods-available/ \
+    && echo "# Dummy ssl module - intentionally empty" > /etc/apache2/mods-available/ssl.load \
+    && echo "# Dummy ssl config - intentionally empty" > /etc/apache2/mods-available/ssl.conf \
+    # Disable SSL module
     && a2dismod -f ssl 2>/dev/null || true \
     # Remove any remaining SSL configurations
     && find /etc/apache2 -name "*ssl*" -type f -delete 2>/dev/null || true \
+    # Remove any SSL related symlinks
+    && find /etc/apache2/mods-enabled -name "*ssl*" -type l -delete 2>/dev/null || true \
     # Disable default SSL site if it exists
     && a2dissite -f default-ssl 2>/dev/null || true \
     # Clean up any lock files
     && rm -f /var/run/apache2/apache2.pid 2>/dev/null || true \
-    && rm -f /var/run/apache2/.sock 2>/dev/null || true
+    && rm -f /var/run/apache2/.sock 2>/dev/null || true \
+    # Ensure we're only listening on port 80
+    && echo "Listen 80" > /etc/apache2/ports.conf \
+    # Remove any SSL related configurations
+    && find /etc/apache2/conf-available -name "*ssl*" -delete 2>/dev/null || true \
+    && find /etc/apache2/conf-enabled -name "*ssl*" -delete 2>/dev/null || true
 
 # Configure entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/
