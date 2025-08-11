@@ -30,9 +30,4 @@ Options -Indexes
 # Activer le suivi des liens symboliques
 Options +FollowSymLinks
 
-# Définir le fuseau horaire par défaut
-# Configuration du fuseau horaire gérée dans bootstrap.php
-
-# Activer l'affichage des erreurs PHP
-php_flag display_errors on
-php_value error_reporting E_ALL
+# La configuration PHP est gérée dans bootstrap.php
