@@ -1,3 +1,7 @@
+<?php
+// Inclure la configuration
+require_once __DIR__ . '/bootstrap.php';
+?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>

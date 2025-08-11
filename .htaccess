@@ -1,18 +1,27 @@
 <IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
     RewriteEngine On
-    
-    # Autoriser l'accès direct aux fichiers et dossiers existants
-    RewriteCond %{REQUEST_FILENAME} !-f
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
-    
-    # Réécrire l'URL pour le dossier admin
-    RewriteRule ^admin/(.*)$ /ujem/admin/$1 [L,NC]
-    
-    # Réécrire l'URL pour l'API
-    RewriteRule ^api/(.*)$ /ujem/admin/api/$1 [L,NC]
-    
-    # Rediriger vers le fichier index.php si le fichier n'existe pas
-    RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Send Requests To Front Controller...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+
+    # Règles personnalisées pour l'admin et l'API
+    RewriteRule ^admin/(.*)$ admin/$1 [L,NC]
+    RewriteRule ^api/(.*)$ admin/api/$1 [L,NC]
 </IfModule>
 
 # Désactiver l'accès aux répertoires

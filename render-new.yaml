@@ -2,15 +2,9 @@ services:
   - type: web
     name: ujem-app
     env: php
-    envSpecificDetails:
-      phpVersion: "8.1"
     buildCommand: |
-      # Installer les dépendances
       composer install --no-dev
-      
-      # Rendre le script de démarrage exécutable
       chmod +x start-php.sh
-      
     startCommand: "./start-php.sh"
     envVars:
       - key: APP_ENV
@@ -18,7 +12,7 @@ services:
       - key: APP_DEBUG
         value: "false"
       - key: APP_URL
-        value: https://votre-nom-app.onrender.com
+        value: https://ujem-php-new.onrender.com
       - key: DB_CONNECTION
         value: mysql
       - key: DB_HOST
