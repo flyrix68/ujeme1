@@ -1,6 +1,7 @@
 # Fichiers Docker inutiles pour le déploiement PHP natif
 Dockerfile
 Dockerfile.minimal
+Dockerfile.new
 docker-compose.yml
 docker-entrypoint.sh
 start.sh
